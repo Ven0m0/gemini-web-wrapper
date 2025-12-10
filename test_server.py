@@ -34,9 +34,17 @@ def client() -> Generator[TestClient, None, None]:
     mock_response.text = "Mocked response"
     mock_model.generate.return_value = mock_response
 
+    # Mock Memori instance
+    mock_memori = MagicMock()
+    mock_memori.attribution = MagicMock()
+    mock_memori.set_session = MagicMock()
+    mock_memori.new_session = MagicMock()
+    mock_memori.llm.register = MagicMock()
+
     # Inject into global state
     state.model = mock_model
     state.genkit = MagicMock()
+    state.memori = mock_memori
 
     with TestClient(app) as c:
         yield c
@@ -44,6 +52,7 @@ def client() -> Generator[TestClient, None, None]:
     # Cleanup
     state.model = None
     state.genkit = None
+    state.memori = None
 
 
 def test_health(client: TestClient) -> None:
@@ -195,7 +204,10 @@ def test_chatbot_endpoint_with_history(client: TestClient) -> None:
 
     # Should have: system + history + new message
     assert len(args) == 4
-    assert args[0] == {"role": "system", "content": "You are a helpful assistant"}
+    assert args[0] == {
+        "role": "system",
+        "content": "You are a helpful assistant",
+    }
     assert args[1] == {"role": "user", "content": "Tell me about Python"}
     assert args[2] == {
         "role": "model",
@@ -242,7 +254,7 @@ def test_chatbot_validation_empty_message(client: TestClient) -> None:
 
 def test_chatbot_validation_missing_message(client: TestClient) -> None:
     """Test chatbot endpoint rejects request without message field."""
-    payload = {"history": []}
+    payload: dict[str, list[Any]] = {"history": []}
     response = client.post("/chatbot", json=payload)
     assert response.status_code == 422
 
@@ -260,13 +272,18 @@ def test_chatbot_validation_invalid_role(client: TestClient) -> None:
 def test_chatbot_not_initialized(client: TestClient) -> None:
     """Test chatbot endpoint returns 503 when model not initialized."""
     original_model = state.model
+    original_memori = state.memori
     state.model = None
 
     response = client.post("/chatbot", json={"message": "Hello"})
     assert response.status_code == 503
-    assert "Model not initialized" in response.json()["detail"]
+    assert (
+        "Model or memory not initialized" in response.json()["detail"]
+        or "Model not initialized" in response.json()["detail"]
+    )
 
     state.model = original_model
+    state.memori = original_memori
 
 
 def test_chatbot_stream_endpoint(client: TestClient) -> None:
@@ -308,9 +325,11 @@ def test_chatbot_stream_with_history(client: TestClient) -> None:
 def test_chatbot_stream_not_initialized(client: TestClient) -> None:
     """Test chatbot stream endpoint returns 503 when model not initialized."""
     original_model = state.model
+    original_memori = state.memori
     state.model = None
 
     response = client.post("/chatbot/stream", json={"message": "Hello"})
     assert response.status_code == 503
 
     state.model = original_model
+    state.memori = original_memori
