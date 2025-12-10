@@ -1,4 +1,3 @@
-````markdown
 # gemini-web-wrapper
 
 Lightweight LAN-accessible web UI for the Gemini CLI. Minimal FastAPI backend + static HTML/JS frontend for chat and code-assist.
