@@ -18,6 +18,12 @@ Lightweight FastAPI backend with static HTML/JS frontend providing conversationa
   - `uvloop` for Node.js-level event loop performance
   - Async/await throughout with thread pool offloading for blocking I/O
 
+- **🤖 Genkit-Powered Chatbot**
+  - Conversation history support with stateless server pattern
+  - Streaming responses for real-time interactions
+  - Genkit flows for structured AI operations
+  - Customizable system instructions per conversation
+
 - **🎯 Strict Type Safety**
   - 100% type-annotated with Protocol definitions
   - Mypy strict mode compliance
@@ -116,6 +122,44 @@ Content-Type: application/json
 }
 ```
 
+### Chatbot Endpoint (with History)
+```bash
+POST /chatbot
+Content-Type: application/json
+
+{
+  "message": "What else should I know?",
+  "history": [
+    {"role": "user", "content": "Tell me about Python"},
+    {"role": "model", "content": "Python is a high-level programming language..."}
+  ],
+  "system": "You are a helpful assistant"  // optional
+}
+```
+
+**Response:**
+```json
+{
+  "text": "You should also know that Python has..."
+}
+```
+
+**Note:** This endpoint follows the Genkit chatbot pattern where the client maintains conversation history and sends it with each request (stateless server pattern).
+
+### Chatbot Streaming Endpoint
+```bash
+POST /chatbot/stream
+Content-Type: application/json
+
+{
+  "message": "Tell me a story",
+  "history": [],  // optional
+  "system": "You are a creative storyteller"  // optional
+}
+```
+
+**Response:** Streams the response as `text/plain` for real-time output.
+
 ### Code Assistance
 ```bash
 POST /code
@@ -172,8 +216,10 @@ pytest test_server.py --cov=server --cov-report=html
 **Test Coverage:**
 - ✅ Health check endpoint
 - ✅ Chat with system/user messages
+- ✅ Chatbot with conversation history
+- ✅ Chatbot streaming responses
 - ✅ Code assistance formatting
-- ✅ Input validation (empty strings, missing fields)
+- ✅ Input validation (empty strings, missing fields, invalid roles)
 - ✅ Model initialization errors (503 handling)
 - ✅ Long prompts and special characters
 - ✅ Unicode and XSS-like input handling
@@ -222,12 +268,23 @@ pre-commit run --all-files
 ┌─────────────────────────────────────────────────┐
 │  FastAPI Backend (server.py)                    │
 │  ┌───────────────────────────────────────────┐  │
-│  │ Endpoints: /chat, /code, /health          │  │
+│  │ Endpoints:                                │  │
+│  │ • /chat, /code, /health                   │  │
+│  │ • /chatbot (with history)                 │  │
+│  │ • /chatbot/stream (streaming)             │  │
 │  └─────────────┬─────────────────────────────┘  │
 │                │                                 │
 │  ┌─────────────▼─────────────────────────────┐  │
 │  │ Pydantic Models: Validation               │  │
-│  │ • ChatReq, CodeReq, GenResponse           │  │
+│  │ • ChatReq, ChatbotReq, CodeReq            │  │
+│  │ • ChatMessage, GenResponse                │  │
+│  └─────────────┬─────────────────────────────┘  │
+│                │                                 │
+│  ┌─────────────▼─────────────────────────────┐  │
+│  │ Genkit Flows: Structured AI Operations   │  │
+│  │ • chatbot_flow() with @ai.flow()          │  │
+│  │ • Type-safe inputs/outputs                │  │
+│  │ • Built-in tracing & observability        │  │
 │  └─────────────┬─────────────────────────────┘  │
 │                │                                 │
 │  ┌─────────────▼─────────────────────────────┐  │
@@ -238,8 +295,10 @@ pre-commit run --all-files
                  │
                  ▼
         ┌─────────────────┐
-        │  Genkit Client  │
-        │  + Gemini API   │
+        │  Genkit + GoogleAI Plugin              │
+        │  • Gemini 2.5 Flash Model              │
+        │  • Conversation history management     │
+        │  • Streaming support                   │
         └─────────────────┘
 ```
 
