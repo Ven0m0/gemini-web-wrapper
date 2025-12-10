@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemini Local Frontend</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand">Gemini Local</div>
+      <div class="controls">
+        <input
+          type="text"
+          id="api-url"
+          placeholder="http://localhost:9000"
+          title="API Base URL"
+        />
+        <input
+          type="password"
+          id="api-token"
+          placeholder="API Token (X-API-KEY)"
+          title="API Token"
+        />
+        <button id="save-config">Save Config</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel left">
+        <div class="panel-header">
+          <span>Code Editor</span>
+          <input type="file" id="file-input" style="display: none" />
+          <button id="btn-open-file" title="Open File">📂</button>
+        </div>
+        <textarea
+          id="code-editor"
+          placeholder="Paste code here or drag & drop a file..."
+          spellcheck="false"
+        ></textarea>
+        <div class="panel-actions">
+          <input
+            type="text"
+            id="instruction-input"
+            placeholder="Instruction for code (or leave empty for chat)..."
+          />
+          <button id="btn-send-code" title="Send Code + Instruction">Send Code</button>
+          <button id="btn-clear-code">Clear</button>
+        </div>
+      </section>
+
+      <section class="panel right">
+        <div class="panel-header">
+          <span>Output / Chat</span>
+          <div id="spinner" class="spinner hidden"></div>
+          <div class="output-controls">
+            <button id="btn-copy">Copy</button>
+            <button id="btn-download">Download</button>
+            <button id="btn-clear-output">Clear</button>
+          </div>
+        </div>
+        <div id="output-display" class="output-area"></div>
+        <div class="chat-controls">
+          <textarea
+            id="chat-input"
+            placeholder="Enter chat prompt here..."
+            rows="3"
+          ></textarea>
+          <button id="btn-send-chat">Send Chat</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

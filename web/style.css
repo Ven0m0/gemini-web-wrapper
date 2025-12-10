@@ -1,0 +1,175 @@
+:root {
+  --bg-color: #1e1e1e;
+  --panel-bg: #252526;
+  --text-color: #d4d4d4;
+  --accent: #007acc;
+  --border: #3e3e42;
+  --header-height: 50px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  height: var(--header-height);
+  background-color: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  justify-content: space-between;
+}
+
+.brand {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.controls input {
+  background: #3c3c3c;
+  border: 1px solid var(--border);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+button {
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+button:hover {
+  opacity: 0.9;
+}
+button:disabled {
+  background-color: #555;
+  cursor: wait;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  min-width: 0; /* Prevent flex item overflow */
+}
+
+.left {
+  border-right: 1px solid var(--border);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+textarea {
+  width: 100%;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  border: 1px solid var(--border);
+  padding: 8px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 14px;
+  resize: none;
+  box-sizing: border-box;
+}
+
+#code-editor {
+  flex: 1;
+  margin-bottom: 10px;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+#instruction-input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid var(--border);
+  color: white;
+  padding: 6px;
+}
+
+.output-area {
+  flex: 1;
+  background-color: #1e1e1e;
+  border: 1px solid var(--border);
+  padding: 10px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: "Consolas", monospace;
+  margin-bottom: 10px;
+}
+
+.chat-controls {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+#chat-input {
+  flex: 1;
+  height: 60px;
+}
+#btn-send-chat {
+  height: 60px;
+}
+
+.hidden {
+  display: none;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff3d;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.error-msg {
+  color: #ff6b6b;
+  border-left: 3px solid #ff6b6b;
+  padding-left: 8px;
+  margin: 8px 0;
+}
+.user-msg {
+  color: #85c6ff;
+  margin-top: 10px;
+  font-weight: bold;
+}
+.ai-msg {
+  color: #cecece;
+  margin-bottom: 10px;
+}
