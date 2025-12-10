@@ -169,3 +169,148 @@ def test_special_characters_in_prompt(client: TestClient) -> None:
     mock_model: Any = state.model
     args = mock_model.generate.call_args[0][0]
     assert special_prompt in args[0]["content"]
+
+
+# ----- Chatbot Endpoint Tests -----
+def test_chatbot_endpoint_with_history(client: TestClient) -> None:
+    """Test chatbot endpoint with conversation history."""
+    payload = {
+        "message": "What else?",
+        "history": [
+            {"role": "user", "content": "Tell me about Python"},
+            {"role": "model", "content": "Python is a programming language"},
+        ],
+        "system": "You are a helpful assistant",
+    }
+    response = client.post("/chatbot", json=payload)
+
+    assert response.status_code == 200
+    assert response.json() == {"text": "Mocked response"}
+
+    # Verify model was called with correct message sequence
+    assert state.model is not None
+    mock_model: Any = state.model
+    mock_model.generate.assert_called()
+    args = mock_model.generate.call_args[0][0]
+
+    # Should have: system + history + new message
+    assert len(args) == 4
+    assert args[0] == {"role": "system", "content": "You are a helpful assistant"}
+    assert args[1] == {"role": "user", "content": "Tell me about Python"}
+    assert args[2] == {
+        "role": "model",
+        "content": "Python is a programming language",
+    }
+    assert args[3] == {"role": "user", "content": "What else?"}
+
+
+def test_chatbot_endpoint_without_history(client: TestClient) -> None:
+    """Test chatbot endpoint works without history."""
+    payload = {"message": "Hello!"}
+    response = client.post("/chatbot", json=payload)
+
+    assert response.status_code == 200
+    assert response.json() == {"text": "Mocked response"}
+
+    # Verify only user message is sent
+    assert state.model is not None
+    mock_model: Any = state.model
+    args = mock_model.generate.call_args[0][0]
+    assert len(args) == 1
+    assert args[0] == {"role": "user", "content": "Hello!"}
+
+
+def test_chatbot_endpoint_empty_history(client: TestClient) -> None:
+    """Test chatbot endpoint with explicitly empty history list."""
+    payload = {"message": "Hello!", "history": []}
+    response = client.post("/chatbot", json=payload)
+
+    assert response.status_code == 200
+    assert state.model is not None
+    mock_model: Any = state.model
+    args = mock_model.generate.call_args[0][0]
+    assert len(args) == 1
+    assert args[0] == {"role": "user", "content": "Hello!"}
+
+
+def test_chatbot_validation_empty_message(client: TestClient) -> None:
+    """Test chatbot endpoint rejects empty message."""
+    payload = {"message": ""}
+    response = client.post("/chatbot", json=payload)
+    assert response.status_code == 422
+
+
+def test_chatbot_validation_missing_message(client: TestClient) -> None:
+    """Test chatbot endpoint rejects request without message field."""
+    payload = {"history": []}
+    response = client.post("/chatbot", json=payload)
+    assert response.status_code == 422
+
+
+def test_chatbot_validation_invalid_role(client: TestClient) -> None:
+    """Test chatbot endpoint rejects history with invalid roles."""
+    payload = {
+        "message": "Hello",
+        "history": [{"role": "invalid", "content": "test"}],
+    }
+    response = client.post("/chatbot", json=payload)
+    assert response.status_code == 422
+
+
+def test_chatbot_not_initialized(client: TestClient) -> None:
+    """Test chatbot endpoint returns 503 when model not initialized."""
+    original_model = state.model
+    state.model = None
+
+    response = client.post("/chatbot", json={"message": "Hello"})
+    assert response.status_code == 503
+    assert "Model not initialized" in response.json()["detail"]
+
+    state.model = original_model
+
+
+def test_chatbot_stream_endpoint(client: TestClient) -> None:
+    """Test chatbot streaming endpoint returns streamed response."""
+    payload = {
+        "message": "Tell me a story",
+        "system": "You are a storyteller",
+    }
+    response = client.post("/chatbot/stream", json=payload)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+
+    # Read streamed content
+    content = response.text
+    assert "Mocked response" in content
+
+
+def test_chatbot_stream_with_history(client: TestClient) -> None:
+    """Test chatbot streaming endpoint with conversation history."""
+    payload = {
+        "message": "Continue",
+        "history": [
+            {"role": "user", "content": "Start a story"},
+            {"role": "model", "content": "Once upon a time..."},
+        ],
+    }
+    response = client.post("/chatbot/stream", json=payload)
+
+    assert response.status_code == 200
+
+    # Verify model was called with full history
+    assert state.model is not None
+    mock_model: Any = state.model
+    args = mock_model.generate.call_args[0][0]
+    assert len(args) == 3  # history + new message
+
+
+def test_chatbot_stream_not_initialized(client: TestClient) -> None:
+    """Test chatbot stream endpoint returns 503 when model not initialized."""
+    original_model = state.model
+    state.model = None
+
+    response = client.post("/chatbot/stream", json={"message": "Hello"})
+    assert response.status_code == 503
+
+    state.model = original_model
