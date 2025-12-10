@@ -7,10 +7,12 @@ async/await, orjson, uvloop, and comprehensive validation.
 """
 
 import asyncio
+import subprocess
 import sys
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
-from typing import Literal, Protocol
+from collections.abc import AsyncGenerator, Callable
+from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass
+from typing import Any, Literal, Protocol
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import ORJSONResponse, StreamingResponse
@@ -53,15 +55,39 @@ class GenkitModel(Protocol):
 
 
 # ----- State Management -----
+@dataclass
 class AppState:
-    """Global application state for Genkit and Memori resources."""
+    """Global application state for Genkit and Memori resources.
+
+    Uses dataclass to ensure proper instance attribute initialization
+    and avoid mutable class attribute anti-pattern.
+    """
 
     genkit: Genkit | None = None
     model: GenkitModel | None = None
     memori: Memori | None = None
+    chatbot_flow: Callable[..., Any] | None = None
 
 
 state = AppState()
+
+
+# ----- Initialization Helpers -----
+async def _setup_memori() -> None:
+    """Initialize Memori setup if needed.
+
+    Runs the memori setup command in a thread pool to avoid blocking.
+    This is idempotent - if already set up, it will not cause issues.
+    Errors are silently caught as setup may already be complete.
+    """
+    with suppress(subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        await asyncio.to_thread(
+            subprocess.run,
+            ["python", "-m", "memori", "setup"],
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
 
 
 # ----- Genkit Flows -----
@@ -107,10 +133,11 @@ def create_chatbot_flow(ai: Genkit) -> None:
             raise ValueError("Model not initialized")
 
         response = await asyncio.to_thread(state.model.generate, msgs)
-        return response.text
+        # ActionResponse.text from genkit lacks type hints
+        return str(response.text)
 
     # Store flow reference (optional, for later use)
-    state.chatbot_flow = chatbot_flow  # type: ignore[attr-defined]
+    state.chatbot_flow = chatbot_flow
 
 
 # ----- Lifespan -----
@@ -135,16 +162,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     try:
         settings = Settings()
-    except Exception as e:
+    except (ValueError, KeyError, TypeError) as e:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
 
     # Initialize Genkit
     # Note: Assuming Genkit init is synchronous.
     # If it performs I/O, wrap in to_thread.
-    state.genkit = Genkit(
-        plugins=[GoogleAI(api_key=settings.google_api_key)]
-    )
+    state.genkit = Genkit(plugins=[GoogleAI(api_key=settings.google_api_key)])
     # Get model reference - format: "provider/model-name"
     model_path = f"{settings.model_provider}ai/{settings.model_name}"
     state.model = state.genkit.get_model(model_path)
@@ -153,16 +178,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.memori = Memori()
     # Register the LLM client with Memori (uses default attribution)
     # Note: Memori will automatically track conversations
-    try:
-        # Run setup in thread to avoid blocking
-        await asyncio.to_thread(lambda: __import__("subprocess").run(
-            ["python", "-m", "memori", "setup"],
-            capture_output=True,
-            check=False,
-        ))
-    except Exception:
-        # Setup may already be done, continue anyway
-        pass
+    await _setup_memori()
 
     # Create Genkit flows
     create_chatbot_flow(state.genkit)
@@ -275,6 +291,63 @@ async def run_generate(messages: str | list[dict[str, str]]) -> ActionResponse:
     return await asyncio.to_thread(state.model.generate, messages)
 
 
+async def _setup_memori_attribution(
+    memori: Memori,
+    user_id: str | None,
+    session_id: str | None,
+) -> None:
+    """Set up Memori attribution for conversation tracking.
+
+    Runs attribution setup in a thread pool to avoid blocking the event loop.
+    Attribution allows Memori to track conversations per user and session.
+
+    Args:
+        memori: Initialized Memori instance.
+        user_id: Optional user identifier (defaults to "default_user").
+        session_id: Optional session identifier for grouping interactions.
+    """
+    if user_id or session_id:
+        await asyncio.to_thread(
+            memori.attribution,
+            entity_id=user_id or "default_user",
+            process_id="gemini-chatbot",
+        )
+        if session_id:
+            await asyncio.to_thread(memori.set_session, session_id)
+
+
+def _build_message_list(
+    system: str | None,
+    history: list[ChatMessage],
+    message: str,
+) -> list[dict[str, str]]:
+    """Build a message list for model generation.
+
+    Constructs a properly formatted message list from system instruction,
+    conversation history, and current user message. Time complexity: O(n)
+    where n is the length of history.
+
+    Args:
+        system: Optional system instruction to set model behavior.
+        history: Previous conversation messages (may be empty).
+        message: Current user message to append.
+
+    Returns:
+        List of message dicts with 'role' and 'content' keys.
+    """
+    msgs: list[dict[str, str]] = []
+
+    if system:
+        msgs.append({"role": "system", "content": system})
+
+    # Extend with history - O(n) operation
+    msgs.extend({"role": msg.role, "content": msg.content} for msg in history)
+
+    msgs.append({"role": "user", "content": message})
+
+    return msgs
+
+
 # ----- Endpoints -----
 @app.post("/chat", response_model=GenResponse)
 async def chat(r: ChatReq) -> dict[str, str]:
@@ -300,11 +373,11 @@ async def chat(r: ChatReq) -> dict[str, str]:
     try:
         out = await run_generate(msgs)
         return {"text": out.text}
-    except Exception as e:
-        # Log error in production
+    except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
+        # Catch common errors from model generation and network issues
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=f"Generation failed: {e}",
         ) from e
 
 
@@ -333,10 +406,10 @@ async def code(r: CodeReq) -> dict[str, str]:
     try:
         out = await run_generate(prompt)
         return {"text": out.text}
-    except Exception as e:
+    except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=f"Code generation failed: {e}",
         ) from e
 
 
@@ -359,7 +432,7 @@ async def chatbot(r: ChatbotReq) -> dict[str, str]:
     memory across sessions.
 
     Args:
-        r: ChatbotReq containing message, history, and optional system instruction.
+        r: ChatbotReq with message, history, and optional system instruction.
 
     Returns:
         Dict with 'text' key containing the model's response.
@@ -374,31 +447,10 @@ async def chatbot(r: ChatbotReq) -> dict[str, str]:
         )
 
     # Set up Memori attribution for this conversation
-    if r.user_id or r.session_id:
-        await asyncio.to_thread(
-            state.memori.attribution,
-            entity_id=r.user_id or "default_user",
-            process_id="gemini-chatbot",
-        )
-        if r.session_id:
-            await asyncio.to_thread(
-                state.memori.set_session,
-                r.session_id,
-            )
+    await _setup_memori_attribution(state.memori, r.user_id, r.session_id)
 
     # Build message list from history + new message
-    msgs: list[dict[str, str]] = []
-
-    # Add system message if provided
-    if r.system:
-        msgs.append({"role": "system", "content": r.system})
-
-    # Add conversation history
-    for msg in r.history:
-        msgs.append({"role": msg.role, "content": msg.content})
-
-    # Add current user message
-    msgs.append({"role": "user", "content": r.message})
+    msgs = _build_message_list(r.system, r.history, r.message)
 
     try:
         out = await run_generate(msgs)
@@ -408,14 +460,15 @@ async def chatbot(r: ChatbotReq) -> dict[str, str]:
         if r.user_id or r.session_id:
             await asyncio.to_thread(
                 lambda: state.memori.llm.register(state.model)
-                if state.memori else None
+                if state.memori
+                else None
             )
 
         return {"text": out.text}
-    except Exception as e:
+    except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=f"Chatbot generation failed: {e}",
         ) from e
 
 
@@ -428,7 +481,7 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
     and maintains a stateless server pattern. Now enhanced with Memori.
 
     Args:
-        r: ChatbotReq containing message, history, and optional system instruction.
+        r: ChatbotReq with message, history, and optional system instruction.
 
     Returns:
         StreamingResponse that yields text chunks as they're generated.
@@ -443,28 +496,10 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
         )
 
     # Set up Memori attribution for this conversation
-    if r.user_id or r.session_id:
-        await asyncio.to_thread(
-            state.memori.attribution,
-            entity_id=r.user_id or "default_user",
-            process_id="gemini-chatbot",
-        )
-        if r.session_id:
-            await asyncio.to_thread(
-                state.memori.set_session,
-                r.session_id,
-            )
+    await _setup_memori_attribution(state.memori, r.user_id, r.session_id)
 
     # Build message list from history + new message
-    msgs: list[dict[str, str]] = []
-
-    if r.system:
-        msgs.append({"role": "system", "content": r.system})
-
-    for msg in r.history:
-        msgs.append({"role": msg.role, "content": msg.content})
-
-    msgs.append({"role": "user", "content": r.message})
+    msgs = _build_message_list(r.system, r.history, r.message)
 
     async def generate_stream() -> AsyncGenerator[str, None]:
         """Generate response stream chunk by chunk."""
@@ -477,14 +512,15 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
             if r.user_id or r.session_id:
                 await asyncio.to_thread(
                     lambda: state.memori.llm.register(state.model)
-                    if state.memori else None
+                    if state.memori
+                    else None
                 )
 
             # Yield the complete response (Genkit streaming API may differ)
             # In production, you'd use actual streaming if Genkit supports it
             yield response.text
-        except Exception as e:
-            yield f"Error: {e}"
+        except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
+            yield f"Error: Generation failed - {e}"
 
     return StreamingResponse(
         generate_stream(),
@@ -522,10 +558,10 @@ async def create_new_session(user_id: str | None = None) -> dict[str, str]:
             "status": "success",
             "message": "New memory session created",
         }
-    except Exception as e:
+    except (RuntimeError, ValueError, AttributeError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=f"Memory session creation failed: {e}",
         ) from e
 
 
@@ -544,7 +580,7 @@ class MemoryQueryReq(BaseModel):
 
 
 @app.post("/memory/query")
-async def query_memories(r: MemoryQueryReq) -> dict[str, list[dict[str, str]]]:
+async def query_memories(r: MemoryQueryReq) -> dict[str, Any]:
     """Query stored memories for a user.
 
     This endpoint allows retrieving past conversation context and memories
@@ -554,7 +590,7 @@ async def query_memories(r: MemoryQueryReq) -> dict[str, list[dict[str, str]]]:
         r: MemoryQueryReq containing user_id and optional query parameters.
 
     Returns:
-        Dict with 'memories' key containing list of memory records.
+        Dict with 'memories' list and informational 'message' string.
 
     Raises:
         HTTPException: 503 if memory not initialized, 500 if query fails.
@@ -578,12 +614,15 @@ async def query_memories(r: MemoryQueryReq) -> dict[str, list[dict[str, str]]]:
         # In production, you'd use Memori's search/query methods
         return {
             "memories": [],
-            "message": "Memory query functionality - check Memori docs for specific query methods",
+            "message": (
+                "Memory query functionality - "
+                "check Memori docs for specific query methods"
+            ),
         }
-    except Exception as e:
+    except (RuntimeError, ValueError, AttributeError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=f"Memory query failed: {e}",
         ) from e
 
 
