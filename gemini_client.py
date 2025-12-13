@@ -56,7 +56,9 @@ class GeminiClientWrapper:
             cookies = await self.cookie_manager.get_gemini_cookies(profile_name)
 
             if not cookies:
-                logger.error(f"Failed to load valid cookies from profile '{profile_name}'")
+                logger.error(
+                    f"Failed to load valid cookies from profile '{profile_name}'"
+                )
                 return False
 
             # Extract required cookie values
@@ -64,7 +66,9 @@ class GeminiClientWrapper:
             secure_1psidts = cookies.get("__Secure-1PSIDTS")
 
             if not secure_1psid or not secure_1psidts:
-                logger.error(f"Missing required cookies in profile '{profile_name}'")
+                logger.error(
+                    f"Missing required cookies in profile '{profile_name}'"
+                )
                 return False
 
             try:
@@ -76,7 +80,9 @@ class GeminiClientWrapper:
                     proxy=None,
                 )
                 self.profile_name = profile_name
-                logger.info(f"Initialized Gemini client with profile '{profile_name}'")
+                logger.info(
+                    f"Initialized Gemini client with profile '{profile_name}'"
+                )
                 return True
 
             except Exception as e:
@@ -97,7 +103,9 @@ class GeminiClientWrapper:
                 # Let gemini-webapi auto-import cookies via browser-cookie3
                 self.client = await asyncio.to_thread(BaseGeminiClient)
                 self.profile_name = None
-                logger.info("Initialized Gemini client with auto browser cookies")
+                logger.info(
+                    "Initialized Gemini client with auto browser cookies"
+                )
                 return True
 
             except Exception as e:
@@ -154,12 +162,14 @@ class GeminiClientWrapper:
 
             # Try to refresh cookies if using a profile
             if self.profile_name:
-                logger.info(f"Attempting to refresh profile '{self.profile_name}'")
-                if await self.cookie_manager.refresh_profile(self.profile_name):
-                    # Retry initialization with refreshed cookies
-                    if await self.init_with_profile(self.profile_name):
-                        # Retry generation once
-                        return await self.generate(prompt, image)
+                logger.info(
+                    f"Attempting to refresh profile '{self.profile_name}'"
+                )
+                if await self.cookie_manager.refresh_profile(
+                    self.profile_name
+                ) and await self.init_with_profile(self.profile_name):
+                    # Retry generation once
+                    return await self.generate(prompt, image)
 
             raise
 
@@ -199,7 +209,9 @@ class GeminiClientWrapper:
                 )
 
             # Extract response text and conversation ID
-            response_text = str(response.text if hasattr(response, "text") else response)
+            response_text = str(
+                response.text if hasattr(response, "text") else response
+            )
 
             # Get conversation ID from response or client
             conv_id = (
@@ -216,12 +228,14 @@ class GeminiClientWrapper:
 
             # Try to refresh cookies if using a profile
             if self.profile_name:
-                logger.info(f"Attempting to refresh profile '{self.profile_name}'")
-                if await self.cookie_manager.refresh_profile(self.profile_name):
-                    # Retry initialization with refreshed cookies
-                    if await self.init_with_profile(self.profile_name):
-                        # Retry chat once
-                        return await self.chat(message, conversation_id)
+                logger.info(
+                    f"Attempting to refresh profile '{self.profile_name}'"
+                )
+                if await self.cookie_manager.refresh_profile(
+                    self.profile_name
+                ) and await self.init_with_profile(self.profile_name):
+                    # Retry chat once
+                    return await self.chat(message, conversation_id)
 
             raise
 
