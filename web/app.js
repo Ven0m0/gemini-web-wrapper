@@ -33,6 +33,19 @@ document.addEventListener("DOMContentLoaded", () => {
     alert("Configuration saved.");
   };
 
+  // Debounce helper to prevent API spam
+  const debounce = (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  };
+
   const getHeaders = () => ({
     "Content-Type": "application/json",
     "X-API-KEY": els.apiToken.value,
@@ -43,13 +56,44 @@ document.addEventListener("DOMContentLoaded", () => {
     [els.btnSendChat, els.btnSendCode].forEach((b) => (b.disabled = loading));
   };
 
-  const appendLog = (text, type = "normal") => {
-    const div = document.createElement("div");
-    div.className =
-      type === "error" ? "error-msg" : type === "user" ? "user-msg" : "ai-msg";
-    div.textContent = text; // Safe textContent injection
-    els.outputDisplay.appendChild(div);
+  // Message batching for better performance
+  let messageBatch = [];
+  let batchTimeout = null;
+
+  const flushMessageBatch = () => {
+    if (messageBatch.length === 0) return;
+
+    // Use DocumentFragment for batched DOM updates (better performance)
+    const fragment = document.createDocumentFragment();
+    messageBatch.forEach(({ text, type }) => {
+      const div = document.createElement("div");
+      div.className =
+        type === "error"
+          ? "error-msg"
+          : type === "user"
+            ? "user-msg"
+            : "ai-msg";
+      div.textContent = text; // Safe textContent injection
+      fragment.appendChild(div);
+    });
+
+    els.outputDisplay.appendChild(fragment);
     els.outputDisplay.scrollTop = els.outputDisplay.scrollHeight;
+    messageBatch = [];
+  };
+
+  const appendLog = (text, type = "normal") => {
+    messageBatch.push({ text, type });
+
+    // Clear existing timeout
+    if (batchTimeout) clearTimeout(batchTimeout);
+
+    // Flush immediately if batch is large, otherwise debounce
+    if (messageBatch.length > 10) {
+      flushMessageBatch();
+    } else {
+      batchTimeout = setTimeout(flushMessageBatch, 16); // ~60fps
+    }
   };
 
   const apiRequest = async (endpoint, payload) => {
@@ -124,13 +168,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Event Listeners
   els.saveConfig.addEventListener("click", saveConfig);
-  els.btnSendChat.addEventListener("click", handleSendChat);
-  els.btnSendCode.addEventListener("click", handleSendCode);
+  // Debounce API calls to prevent spam (300ms delay)
+  els.btnSendChat.addEventListener("click", debounce(handleSendChat, 300));
+  els.btnSendCode.addEventListener("click", debounce(handleSendCode, 300));
   els.btnClearCode.addEventListener("click", () => (els.codeEditor.value = ""));
-  els.btnClearOutput.addEventListener(
-    "click",
-    () => (els.outputDisplay.textContent = ""),
-  );
+  els.btnClearOutput.addEventListener("click", () => {
+    els.outputDisplay.textContent = "";
+    // Clear any pending batched messages
+    messageBatch = [];
+    if (batchTimeout) clearTimeout(batchTimeout);
+  });
 
   els.btnCopy.addEventListener("click", () => {
     navigator.clipboard
