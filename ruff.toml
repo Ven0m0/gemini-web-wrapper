@@ -1,0 +1,8 @@
+line-length = 100
+
+[lint]
+select = ["E", "F", "W"]
+ignore = []
+
+[lint.per-file-ignores]
+"test_*.py" = ["S101"]
