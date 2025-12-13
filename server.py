@@ -17,7 +17,6 @@ from typing import Any, Literal, Protocol
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from genkit.ai import Genkit
-from genkit.core.action import ActionResponse
 from genkit.plugins.google_genai import GoogleAI
 from memori import Memori
 from pydantic import BaseModel, Field
@@ -42,17 +41,30 @@ class Settings(BaseSettings):
 
 
 # ----- Type Definitions -----
+class GenerateResponse(Protocol):
+    """Protocol defining the response from model generation.
+
+    This is a local Protocol to avoid importing genkit.core.action.ActionResponse
+    and maintain compatibility across different genkit versions.
+    """
+
+    @property
+    def text(self) -> str:
+        """Generated text from the model."""
+        ...
+
+
 class GenkitModel(Protocol):
     """Protocol defining the interface for Genkit model objects."""
 
-    def generate(self, messages: str | list[dict[str, str]]) -> ActionResponse:
+    def generate(self, messages: str | list[dict[str, str]]) -> GenerateResponse:
         """Generate a response from the model.
 
         Args:
             messages: Either a string prompt or structured message list.
 
         Returns:
-            ActionResponse containing the generated text.
+            GenerateResponse containing the generated text.
         """
         ...
 
@@ -146,7 +158,7 @@ def create_chatbot_flow(ai: Genkit) -> None:
         msgs_list = _build_message_list(system, history_msgs, message)  # type: ignore
 
         response = await asyncio.to_thread(state.model.generate, msgs_list)
-        # ActionResponse.text from genkit lacks type hints
+        # GenerateResponse.text from genkit lacks type hints
         return str(response.text)
 
     # Store flow reference (optional, for later use)
@@ -290,7 +302,7 @@ class GenResponse(BaseModel):
 
 
 # ----- Logic Helpers -----
-async def run_generate(messages: str | list[dict[str, str]]) -> ActionResponse:
+async def run_generate(messages: str | list[dict[str, str]]) -> GenerateResponse:
     """Run model generation in a thread pool to avoid blocking event loop.
 
     Genkit's generate method performs blocking I/O operations. To maintain
@@ -301,7 +313,7 @@ async def run_generate(messages: str | list[dict[str, str]]) -> ActionResponse:
         messages: Either a string prompt or list of role/content dicts.
 
     Returns:
-        ActionResponse containing the generated text and metadata.
+        GenerateResponse containing the generated text and metadata.
 
     Raises:
         HTTPException: 503 if model is not initialized.
