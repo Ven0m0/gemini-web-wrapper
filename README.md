@@ -18,12 +18,14 @@ Lightweight FastAPI backend with static HTML/JS frontend providing conversationa
   - `uvloop` for Node.js-level event loop performance
   - Async/await throughout with thread pool offloading for blocking I/O
 
-- **🤖 Dual AI Backends**
+- **🤖 Triple AI Backends**
   - **Genkit Integration**: Production-ready Google AI with flows and observability
   - **Gemini WebAPI**: Direct web interface access with cookie authentication
+  - **OpenAI-Compatible API**: Drop-in replacement for `/v1/chat/completions`
   - Conversation history support with stateless server pattern
-  - Streaming responses for real-time interactions
+  - Streaming responses for real-time interactions (SSE format)
   - Customizable system instructions per conversation
+  - Tool calling support via prompt injection (works with MCP tools)
 
 - **🍪 Advanced Cookie Management**
   - Multi-profile support for different Google accounts
@@ -48,6 +50,12 @@ Lightweight FastAPI backend with static HTML/JS frontend providing conversationa
   - Works on Arch, Raspbian, Termux
   - LAN-visible with optional token auth
   - FastAPI auto-generated OpenAPI docs
+
+- **🔌 OpenAI Compatibility**
+  - Works with VS Code Copilot, Continue.dev, and any OpenAI-compatible client
+  - Model aliasing (e.g., `gpt-4o-mini` → `gemini-2.5-flash`)
+  - SSE streaming for real-time responses
+  - Function calling / tool use support
 
 ---
 
@@ -172,6 +180,57 @@ The system will automatically import cookies via browser-cookie3.
 
 ---
 
+## 🔧 VS Code Copilot Integration
+
+You can use this server as a backend for GitHub Copilot by configuring custom model providers.
+
+### Configure Custom Model Provider
+
+Add to your VS Code `settings.json`:
+
+```json
+{
+  "github.copilot.chat.models": [
+    {
+      "id": "gemini-flash",
+      "vendor": "copilot",
+      "family": "gemini-flash",
+      "url": "http://localhost:9000/v1/chat/completions",
+      "modelOverride": "gemini-flash",
+      "toolCalling": true
+    },
+    {
+      "id": "gemini-pro",
+      "vendor": "copilot",
+      "family": "gemini-pro",
+      "url": "http://localhost:9000/v1/chat/completions",
+      "modelOverride": "gemini-pro",
+      "toolCalling": true
+    },
+    {
+      "id": "gemini-3-pro",
+      "vendor": "copilot",
+      "family": "gemini-3-pro",
+      "url": "http://localhost:9000/v1/chat/completions",
+      "modelOverride": "gemini-3.0-pro",
+      "toolCalling": true
+    }
+  ]
+}
+```
+
+### Using Tools in Chat
+
+Copilot will automatically use tools when needed. You can also force tool usage with `#` references:
+
+```text
+#fetch https://example.com - Summarize this page
+#file:app/main.py - Explain this file
+#codebase - Search for X in the codebase
+```
+
+---
+
 ## 📡 API Endpoints
 
 ### Health Check
@@ -179,6 +238,65 @@ The system will automatically import cookies via browser-cookie3.
 GET /health
 ```
 Returns: `{"ok": true}`
+
+### OpenAI-Compatible Chat Completions
+```bash
+POST /v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "gemini-flash",
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "Hello!"}
+  ]
+}
+```
+
+**Streaming Request:**
+```bash
+POST /v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "gemini-flash",
+  "messages": [{"role": "user", "content": "Tell me a story"}],
+  "stream": true
+}
+```
+
+**Tool Calling Request:**
+```bash
+POST /v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "gemini-pro",
+  "messages": [{"role": "user", "content": "What time is it in Tokyo?"}],
+  "tools": [{
+    "type": "function",
+    "function": {
+      "name": "get_time",
+      "description": "Get current time in a timezone",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timezone": {"type": "string"}
+        },
+        "required": ["timezone"]
+      }
+    }
+  }]
+}
+```
+
+**Supported Models:**
+
+| Model Name | Alias | Description |
+|------------|-------|-------------|
+| `gemini-3.0-pro` | `gpt-4.1-mini` | **Gemini 3.0 Pro** - Latest and most capable |
+| `gemini-2.5-pro` | `gpt-4o`, `gemini-pro` | Gemini 2.5 Pro - Advanced reasoning |
+| `gemini-2.5-flash` | `gpt-4o-mini`, `gemini-flash` | Gemini 2.5 Flash - Fast and efficient (default) |
 
 ### Chat Endpoint
 ```bash
@@ -510,6 +628,14 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 This project has integrated patterns and features from:
 
+### From [racaes/rev_gemini_api](https://github.com/racaes/rev_gemini_api)
+- **OpenAI-compatible API**: Drop-in replacement for `/v1/chat/completions` endpoint
+- **SSE streaming support**: Real-time response streaming compatible with VS Code Copilot
+- **Tool calling support**: Function calling via prompt injection (works with MCP tools)
+- **Model aliasing**: Map OpenAI model names to Gemini models (e.g., `gpt-4o-mini` → `gemini-2.5-flash`)
+- **Message transforms**: Collapse OpenAI-style messages into Gemini prompts
+- **Tool call parsing**: Extract and format tool calls from model responses
+
 ### From [odomcl22/gemini-web-wrapper](https://github.com/odomcl22/gemini-web-wrapper) (Electron)
 - **Multi-profile cookie persistence**: Store and manage multiple Google account profiles
 - **Cookie persistence architecture**: Inspired session management patterns
@@ -521,7 +647,7 @@ This project has integrated patterns and features from:
 ### Additional Enhancements
 - **aiosqlite integration**: Async SQLite for high-performance cookie storage
 - **browser-cookie3 integration**: Automatic cookie extraction from all major browsers
-- **Dual backend support**: Both Genkit (API-based) and gemini-webapi (cookie-based)
+- **Triple backend support**: Genkit (API-based), gemini-webapi (cookie-based), and OpenAI-compatible
 - **Cookie refresh mechanism**: Automatic cookie validation and refresh
 - **Thread-safe operations**: Async locks for concurrent profile management
 

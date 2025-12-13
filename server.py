@@ -24,6 +24,8 @@ from pydantic_settings import BaseSettings
 
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
+from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
+from openai_transforms import collapse_messages, parse_tool_calls, to_chat_completion_response
 
 
 # ----- Configuration -----
@@ -33,11 +35,28 @@ class Settings(BaseSettings):
     google_api_key: str
     model_provider: str = "google"
     model_name: str = "gemini-2.5-flash"
+    # Model aliases for OpenAI compatibility
+    model_aliases: dict[str, str] = {
+        "gpt-4o-mini": "gemini-2.5-flash",
+        "gpt-4o": "gemini-2.5-pro",
+        "gpt-4.1-mini": "gemini-3.0-pro",
+        "gemini-flash": "gemini-2.5-flash",
+        "gemini-pro": "gemini-2.5-pro",
+        "gemini-3-pro": "gemini-3.0-pro",
+    }
 
     class Config:
         """Pydantic configuration."""
 
         env_file = ".env"
+
+    def resolve_model(self, requested: str | None) -> str:
+        """Return a Gemini model name for a requested OpenAI-style name."""
+        if not requested:
+            return self.model_name
+        if requested in self.model_aliases:
+            return self.model_aliases[requested]
+        return requested
 
 
 # ----- Type Definitions -----
@@ -667,6 +686,257 @@ async def query_memories(r: MemoryQueryReq) -> dict[str, Any]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Memory query failed: {e}",
         ) from e
+
+
+# ----- OpenAI-Compatible Endpoints -----
+async def generate_sse_response(
+    text: str,
+    model: str,
+    request_id: str,
+    include_usage: bool = False,
+) -> AsyncGenerator[str, None]:
+    """Generate SSE chunks that simulate streaming for a complete response."""
+    import json
+    import time
+
+    created = int(time.time())
+
+    # Split text into chunks (simulate streaming by sending in small pieces)
+    # For now, send the entire response as one chunk since Gemini doesn't stream
+    chunk_data = {
+        "id": request_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "delta": {
+                    "role": "assistant",
+                    "content": text,
+                },
+                "finish_reason": None,
+            }
+        ],
+    }
+    yield f"data: {json.dumps(chunk_data)}\n\n"
+
+    # Send finish chunk
+    finish_chunk = {
+        "id": request_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop",
+            }
+        ],
+    }
+    if include_usage:
+        finish_chunk["usage"] = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        }
+    yield f"data: {json.dumps(finish_chunk)}\n\n"
+
+    # Send done marker
+    yield "data: [DONE]\n\n"
+
+
+async def generate_sse_tool_response(
+    tool_calls: list,
+    model: str,
+    request_id: str,
+    include_usage: bool = False,
+) -> AsyncGenerator[str, None]:
+    """Generate SSE chunks for tool call responses."""
+    import json
+    import time
+
+    created = int(time.time())
+
+    # Send tool calls
+    for i, tc in enumerate(tool_calls):
+        chunk_data = {
+            "id": request_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "index": i,
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                        ],
+                    },
+                    "finish_reason": None,
+                }
+            ],
+        }
+        yield f"data: {json.dumps(chunk_data)}\n\n"
+
+    # Send finish chunk
+    finish_chunk = {
+        "id": request_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "delta": {},
+                "finish_reason": "tool_calls",
+            }
+        ],
+    }
+    if include_usage:
+        finish_chunk["usage"] = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        }
+    yield f"data: {json.dumps(finish_chunk)}\n\n"
+
+    yield "data: [DONE]\n\n"
+
+
+@app.post("/v1/chat/completions")
+async def openai_chat_completions(request: ChatCompletionRequest) -> ChatCompletionResponse | StreamingResponse:
+    """OpenAI-compatible chat completions endpoint.
+
+    This endpoint accepts OpenAI-style chat completion requests and translates them
+    to Gemini API calls. It supports:
+    - Message history with system/user/assistant roles
+    - Tool calling via prompt injection
+    - Streaming responses (SSE format)
+    - Model aliasing (e.g., gpt-4o-mini -> gemini-2.5-flash)
+
+    Args:
+        request: ChatCompletionRequest with messages and optional tools.
+
+    Returns:
+        ChatCompletionResponse or StreamingResponse if streaming is enabled.
+
+    Raises:
+        HTTPException: 503 if client not initialized, 502 if generation fails.
+    """
+    if state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini client not initialized",
+        )
+
+    # Initialize client if needed (auto-import cookies)
+    if not await state.gemini_client.ensure_initialized():
+        success = await state.gemini_client.init_auto()
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Failed to auto-initialize. Please login to "
+                    "gemini.google.com or create a profile."
+                ),
+            )
+
+    try:
+        settings = Settings()
+    except (ValueError, KeyError, TypeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Configuration error: {e}",
+        ) from e
+
+    # Resolve model name (handle aliases)
+    model_name = settings.resolve_model(request.model)
+
+    # Collapse messages into a single prompt
+    prompt = collapse_messages(request)
+
+    # Generate request ID
+    from uuid import uuid4
+
+    request_id = f"chatcmpl-{uuid4().hex}"
+
+    try:
+        # Use gemini-webapi client to generate content
+        if not state.gemini_client.client:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Gemini client not ready",
+            )
+
+        # Generate content using the client
+        raw_response = await asyncio.to_thread(
+            state.gemini_client.client.generate_content,
+            prompt,
+            model=model_name,
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Gemini generation failed: {exc}",
+        ) from exc
+
+    # Parse for tool calls
+    text = raw_response.text or ""
+    tool_calls = []
+    if request.tools and request.tool_choice != "none":
+        tool_calls, text = parse_tool_calls(text)
+
+    # Check if streaming is requested
+    is_streaming = request.stream
+    include_usage = False
+    if hasattr(request, "stream_options") and request.stream_options:
+        include_usage = request.stream_options.get("include_usage", False)
+
+    if is_streaming:
+        # Return SSE streaming response
+        if tool_calls:
+            return StreamingResponse(
+                generate_sse_tool_response(
+                    tool_calls,
+                    request.model or model_name,
+                    request_id,
+                    include_usage,
+                ),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                },
+            )
+        else:
+            return StreamingResponse(
+                generate_sse_response(
+                    text,
+                    request.model or model_name,
+                    request_id,
+                    include_usage,
+                ),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                },
+            )
+    else:
+        # Return regular JSON response
+        return to_chat_completion_response(raw_response, request, model_name)
 
 
 # ----- Profile Management Endpoints -----
