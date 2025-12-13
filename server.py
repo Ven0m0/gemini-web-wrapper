@@ -17,11 +17,13 @@ from typing import Any, Literal, Protocol
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from genkit.ai import Genkit
-from genkit.core.action import ActionResponse
 from genkit.plugins.google_genai import GoogleAI
 from memori import Memori
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
+
+from cookie_manager import CookieManager
+from gemini_client import GeminiClientWrapper
 
 
 # ----- Configuration -----
@@ -39,17 +41,30 @@ class Settings(BaseSettings):
 
 
 # ----- Type Definitions -----
+class GenerateResponse(Protocol):
+    """Protocol defining the response from model generation.
+
+    This is a local Protocol to avoid importing genkit.core.action.ActionResponse
+    and maintain compatibility across different genkit versions.
+    """
+
+    @property
+    def text(self) -> str:
+        """Generated text from the model."""
+        ...
+
+
 class GenkitModel(Protocol):
     """Protocol defining the interface for Genkit model objects."""
 
-    def generate(self, messages: str | list[dict[str, str]]) -> ActionResponse:
+    def generate(self, messages: str | list[dict[str, str]]) -> GenerateResponse:
         """Generate a response from the model.
 
         Args:
             messages: Either a string prompt or structured message list.
 
         Returns:
-            ActionResponse containing the generated text.
+            GenerateResponse containing the generated text.
         """
         ...
 
@@ -69,6 +84,9 @@ class AppState:
     chatbot_flow: Callable[..., Any] | None = None
     # Cache for attribution setup to avoid redundant calls
     attribution_cache: set[tuple[str, str | None]] = None  # type: ignore
+    # Cookie management for gemini-webapi
+    cookie_manager: CookieManager | None = None
+    gemini_client: GeminiClientWrapper | None = None
 
 
 state = AppState()
@@ -128,7 +146,6 @@ def create_chatbot_flow(ai: Genkit) -> None:
 
         # Build message list using shared helper (consolidates logic)
         # Convert history from list[dict] to required ChatMessage format for helper
-        from typing import cast
 
         class _DictMessage:
             """Temporary adapter for dict-based messages."""
@@ -141,7 +158,7 @@ def create_chatbot_flow(ai: Genkit) -> None:
         msgs_list = _build_message_list(system, history_msgs, message)  # type: ignore
 
         response = await asyncio.to_thread(state.model.generate, msgs_list)
-        # ActionResponse.text from genkit lacks type hints
+        # GenerateResponse.text from genkit lacks type hints
         return str(response.text)
 
     # Store flow reference (optional, for later use)
@@ -195,12 +212,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Create Genkit flows
     create_chatbot_flow(state.genkit)
 
+    # Initialize cookie manager and gemini-webapi client
+    state.cookie_manager = CookieManager(db_path="gemini_cookies.db")
+    await state.cookie_manager.init_db()
+    state.gemini_client = GeminiClientWrapper(state.cookie_manager)
+
     yield
 
     # Cleanup if necessary
     state.genkit = None
     state.model = None
     state.memori = None
+    state.cookie_manager = None
+    state.gemini_client = None
     state.attribution_cache.clear()
 
 
@@ -278,7 +302,7 @@ class GenResponse(BaseModel):
 
 
 # ----- Logic Helpers -----
-async def run_generate(messages: str | list[dict[str, str]]) -> ActionResponse:
+async def run_generate(messages: str | list[dict[str, str]]) -> GenerateResponse:
     """Run model generation in a thread pool to avoid blocking event loop.
 
     Genkit's generate method performs blocking I/O operations. To maintain
@@ -289,7 +313,7 @@ async def run_generate(messages: str | list[dict[str, str]]) -> ActionResponse:
         messages: Either a string prompt or list of role/content dicts.
 
     Returns:
-        ActionResponse containing the generated text and metadata.
+        GenerateResponse containing the generated text and metadata.
 
     Raises:
         HTTPException: 503 if model is not initialized.
@@ -635,14 +659,374 @@ async def query_memories(r: MemoryQueryReq) -> dict[str, Any]:
         return {
             "memories": [],
             "message": (
-                "Memory query functionality - "
-                "check Memori docs for specific query methods"
+                "Memory query functionality - check Memori docs for specific query methods"
             ),
         }
     except (RuntimeError, ValueError, AttributeError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Memory query failed: {e}",
+        ) from e
+
+
+# ----- Profile Management Endpoints -----
+class ProfileCreateReq(BaseModel):
+    """Request model for creating a profile from browser cookies.
+
+    Attributes:
+        name: Profile name/identifier.
+        browser: Browser to extract cookies from.
+    """
+
+    name: str = Field(..., min_length=1)
+    browser: str = Field(default="chrome")
+
+
+class ProfileSwitchReq(BaseModel):
+    """Request model for switching to a profile.
+
+    Attributes:
+        name: Profile name to switch to.
+    """
+
+    name: str = Field(..., min_length=1)
+
+
+@app.post("/profiles/create")
+async def create_profile(r: ProfileCreateReq) -> dict[str, Any]:
+    """Create a new profile by extracting cookies from browser.
+
+    Args:
+        r: ProfileCreateReq with profile name and browser type.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized, 400 if creation fails.
+    """
+    if state.cookie_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cookie manager not initialized",
+        )
+
+    try:
+        success = await state.cookie_manager.create_profile_from_browser(
+            r.name,
+            r.browser,  # type: ignore
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to create profile '{r.name}' from {r.browser}",
+            )
+
+        return {
+            "status": "success",
+            "message": f"Profile '{r.name}' created from {r.browser}",
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile creation failed: {e}",
+        ) from e
+
+
+@app.get("/profiles/list")
+async def list_profiles() -> dict[str, Any]:
+    """List all stored profiles.
+
+    Returns:
+        Dict with profiles list and current profile info.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized.
+    """
+    if state.cookie_manager is None or state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cookie manager not initialized",
+        )
+
+    profiles = await state.cookie_manager.list_profiles()
+    current_profile = state.gemini_client.get_current_profile()
+
+    return {
+        "profiles": profiles,
+        "current_profile": current_profile,
+        "count": len(profiles),
+    }
+
+
+@app.post("/profiles/switch")
+async def switch_profile(r: ProfileSwitchReq) -> dict[str, str]:
+    """Switch to a different profile.
+
+    Args:
+        r: ProfileSwitchReq with profile name.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if services not initialized, 400 if switch fails.
+    """
+    if state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini client not initialized",
+        )
+
+    try:
+        success = await state.gemini_client.switch_profile(r.name)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to switch to profile '{r.name}'",
+            )
+
+        return {
+            "status": "success",
+            "message": f"Switched to profile '{r.name}'",
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile switch failed: {e}",
+        ) from e
+
+
+@app.delete("/profiles/{profile_name}")
+async def delete_profile(profile_name: str) -> dict[str, str]:
+    """Delete a profile and its cookies.
+
+    Args:
+        profile_name: Name of the profile to delete.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized, 404 if not found.
+    """
+    if state.cookie_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cookie manager not initialized",
+        )
+
+    success = await state.cookie_manager.delete_profile(profile_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Profile '{profile_name}' not found",
+        )
+
+    return {
+        "status": "success",
+        "message": f"Profile '{profile_name}' deleted",
+    }
+
+
+@app.post("/profiles/{profile_name}/refresh")
+async def refresh_profile(profile_name: str) -> dict[str, str]:
+    """Refresh cookies for a profile.
+
+    Args:
+        profile_name: Name of the profile to refresh.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized, 400 if refresh fails.
+    """
+    if state.cookie_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cookie manager not initialized",
+        )
+
+    success = await state.cookie_manager.refresh_profile(profile_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to refresh profile '{profile_name}'",
+        )
+
+    return {
+        "status": "success",
+        "message": f"Profile '{profile_name}' refreshed",
+    }
+
+
+# ----- Gemini WebAPI Endpoints -----
+class GeminiChatReq(BaseModel):
+    """Request model for gemini-webapi chat endpoint.
+
+    Attributes:
+        message: User message.
+        conversation_id: Optional conversation ID to continue a chat.
+        profile: Optional profile to use (if not already initialized).
+    """
+
+    message: str = Field(..., min_length=1)
+    conversation_id: str | None = Field(default=None)
+    profile: str | None = Field(default=None)
+
+
+@app.post("/gemini/chat")
+async def gemini_chat(r: GeminiChatReq) -> dict[str, Any]:
+    """Chat using gemini-webapi with cookie authentication.
+
+    This endpoint uses the gemini-webapi library directly instead of Genkit,
+    allowing for cookie-based authentication and access to web features.
+
+    Args:
+        r: GeminiChatReq with message and optional conversation ID.
+
+    Returns:
+        Dict with response text and conversation ID.
+
+    Raises:
+        HTTPException: 503 if client not initialized, 400 if profile fails, 500 if chat fails.
+    """
+    if state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini client not initialized",
+        )
+
+    # Initialize with profile if specified
+    if r.profile:
+        success = await state.gemini_client.init_with_profile(r.profile)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to initialize with profile '{r.profile}'",
+            )
+    # Otherwise try auto-init if not already initialized
+    elif not await state.gemini_client.ensure_initialized():
+        success = await state.gemini_client.init_auto()
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Failed to auto-initialize. Please login to "
+                    "gemini.google.com or create a profile."
+                ),
+            )
+
+    try:
+        response_text, conversation_id = await state.gemini_client.chat(
+            r.message,
+            r.conversation_id,
+        )
+
+        return {
+            "text": response_text,
+            "conversation_id": conversation_id,
+            "profile": state.gemini_client.get_current_profile(),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Chat failed: {e}",
+        ) from e
+
+
+@app.get("/gemini/conversations")
+async def list_gemini_conversations() -> dict[str, Any]:
+    """List all conversations from gemini-webapi.
+
+    Returns:
+        Dict with conversations list.
+
+    Raises:
+        HTTPException: 503 if client not initialized.
+    """
+    if state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini client not initialized",
+        )
+
+    if not await state.gemini_client.ensure_initialized():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client not initialized. Use /gemini/chat to initialize.",
+        )
+
+    try:
+        conversations = await state.gemini_client.list_conversations()
+        return {
+            "conversations": conversations,
+            "count": len(conversations),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list conversations: {e}",
+        ) from e
+
+
+@app.delete("/gemini/conversations/{conversation_id}")
+async def delete_gemini_conversation(conversation_id: str) -> dict[str, str]:
+    """Delete a conversation from gemini-webapi.
+
+    Args:
+        conversation_id: Conversation ID to delete.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if client not initialized, 500 if deletion fails.
+    """
+    if state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini client not initialized",
+        )
+
+    if not await state.gemini_client.ensure_initialized():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client not initialized. Use /gemini/chat to initialize.",
+        )
+
+    try:
+        success = await state.gemini_client.delete_conversation(conversation_id)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete conversation '{conversation_id}'",
+            )
+
+        return {
+            "status": "success",
+            "message": f"Conversation '{conversation_id}' deleted",
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Conversation deletion failed: {e}",
         ) from e
 
 

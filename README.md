@@ -18,11 +18,20 @@ Lightweight FastAPI backend with static HTML/JS frontend providing conversationa
   - `uvloop` for Node.js-level event loop performance
   - Async/await throughout with thread pool offloading for blocking I/O
 
-- **🤖 Genkit-Powered Chatbot**
+- **🤖 Dual AI Backends**
+  - **Genkit Integration**: Production-ready Google AI with flows and observability
+  - **Gemini WebAPI**: Direct web interface access with cookie authentication
   - Conversation history support with stateless server pattern
   - Streaming responses for real-time interactions
-  - Genkit flows for structured AI operations
   - Customizable system instructions per conversation
+
+- **🍪 Advanced Cookie Management**
+  - Multi-profile support for different Google accounts
+  - Automatic cookie extraction from Chrome, Firefox, Edge, Safari
+  - Persistent cookie storage with SQLite (aiosqlite)
+  - Cookie refresh and validation
+  - Browser-cookie3 auto-import support
+  - Profile switching and management
 
 - **🎯 Strict Type Safety**
   - 100% type-annotated with Protocol definitions
@@ -96,6 +105,73 @@ The server will be available at: `http://localhost:9000`
 
 ---
 
+## 🍪 Cookie Management & Multi-Profile Support
+
+The wrapper now supports extracting cookies from your browser and managing multiple Google accounts as profiles.
+
+### Quick Start with Cookies
+
+1. **Login to Gemini**: Open https://gemini.google.com in your browser and login
+2. **Create a profile** (extracts cookies automatically):
+```bash
+curl -X POST http://localhost:9000/profiles/create \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-account", "browser": "chrome"}'
+```
+
+3. **Use the profile** for chatting:
+```bash
+curl -X POST http://localhost:9000/gemini/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello!", "profile": "my-account"}'
+```
+
+### Supported Browsers
+- `chrome` - Google Chrome
+- `firefox` - Mozilla Firefox
+- `edge` - Microsoft Edge
+- `safari` - Apple Safari (macOS only)
+- `chromium` - Chromium
+- `all` - Try all browsers and merge cookies
+
+### Profile Management
+
+**List profiles:**
+```bash
+curl http://localhost:9000/profiles/list
+```
+
+**Switch profile:**
+```bash
+curl -X POST http://localhost:9000/profiles/switch \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-account"}'
+```
+
+**Refresh cookies:**
+```bash
+curl -X POST http://localhost:9000/profiles/my-account/refresh
+```
+
+**Delete profile:**
+```bash
+curl -X DELETE http://localhost:9000/profiles/my-account
+```
+
+### Auto Cookie Import
+
+You can also use automatic cookie import without creating profiles:
+```bash
+# Just make sure you're logged into gemini.google.com in your browser
+curl -X POST http://localhost:9000/gemini/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello!"}'
+```
+
+The system will automatically import cookies via browser-cookie3.
+
+---
+
 ## 📡 API Endpoints
 
 ### Health Check
@@ -159,6 +235,58 @@ Content-Type: application/json
 ```
 
 **Response:** Streams the response as `text/plain` for real-time output.
+
+### Gemini WebAPI Chat (with Cookie Auth)
+```bash
+POST /gemini/chat
+Content-Type: application/json
+
+{
+  "message": "Hello, how are you?",
+  "conversation_id": "abc123",  // optional, for continuing conversations
+  "profile": "my-account"  // optional, profile to use
+}
+```
+
+**Response:**
+```json
+{
+  "text": "I'm doing well, thank you for asking!",
+  "conversation_id": "abc123",
+  "profile": "my-account"
+}
+```
+
+**Note:** This endpoint uses gemini-webapi with cookie-based authentication. It supports:
+- Auto cookie import from browser (if logged into gemini.google.com)
+- Profile-based authentication
+- Conversation continuity via conversation_id
+
+### List Gemini Conversations
+```bash
+GET /gemini/conversations
+```
+
+**Response:**
+```json
+{
+  "conversations": [...],
+  "count": 5
+}
+```
+
+### Delete Gemini Conversation
+```bash
+DELETE /gemini/conversations/{conversation_id}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Conversation 'abc123' deleted"
+}
+```
 
 ### Code Assistance
 ```bash
@@ -378,12 +506,36 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
+## 🔄 Improvements Integrated from Other Projects
+
+This project has integrated patterns and features from:
+
+### From [odomcl22/gemini-web-wrapper](https://github.com/odomcl22/gemini-web-wrapper) (Electron)
+- **Multi-profile cookie persistence**: Store and manage multiple Google account profiles
+- **Cookie persistence architecture**: Inspired session management patterns
+- **Profile switching**: Quick switching between different authenticated accounts
+
+### From [levish0/gemini-desktop](https://github.com/levish0/gemini-desktop) (Tauri)
+- **Desktop wrapper patterns**: Cross-platform considerations
+
+### Additional Enhancements
+- **aiosqlite integration**: Async SQLite for high-performance cookie storage
+- **browser-cookie3 integration**: Automatic cookie extraction from all major browsers
+- **Dual backend support**: Both Genkit (API-based) and gemini-webapi (cookie-based)
+- **Cookie refresh mechanism**: Automatic cookie validation and refresh
+- **Thread-safe operations**: Async locks for concurrent profile management
+
+---
+
 ## 🙏 Acknowledgments
 
 - **FastAPI** - Modern Python web framework
 - **Ruff** - Fast Python linter and formatter
 - **Google Gemini** - Powerful language model API
 - **Genkit** - Streamlined LLM integration
+- **gemini-webapi** - Reverse-engineered Gemini web interface
+- **browser-cookie3** - Browser cookie extraction
+- **aiosqlite** - Async SQLite operations
 
 ---
 
