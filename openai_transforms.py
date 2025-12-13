@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Utilities for translating between OpenAI-style payloads and Gemini outputs."""
+
 from __future__ import annotations
 
 import json
@@ -60,7 +61,9 @@ def format_tools_for_prompt(tools: list[ToolDefinition]) -> str:
     return json.dumps(tools_data, indent=2)
 
 
-def inject_tools_into_prompt(prompt: str, tools: list[ToolDefinition] | None) -> str:
+def inject_tools_into_prompt(
+    prompt: str, tools: list[ToolDefinition] | None
+) -> str:
     """Prepend tool instructions to the prompt if tools are provided."""
     if not tools:
         return prompt
@@ -150,10 +153,14 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
             # Remove the JSON from the text to get remaining content
             start_pos = text.find(json_str)
             if start_pos >= 0:
-                remaining_text = text[:start_pos] + text[start_pos + len(json_str) :]
+                remaining_text = (
+                    text[:start_pos] + text[start_pos + len(json_str) :]
+                )
                 remaining_text = remaining_text.strip()
                 # Also clean up any leftover code block markers
-                remaining_text = re.sub(r"```(?:json)?\s*```", "", remaining_text).strip()
+                remaining_text = re.sub(
+                    r"```(?:json)?\s*```", "", remaining_text
+                ).strip()
                 return tool_calls, remaining_text
             return tool_calls, ""
 
@@ -194,7 +201,9 @@ def _parse_tool_calls_data(data: dict) -> list[ToolCall]:
 # -----------------------------------------------------------------------------
 # Tool Result Formatting
 # -----------------------------------------------------------------------------
-def format_tool_result_for_prompt(tool_call_id: str, name: str, content: str) -> str:
+def format_tool_result_for_prompt(
+    tool_call_id: str, name: str, content: str
+) -> str:
     """Format a tool result message for injection into the prompt."""
     return f"[Tool Result for {name} (id: {tool_call_id})]\n{content}"
 
@@ -238,8 +247,12 @@ def collapse_messages(request: ChatCompletionRequest) -> str:
         if message.role == "assistant" and message.tool_calls:
             tool_calls_summary = []
             for tc in message.tool_calls:
-                tool_calls_summary.append(f"Called {tc.function.name}(id={tc.id})")
-            dialogue_lines.append(f"ASSISTANT: [Tool calls: {', '.join(tool_calls_summary)}]")
+                tool_calls_summary.append(
+                    f"Called {tc.function.name}(id={tc.id})"
+                )
+            dialogue_lines.append(
+                f"ASSISTANT: [Tool calls: {', '.join(tool_calls_summary)}]"
+            )
             continue
 
         rendered = render_message_content(message)
@@ -287,7 +300,9 @@ def to_chat_completion_response(
         # Regular text response
         message = ChatCompletionMessage(
             role="assistant",
-            content=[ChatCompletionMessageContent(type="text", text=remaining_text)],
+            content=[
+                ChatCompletionMessageContent(type="text", text=remaining_text)
+            ],
         )
         finish_reason = "stop"
 

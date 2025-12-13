@@ -127,7 +127,9 @@ async def main() -> None:
         # 9. Refresh profile cookies
         print("9. Refreshing profile 'my-account' cookies...")
         try:
-            response = await client.post(f"{base_url}/profiles/my-account/refresh")
+            response = await client.post(
+                f"{base_url}/profiles/my-account/refresh"
+            )
             print(f"   Result: {response.json()}\n")
         except httpx.HTTPStatusError as e:
             print(f"   Error: {e.response.json()}\n")

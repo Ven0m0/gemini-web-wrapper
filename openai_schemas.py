@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Minimal OpenAI-compatible chat completion models."""
+
 from __future__ import annotations
 
-import json
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -59,7 +59,9 @@ class ChatCompletionMessage(BaseModel):
     """OpenAI chat message format."""
 
     role: Literal["system", "user", "assistant", "tool"]
-    content: str | list[ChatCompletionMessageContent] | list[dict[str, Any]] | None = None
+    content: (
+        str | list[ChatCompletionMessageContent] | list[dict[str, Any]] | None
+    ) = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None  # For tool role messages
     name: str | None = None  # Function name for tool responses
@@ -67,7 +69,7 @@ class ChatCompletionMessage(BaseModel):
     model_config = {"extra": "allow"}  # Allow unknown fields like refusal, etc.
 
     @model_validator(mode="after")
-    def validate_tool_message(self) -> "ChatCompletionMessage":
+    def validate_tool_message(self) -> ChatCompletionMessage:
         """Validate tool messages have required fields."""
         if self.role == "tool" and not self.tool_call_id:
             raise ValueError("tool messages must include tool_call_id")
@@ -87,7 +89,9 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = Field(default=None, gt=0)
     stream: bool = False
     tools: list[ToolDefinition] | None = None
-    tool_choice: Literal["none", "auto", "required"] | dict[str, Any] | None = "auto"
+    tool_choice: Literal["none", "auto", "required"] | dict[str, Any] | None = (
+        "auto"
+    )
     # Common fields from OpenAI API that we accept but ignore
     n: int | None = None
     stop: str | list[str] | None = None
@@ -102,7 +106,7 @@ class ChatCompletionRequest(BaseModel):
     model_config = {"extra": "allow"}  # Allow unknown fields
 
     @model_validator(mode="after")
-    def validate_capabilities(self) -> "ChatCompletionRequest":
+    def validate_capabilities(self) -> ChatCompletionRequest:
         """Validate request has required fields."""
         # Note: stream=True is handled in the endpoint before validation
         if not self.messages:
@@ -123,7 +127,9 @@ class ChatCompletionResponseChoice(BaseModel):
 
     index: int
     message: ChatCompletionMessage
-    finish_reason: Literal["stop", "length", "content_filter", "tool_calls"] = "stop"
+    finish_reason: Literal["stop", "length", "content_filter", "tool_calls"] = (
+        "stop"
+    )
 
 
 class ChatCompletionResponse(BaseModel):

@@ -6,15 +6,14 @@ Gemini model via the Genkit framework. Features: strict typing,
 async/await, orjson, uvloop, and comprehensive validation.
 """
 
-import asyncio
 import subprocess
 import sys
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
@@ -25,7 +24,12 @@ from pydantic_settings import BaseSettings
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
 from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
-from openai_transforms import collapse_messages, parse_tool_calls, to_chat_completion_response
+from openai_transforms import (
+    collapse_messages,
+    parse_tool_calls,
+    to_chat_completion_response,
+)
+from utils import handle_generation_errors, run_in_thread
 
 
 # ----- Configuration -----
@@ -76,7 +80,9 @@ class GenerateResponse(Protocol):
 class GenkitModel(Protocol):
     """Protocol defining the interface for Genkit model objects."""
 
-    def generate(self, messages: str | list[dict[str, str]]) -> GenerateResponse:
+    def generate(
+        self, messages: str | list[dict[str, str]]
+    ) -> GenerateResponse:
         """Generate a response from the model.
 
         Args:
@@ -102,15 +108,13 @@ class AppState:
     memori: Memori | None = None
     chatbot_flow: Callable[..., Any] | None = None
     # Cache for attribution setup to avoid redundant calls
-    attribution_cache: set[tuple[str, str | None]] = None  # type: ignore
+    attribution_cache: set[tuple[str, str | None]] = field(default_factory=set)
     # Cookie management for gemini-webapi
     cookie_manager: CookieManager | None = None
     gemini_client: GeminiClientWrapper | None = None
 
 
 state = AppState()
-# Initialize the attribution cache as a set after state creation
-state.attribution_cache = set()
 
 
 # ----- Initialization Helpers -----
@@ -122,7 +126,7 @@ async def _setup_memori() -> None:
     Errors are silently caught as setup may already be complete.
     """
     with suppress(subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        await asyncio.to_thread(
+        await run_in_thread(
             subprocess.run,
             ["python", "-m", "memori", "setup"],
             capture_output=True,
@@ -176,7 +180,7 @@ def create_chatbot_flow(ai: Genkit) -> None:
         history_msgs = [_DictMessage(h) for h in history] if history else []
         msgs_list = _build_message_list(system, history_msgs, message)  # type: ignore
 
-        response = await asyncio.to_thread(state.model.generate, msgs_list)
+        response = await run_in_thread(state.model.generate, msgs_list)
         # GenerateResponse.text from genkit lacks type hints
         return str(response.text)
 
@@ -226,7 +230,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Register the model with Memori once at startup (performance optimization)
     if state.model and state.memori:
-        await asyncio.to_thread(state.memori.llm.register, state.model)
+        await run_in_thread(state.memori.llm.register, state.model)
 
     # Create Genkit flows
     create_chatbot_flow(state.genkit)
@@ -321,30 +325,24 @@ class GenResponse(BaseModel):
 
 
 # ----- Logic Helpers -----
-async def run_generate(messages: str | list[dict[str, str]]) -> GenerateResponse:
+async def run_generate(
+    messages: str | list[dict[str, str]],
+    model: GenkitModel,
+) -> GenerateResponse:
     """Run model generation in a thread pool to avoid blocking event loop.
 
     Genkit's generate method performs blocking I/O operations. To maintain
     high performance in our async FastAPI server, we execute it in a
-    thread pool executor using asyncio.to_thread.
+    thread pool executor using run_in_thread.
 
     Args:
         messages: Either a string prompt or list of role/content dicts.
+        model: Initialized GenkitModel instance.
 
     Returns:
         GenerateResponse containing the generated text and metadata.
-
-    Raises:
-        HTTPException: 503 if model is not initialized.
     """
-    if state.model is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model not initialized",
-        )
-
-    # genkit operations are likely blocking I/O
-    return await asyncio.to_thread(state.model.generate, messages)
+    return await run_in_thread(model.generate, messages)
 
 
 async def _setup_memori_attribution(
@@ -370,13 +368,13 @@ async def _setup_memori_attribution(
 
         # Only set up attribution if not already cached
         if cache_key not in state.attribution_cache:
-            await asyncio.to_thread(
+            await run_in_thread(
                 memori.attribution,
                 entity_id=effective_user_id,
                 process_id="gemini-chatbot",
             )
             if session_id:
-                await asyncio.to_thread(memori.set_session, session_id)
+                await run_in_thread(memori.set_session, session_id)
 
             # Add to cache
             state.attribution_cache.add(cache_key)
@@ -414,9 +412,82 @@ def _build_message_list(
     return msgs
 
 
+# ----- Dependencies -----
+def get_model() -> GenkitModel:
+    """FastAPI dependency to get the initialized model.
+
+    Returns:
+        Initialized GenkitModel instance.
+
+    Raises:
+        HTTPException: 503 if model is not initialized.
+    """
+    if state.model is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Model not initialized. Check server logs.",
+        )
+    return state.model
+
+
+def get_memori() -> Memori:
+    """FastAPI dependency to get the initialized Memori instance.
+
+    Returns:
+        Initialized Memori instance.
+
+    Raises:
+        HTTPException: 503 if Memori is not initialized.
+    """
+    if state.memori is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Memory not initialized. Check server logs.",
+        )
+    return state.memori
+
+
+def get_cookie_manager() -> CookieManager:
+    """FastAPI dependency to get the initialized CookieManager.
+
+    Returns:
+        Initialized CookieManager instance.
+
+    Raises:
+        HTTPException: 503 if CookieManager is not initialized.
+    """
+    if state.cookie_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cookie manager not initialized.",
+        )
+    return state.cookie_manager
+
+
+def get_gemini_client() -> GeminiClientWrapper:
+    """FastAPI dependency to get the initialized GeminiClientWrapper.
+
+    Returns:
+        Initialized GeminiClientWrapper instance.
+
+    Raises:
+        HTTPException: 503 if GeminiClientWrapper is not initialized.
+    """
+    if state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini client not initialized.",
+        )
+    return state.gemini_client
+
+
 # ----- Endpoints -----
 @app.post("/chat", response_model=GenResponse)
-async def chat(r: ChatReq) -> dict[str, str]:
+@handle_generation_errors
+async def chat(
+    r: ChatReq,
+    model: GenkitModel = Depends(get_model),
+) -> dict[str, str]:
     """Handle conversational chat requests.
 
     Constructs a message list with optional system context and user prompt,
@@ -424,6 +495,7 @@ async def chat(r: ChatReq) -> dict[str, str]:
 
     Args:
         r: ChatReq containing prompt and optional system message.
+        model: Injected GenkitModel dependency.
 
     Returns:
         Dict with 'text' key containing the model's response.
@@ -436,19 +508,16 @@ async def chat(r: ChatReq) -> dict[str, str]:
         msgs.append({"role": "system", "content": r.system})
     msgs.append({"role": "user", "content": r.prompt})
 
-    try:
-        out = await run_generate(msgs)
-        return {"text": out.text}
-    except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
-        # Catch common errors from model generation and network issues
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Generation failed: {e}",
-        ) from e
+    out = await run_generate(msgs, model)
+    return {"text": out.text}
 
 
 @app.post("/code", response_model=GenResponse)
-async def code(r: CodeReq) -> dict[str, str]:
+@handle_generation_errors
+async def code(
+    r: CodeReq,
+    model: GenkitModel = Depends(get_model),
+) -> dict[str, str]:
     """Handle code assistance requests.
 
     Formats the code and instruction into a prompt for the coding assistant,
@@ -456,6 +525,7 @@ async def code(r: CodeReq) -> dict[str, str]:
 
     Args:
         r: CodeReq containing code snippet and modification instruction.
+        model: Injected GenkitModel dependency.
 
     Returns:
         Dict with 'text' key containing the model's code response.
@@ -477,14 +547,8 @@ async def code(r: CodeReq) -> dict[str, str]:
         ]
     )
 
-    try:
-        out = await run_generate(prompt)
-        return {"text": out.text}
-    except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Code generation failed: {e}",
-        ) from e
+    out = await run_generate(prompt, model)
+    return {"text": out.text}
 
 
 @app.get("/health")
@@ -498,7 +562,12 @@ async def health() -> dict[str, bool]:
 
 
 @app.post("/chatbot", response_model=GenResponse)
-async def chatbot(r: ChatbotReq) -> dict[str, str]:
+@handle_generation_errors
+async def chatbot(
+    r: ChatbotReq,
+    model: GenkitModel = Depends(get_model),
+    memori: Memori = Depends(get_memori),
+) -> dict[str, str]:
     """Handle chatbot requests with conversation history and memory.
 
     This endpoint follows the Genkit chatbot pattern, accepting a message
@@ -507,6 +576,8 @@ async def chatbot(r: ChatbotReq) -> dict[str, str]:
 
     Args:
         r: ChatbotReq with message, history, and optional system instruction.
+        model: Injected GenkitModel dependency.
+        memori: Injected Memori dependency.
 
     Returns:
         Dict with 'text' key containing the model's response.
@@ -514,34 +585,26 @@ async def chatbot(r: ChatbotReq) -> dict[str, str]:
     Raises:
         HTTPException: 503 if model not initialized, 500 if generation fails.
     """
-    if state.model is None or state.memori is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model or memory not initialized",
-        )
-
     # Set up Memori attribution for this conversation
-    await _setup_memori_attribution(state.memori, r.user_id, r.session_id)
+    await _setup_memori_attribution(memori, r.user_id, r.session_id)
 
     # Build message list from history + new message
     msgs = _build_message_list(r.system, r.history, r.message)
 
-    try:
-        out = await run_generate(msgs)
+    out = await run_generate(msgs, model)
 
-        # Note: Memori model registration now happens once at startup
-        # for better performance instead of per-request
+    # Note: Memori model registration now happens once at startup
+    # for better performance instead of per-request
 
-        return {"text": out.text}
-    except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Chatbot generation failed: {e}",
-        ) from e
+    return {"text": out.text}
 
 
 @app.post("/chatbot/stream")
-async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
+async def chatbot_stream(
+    r: ChatbotReq,
+    model: GenkitModel = Depends(get_model),
+    memori: Memori = Depends(get_memori),
+) -> StreamingResponse:
     """Handle chatbot requests with streaming responses and memory.
 
     This endpoint streams the model's response token-by-token for a more
@@ -550,6 +613,8 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
 
     Args:
         r: ChatbotReq with message, history, and optional system instruction.
+        model: Injected GenkitModel dependency.
+        memori: Injected Memori dependency.
 
     Returns:
         StreamingResponse that yields text chunks as they're generated.
@@ -557,14 +622,8 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
     Raises:
         HTTPException: 503 if model not initialized, 500 if generation fails.
     """
-    if state.model is None or state.memori is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model or memory not initialized",
-        )
-
     # Set up Memori attribution for this conversation
-    await _setup_memori_attribution(state.memori, r.user_id, r.session_id)
+    await _setup_memori_attribution(memori, r.user_id, r.session_id)
 
     # Build message list from history + new message
     msgs = _build_message_list(r.system, r.history, r.message)
@@ -574,7 +633,7 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
         try:
             # For streaming, we need to use Genkit's streaming API
             # Note: The exact API may vary; this demonstrates the pattern
-            response = await run_generate(msgs)
+            response = await run_generate(msgs, model)
 
             # Note: Memori model registration now happens once at startup
             # for better performance instead of per-request
@@ -592,11 +651,15 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
 
 
 @app.post("/memory/session/new")
-async def create_new_session(user_id: str | None = None) -> dict[str, str]:
+async def create_new_session(
+    user_id: str | None = None,
+    memori: Memori = Depends(get_memori),
+) -> dict[str, str]:
     """Create a new memory session for a user.
 
     Args:
         user_id: Optional user identifier for the session.
+        memori: Injected Memori dependency.
 
     Returns:
         Dict with 'status' and 'message' indicating session creation.
@@ -604,19 +667,13 @@ async def create_new_session(user_id: str | None = None) -> dict[str, str]:
     Raises:
         HTTPException: 503 if memory not initialized.
     """
-    if state.memori is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Memory not initialized",
-        )
-
     try:
-        await asyncio.to_thread(
-            state.memori.attribution,
+        await run_in_thread(
+            memori.attribution,
             entity_id=user_id or "default_user",
             process_id="gemini-chatbot",
         )
-        await asyncio.to_thread(state.memori.new_session)
+        await run_in_thread(memori.new_session)
         return {
             "status": "success",
             "message": "New memory session created",
@@ -643,7 +700,10 @@ class MemoryQueryReq(BaseModel):
 
 
 @app.post("/memory/query")
-async def query_memories(r: MemoryQueryReq) -> dict[str, Any]:
+async def query_memories(
+    r: MemoryQueryReq,
+    memori: Memori = Depends(get_memori),
+) -> dict[str, Any]:
     """Query stored memories for a user.
 
     This endpoint allows retrieving past conversation context and memories
@@ -651,6 +711,7 @@ async def query_memories(r: MemoryQueryReq) -> dict[str, Any]:
 
     Args:
         r: MemoryQueryReq containing user_id and optional query parameters.
+        memori: Injected Memori dependency.
 
     Returns:
         Dict with 'memories' list and informational 'message' string.
@@ -658,16 +719,10 @@ async def query_memories(r: MemoryQueryReq) -> dict[str, Any]:
     Raises:
         HTTPException: 503 if memory not initialized, 500 if query fails.
     """
-    if state.memori is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Memory not initialized",
-        )
-
     try:
         # Set attribution to query this user's memories
-        await asyncio.to_thread(
-            state.memori.attribution,
+        await run_in_thread(
+            memori.attribution,
             entity_id=r.user_id,
             process_id="gemini-chatbot",
         )
@@ -678,7 +733,8 @@ async def query_memories(r: MemoryQueryReq) -> dict[str, Any]:
         return {
             "memories": [],
             "message": (
-                "Memory query functionality - check Memori docs for specific query methods"
+                "Memory query functionality - check Memori docs "
+                "for specific query methods"
             ),
         }
     except (RuntimeError, ValueError, AttributeError) as e:
@@ -815,7 +871,10 @@ async def generate_sse_tool_response(
 
 
 @app.post("/v1/chat/completions")
-async def openai_chat_completions(request: ChatCompletionRequest) -> ChatCompletionResponse | StreamingResponse:
+async def openai_chat_completions(
+    request: ChatCompletionRequest,
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> ChatCompletionResponse | StreamingResponse:
     """OpenAI-compatible chat completions endpoint.
 
     This endpoint accepts OpenAI-style chat completion requests and translates them
@@ -827,6 +886,7 @@ async def openai_chat_completions(request: ChatCompletionRequest) -> ChatComplet
 
     Args:
         request: ChatCompletionRequest with messages and optional tools.
+        gemini_client: Injected GeminiClientWrapper dependency.
 
     Returns:
         ChatCompletionResponse or StreamingResponse if streaming is enabled.
@@ -834,15 +894,10 @@ async def openai_chat_completions(request: ChatCompletionRequest) -> ChatComplet
     Raises:
         HTTPException: 503 if client not initialized, 502 if generation fails.
     """
-    if state.gemini_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Gemini client not initialized",
-        )
 
     # Initialize client if needed (auto-import cookies)
-    if not await state.gemini_client.ensure_initialized():
-        success = await state.gemini_client.init_auto()
+    if not await gemini_client.ensure_initialized():
+        success = await gemini_client.init_auto()
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -873,15 +928,15 @@ async def openai_chat_completions(request: ChatCompletionRequest) -> ChatComplet
 
     try:
         # Use gemini-webapi client to generate content
-        if not state.gemini_client.client:
+        if not gemini_client.client:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Gemini client not ready",
             )
 
         # Generate content using the client
-        raw_response = await asyncio.to_thread(
-            state.gemini_client.client.generate_content,
+        raw_response = await run_in_thread(
+            gemini_client.client.generate_content,
             prompt,
             model=model_name,
         )
@@ -963,11 +1018,15 @@ class ProfileSwitchReq(BaseModel):
 
 
 @app.post("/profiles/create")
-async def create_profile(r: ProfileCreateReq) -> dict[str, Any]:
+async def create_profile(
+    r: ProfileCreateReq,
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+) -> dict[str, Any]:
     """Create a new profile by extracting cookies from browser.
 
     Args:
         r: ProfileCreateReq with profile name and browser type.
+        cookie_mgr: Injected CookieManager dependency.
 
     Returns:
         Dict with status and message.
@@ -975,14 +1034,8 @@ async def create_profile(r: ProfileCreateReq) -> dict[str, Any]:
     Raises:
         HTTPException: 503 if cookie manager not initialized, 400 if creation fails.
     """
-    if state.cookie_manager is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Cookie manager not initialized",
-        )
-
     try:
-        success = await state.cookie_manager.create_profile_from_browser(
+        success = await cookie_mgr.create_profile_from_browser(
             r.name,
             r.browser,  # type: ignore
         )
@@ -1011,8 +1064,15 @@ async def create_profile(r: ProfileCreateReq) -> dict[str, Any]:
 
 
 @app.get("/profiles/list")
-async def list_profiles() -> dict[str, Any]:
+async def list_profiles(
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, Any]:
     """List all stored profiles.
+
+    Args:
+        cookie_mgr: Injected CookieManager dependency.
+        gemini_client: Injected GeminiClientWrapper dependency.
 
     Returns:
         Dict with profiles list and current profile info.
@@ -1020,14 +1080,8 @@ async def list_profiles() -> dict[str, Any]:
     Raises:
         HTTPException: 503 if cookie manager not initialized.
     """
-    if state.cookie_manager is None or state.gemini_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Cookie manager not initialized",
-        )
-
-    profiles = await state.cookie_manager.list_profiles()
-    current_profile = state.gemini_client.get_current_profile()
+    profiles = await cookie_mgr.list_profiles()
+    current_profile = gemini_client.get_current_profile()
 
     return {
         "profiles": profiles,
@@ -1037,11 +1091,15 @@ async def list_profiles() -> dict[str, Any]:
 
 
 @app.post("/profiles/switch")
-async def switch_profile(r: ProfileSwitchReq) -> dict[str, str]:
+async def switch_profile(
+    r: ProfileSwitchReq,
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, str]:
     """Switch to a different profile.
 
     Args:
         r: ProfileSwitchReq with profile name.
+        gemini_client: Injected GeminiClientWrapper dependency.
 
     Returns:
         Dict with status and message.
@@ -1049,14 +1107,8 @@ async def switch_profile(r: ProfileSwitchReq) -> dict[str, str]:
     Raises:
         HTTPException: 503 if services not initialized, 400 if switch fails.
     """
-    if state.gemini_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Gemini client not initialized",
-        )
-
     try:
-        success = await state.gemini_client.switch_profile(r.name)
+        success = await gemini_client.switch_profile(r.name)
 
         if not success:
             raise HTTPException(
@@ -1077,11 +1129,15 @@ async def switch_profile(r: ProfileSwitchReq) -> dict[str, str]:
 
 
 @app.delete("/profiles/{profile_name}")
-async def delete_profile(profile_name: str) -> dict[str, str]:
+async def delete_profile(
+    profile_name: str,
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+) -> dict[str, str]:
     """Delete a profile and its cookies.
 
     Args:
         profile_name: Name of the profile to delete.
+        cookie_mgr: Injected CookieManager dependency.
 
     Returns:
         Dict with status and message.
@@ -1089,13 +1145,7 @@ async def delete_profile(profile_name: str) -> dict[str, str]:
     Raises:
         HTTPException: 503 if cookie manager not initialized, 404 if not found.
     """
-    if state.cookie_manager is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Cookie manager not initialized",
-        )
-
-    success = await state.cookie_manager.delete_profile(profile_name)
+    success = await cookie_mgr.delete_profile(profile_name)
 
     if not success:
         raise HTTPException(
@@ -1110,11 +1160,15 @@ async def delete_profile(profile_name: str) -> dict[str, str]:
 
 
 @app.post("/profiles/{profile_name}/refresh")
-async def refresh_profile(profile_name: str) -> dict[str, str]:
+async def refresh_profile(
+    profile_name: str,
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+) -> dict[str, str]:
     """Refresh cookies for a profile.
 
     Args:
         profile_name: Name of the profile to refresh.
+        cookie_mgr: Injected CookieManager dependency.
 
     Returns:
         Dict with status and message.
@@ -1122,13 +1176,7 @@ async def refresh_profile(profile_name: str) -> dict[str, str]:
     Raises:
         HTTPException: 503 if cookie manager not initialized, 400 if refresh fails.
     """
-    if state.cookie_manager is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Cookie manager not initialized",
-        )
-
-    success = await state.cookie_manager.refresh_profile(profile_name)
+    success = await cookie_mgr.refresh_profile(profile_name)
 
     if not success:
         raise HTTPException(
@@ -1158,7 +1206,10 @@ class GeminiChatReq(BaseModel):
 
 
 @app.post("/gemini/chat")
-async def gemini_chat(r: GeminiChatReq) -> dict[str, Any]:
+async def gemini_chat(
+    r: GeminiChatReq,
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, Any]:
     """Chat using gemini-webapi with cookie authentication.
 
     This endpoint uses the gemini-webapi library directly instead of Genkit,
@@ -1166,6 +1217,7 @@ async def gemini_chat(r: GeminiChatReq) -> dict[str, Any]:
 
     Args:
         r: GeminiChatReq with message and optional conversation ID.
+        gemini_client: Injected GeminiClientWrapper dependency.
 
     Returns:
         Dict with response text and conversation ID.
@@ -1173,23 +1225,17 @@ async def gemini_chat(r: GeminiChatReq) -> dict[str, Any]:
     Raises:
         HTTPException: 503 if client not initialized, 400 if profile fails, 500 if chat fails.
     """
-    if state.gemini_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Gemini client not initialized",
-        )
-
     # Initialize with profile if specified
     if r.profile:
-        success = await state.gemini_client.init_with_profile(r.profile)
+        success = await gemini_client.init_with_profile(r.profile)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to initialize with profile '{r.profile}'",
             )
     # Otherwise try auto-init if not already initialized
-    elif not await state.gemini_client.ensure_initialized():
-        success = await state.gemini_client.init_auto()
+    elif not await gemini_client.ensure_initialized():
+        success = await gemini_client.init_auto()
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1200,7 +1246,7 @@ async def gemini_chat(r: GeminiChatReq) -> dict[str, Any]:
             )
 
     try:
-        response_text, conversation_id = await state.gemini_client.chat(
+        response_text, conversation_id = await gemini_client.chat(
             r.message,
             r.conversation_id,
         )
@@ -1208,7 +1254,7 @@ async def gemini_chat(r: GeminiChatReq) -> dict[str, Any]:
         return {
             "text": response_text,
             "conversation_id": conversation_id,
-            "profile": state.gemini_client.get_current_profile(),
+            "profile": gemini_client.get_current_profile(),
         }
 
     except Exception as e:
@@ -1219,8 +1265,13 @@ async def gemini_chat(r: GeminiChatReq) -> dict[str, Any]:
 
 
 @app.get("/gemini/conversations")
-async def list_gemini_conversations() -> dict[str, Any]:
+async def list_gemini_conversations(
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, Any]:
     """List all conversations from gemini-webapi.
+
+    Args:
+        gemini_client: Injected GeminiClientWrapper dependency.
 
     Returns:
         Dict with conversations list.
@@ -1228,20 +1279,14 @@ async def list_gemini_conversations() -> dict[str, Any]:
     Raises:
         HTTPException: 503 if client not initialized.
     """
-    if state.gemini_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Gemini client not initialized",
-        )
-
-    if not await state.gemini_client.ensure_initialized():
+    if not await gemini_client.ensure_initialized():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Client not initialized. Use /gemini/chat to initialize.",
         )
 
     try:
-        conversations = await state.gemini_client.list_conversations()
+        conversations = await gemini_client.list_conversations()
         return {
             "conversations": conversations,
             "count": len(conversations),
@@ -1255,11 +1300,15 @@ async def list_gemini_conversations() -> dict[str, Any]:
 
 
 @app.delete("/gemini/conversations/{conversation_id}")
-async def delete_gemini_conversation(conversation_id: str) -> dict[str, str]:
+async def delete_gemini_conversation(
+    conversation_id: str,
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, str]:
     """Delete a conversation from gemini-webapi.
 
     Args:
         conversation_id: Conversation ID to delete.
+        gemini_client: Injected GeminiClientWrapper dependency.
 
     Returns:
         Dict with status and message.
@@ -1267,20 +1316,14 @@ async def delete_gemini_conversation(conversation_id: str) -> dict[str, str]:
     Raises:
         HTTPException: 503 if client not initialized, 500 if deletion fails.
     """
-    if state.gemini_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Gemini client not initialized",
-        )
-
-    if not await state.gemini_client.ensure_initialized():
+    if not await gemini_client.ensure_initialized():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Client not initialized. Use /gemini/chat to initialize.",
         )
 
     try:
-        success = await state.gemini_client.delete_conversation(conversation_id)
+        success = await gemini_client.delete_conversation(conversation_id)
 
         if not success:
             raise HTTPException(

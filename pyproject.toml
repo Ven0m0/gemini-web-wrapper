@@ -67,7 +67,14 @@ select = [
   "SIM",  # flake8-simplify
   "RUF",  # ruff-specific rules
 ]
-ignore = []
+ignore = [
+  "B008",  # FastAPI Depends() in defaults is intentional
+  "E501",  # Line length soft limit, enforced via formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"dependencies.py" = ["F821"]  # Forward references to AppState
+"test_*.py" = ["S101"]  # Assert statements allowed in tests
 
 [tool.mypy]
 strict = true

@@ -21,7 +21,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 import aiosqlite
 import browser_cookie3
@@ -114,8 +114,11 @@ class CookieManager:
     """
 
     # Required Gemini cookies for authentication
-    REQUIRED_COOKIES: list[str] = ["__Secure-1PSID", "__Secure-1PSIDTS"]
-    GEMINI_DOMAIN: str = ".google.com"
+    REQUIRED_COOKIES: ClassVar[list[str]] = [
+        "__Secure-1PSID",
+        "__Secure-1PSIDTS",
+    ]
+    GEMINI_DOMAIN: ClassVar[str] = ".google.com"
 
     def __init__(self, db_path: str = "gemini_cookies.db") -> None:
         """Initialize the cookie manager.
@@ -231,7 +234,9 @@ class CookieManager:
             ]
 
         except Exception as e:
-            raise RuntimeError(f"Failed to extract cookies from {browser}: {e}") from e
+            raise RuntimeError(
+                f"Failed to extract cookies from {browser}: {e}"
+            ) from e
 
     async def extract_cookies(
         self,
@@ -319,7 +324,9 @@ class CookieManager:
 
             await db.commit()
 
-        logger.info(f"Saved profile '{profile_name}' with {len(cookies)} cookies from {browser}")
+        logger.info(
+            f"Saved profile '{profile_name}' with {len(cookies)} cookies from {browser}"
+        )
 
     async def load_profile(self, profile_name: str) -> Profile | None:
         """Load a profile and its cookies from the database.
@@ -392,8 +399,12 @@ class CookieManager:
                 {
                     "name": row["name"],
                     "browser": row["browser"],
-                    "created_at": datetime.fromtimestamp(row["created_at"]).isoformat(),
-                    "updated_at": datetime.fromtimestamp(row["updated_at"]).isoformat(),
+                    "created_at": datetime.fromtimestamp(
+                        row["created_at"]
+                    ).isoformat(),
+                    "updated_at": datetime.fromtimestamp(
+                        row["updated_at"]
+                    ).isoformat(),
                     "cookie_count": row["cookie_count"],
                 }
                 for row in rows
@@ -417,7 +428,9 @@ class CookieManager:
 
             return cursor.rowcount > 0
 
-    async def get_gemini_cookies(self, profile_name: str) -> dict[str, str] | None:
+    async def get_gemini_cookies(
+        self, profile_name: str
+    ) -> dict[str, str] | None:
         """Get required Gemini cookies for a profile.
 
         Args:
@@ -435,11 +448,15 @@ class CookieManager:
         for cookie_name in self.REQUIRED_COOKIES:
             cookie = profile.cookies.get(cookie_name)
             if not cookie:
-                logger.warning(f"Profile '{profile_name}' missing required cookie: {cookie_name}")
+                logger.warning(
+                    f"Profile '{profile_name}' missing required cookie: {cookie_name}"
+                )
                 return None
 
             if cookie.is_expired():
-                logger.warning(f"Cookie {cookie_name} in profile '{profile_name}' has expired")
+                logger.warning(
+                    f"Cookie {cookie_name} in profile '{profile_name}' has expired"
+                )
                 return None
 
             result[cookie_name] = cookie.value
@@ -463,7 +480,9 @@ class CookieManager:
         # Load existing profile to get browser type
         profile = await self.load_profile(profile_name)
         if not profile and not browser:
-            logger.error(f"Profile '{profile_name}' not found and no browser specified")
+            logger.error(
+                f"Profile '{profile_name}' not found and no browser specified"
+            )
             return False
 
         browser_type = browser or (profile.browser if profile else "chrome")
@@ -531,7 +550,9 @@ class CookieManager:
             "browser": profile.browser,
             "created_at": profile.created_at,
             "updated_at": profile.updated_at,
-            "cookies": [cookie.to_dict() for cookie in profile.cookies.values()],
+            "cookies": [
+                cookie.to_dict() for cookie in profile.cookies.values()
+            ],
         }
 
         try:
