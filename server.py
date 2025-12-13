@@ -67,9 +67,13 @@ class AppState:
     model: GenkitModel | None = None
     memori: Memori | None = None
     chatbot_flow: Callable[..., Any] | None = None
+    # Cache for attribution setup to avoid redundant calls
+    attribution_cache: set[tuple[str, str | None]] = None  # type: ignore
 
 
 state = AppState()
+# Initialize the attribution cache as a set after state creation
+state.attribution_cache = set()
 
 
 # ----- Initialization Helpers -----
@@ -86,7 +90,7 @@ async def _setup_memori() -> None:
             ["python", "-m", "memori", "setup"],
             capture_output=True,
             check=False,
-            timeout=10,
+            timeout=3,
         )
 
 
@@ -118,21 +122,25 @@ def create_chatbot_flow(ai: Genkit) -> None:
         Returns:
             Model's response text.
         """
-        msgs: list[dict[str, str]] = []
-
-        if system:
-            msgs.append({"role": "system", "content": system})
-
-        if history:
-            msgs.extend(history)
-
-        msgs.append({"role": "user", "content": message})
-
         # Use the flow's model directly
         if state.model is None:
             raise ValueError("Model not initialized")
 
-        response = await asyncio.to_thread(state.model.generate, msgs)
+        # Build message list using shared helper (consolidates logic)
+        # Convert history from list[dict] to required ChatMessage format for helper
+        from typing import cast
+
+        class _DictMessage:
+            """Temporary adapter for dict-based messages."""
+
+            def __init__(self, d: dict[str, str]) -> None:
+                self.role = d["role"]  # type: ignore
+                self.content = d["content"]
+
+        history_msgs = [_DictMessage(h) for h in history] if history else []
+        msgs_list = _build_message_list(system, history_msgs, message)  # type: ignore
+
+        response = await asyncio.to_thread(state.model.generate, msgs_list)
         # ActionResponse.text from genkit lacks type hints
         return str(response.text)
 
@@ -180,6 +188,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Note: Memori will automatically track conversations
     await _setup_memori()
 
+    # Register the model with Memori once at startup (performance optimization)
+    if state.model and state.memori:
+        await asyncio.to_thread(state.memori.llm.register, state.model)
+
     # Create Genkit flows
     create_chatbot_flow(state.genkit)
 
@@ -189,6 +201,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.genkit = None
     state.model = None
     state.memori = None
+    state.attribution_cache.clear()
 
 
 # ----- App Initialization -----
@@ -300,6 +313,7 @@ async def _setup_memori_attribution(
 
     Runs attribution setup in a thread pool to avoid blocking the event loop.
     Attribution allows Memori to track conversations per user and session.
+    Uses caching to avoid redundant attribution calls for same user/session.
 
     Args:
         memori: Initialized Memori instance.
@@ -307,13 +321,22 @@ async def _setup_memori_attribution(
         session_id: Optional session identifier for grouping interactions.
     """
     if user_id or session_id:
-        await asyncio.to_thread(
-            memori.attribution,
-            entity_id=user_id or "default_user",
-            process_id="gemini-chatbot",
-        )
-        if session_id:
-            await asyncio.to_thread(memori.set_session, session_id)
+        # Create cache key from user_id and session_id
+        effective_user_id = user_id or "default_user"
+        cache_key = (effective_user_id, session_id)
+
+        # Only set up attribution if not already cached
+        if cache_key not in state.attribution_cache:
+            await asyncio.to_thread(
+                memori.attribution,
+                entity_id=effective_user_id,
+                process_id="gemini-chatbot",
+            )
+            if session_id:
+                await asyncio.to_thread(memori.set_session, session_id)
+
+            # Add to cache
+            state.attribution_cache.add(cache_key)
 
 
 def _build_message_list(
@@ -397,10 +420,18 @@ async def code(r: CodeReq) -> dict[str, str]:
     Raises:
         HTTPException: 500 if generation fails.
     """
-    prompt = (
-        "You are a coding assistant. "
-        "Apply the following instruction to the code.\n\n"
-        f"Instruction:\n{r.instruction}\n\nCode:\n{r.code}"
+    # Use join for better performance with large code snippets
+    prompt = "\n".join(
+        [
+            "You are a coding assistant.",
+            "Apply the following instruction to the code.",
+            "",
+            "Instruction:",
+            r.instruction,
+            "",
+            "Code:",
+            r.code,
+        ]
     )
 
     try:
@@ -455,14 +486,8 @@ async def chatbot(r: ChatbotReq) -> dict[str, str]:
     try:
         out = await run_generate(msgs)
 
-        # Store the conversation in Memori for future context
-        # This allows the system to recall past interactions
-        if r.user_id or r.session_id:
-            await asyncio.to_thread(
-                lambda: state.memori.llm.register(state.model)
-                if state.memori
-                else None
-            )
+        # Note: Memori model registration now happens once at startup
+        # for better performance instead of per-request
 
         return {"text": out.text}
     except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
@@ -508,13 +533,8 @@ async def chatbot_stream(r: ChatbotReq) -> StreamingResponse:
             # Note: The exact API may vary; this demonstrates the pattern
             response = await run_generate(msgs)
 
-            # Store the conversation in Memori for future context
-            if r.user_id or r.session_id:
-                await asyncio.to_thread(
-                    lambda: state.memori.llm.register(state.model)
-                    if state.memori
-                    else None
-                )
+            # Note: Memori model registration now happens once at startup
+            # for better performance instead of per-request
 
             # Yield the complete response (Genkit streaming API may differ)
             # In production, you'd use actual streaming if Genkit supports it
