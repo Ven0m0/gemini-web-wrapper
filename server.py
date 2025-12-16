@@ -6,6 +6,7 @@ Gemini model via the Genkit framework. Features: strict typing,
 async/await, orjson, uvloop, and comprehensive validation.
 """
 
+import asyncio
 import subprocess
 import sys
 from collections.abc import AsyncGenerator, Callable
@@ -13,6 +14,7 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
+from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from genkit.ai import Genkit
@@ -107,8 +109,11 @@ class AppState:
     model: GenkitModel | None = None
     memori: Memori | None = None
     chatbot_flow: Callable[..., Any] | None = None
-    # Cache for attribution setup to avoid redundant calls
-    attribution_cache: set[tuple[str, str | None]] = field(default_factory=set)
+    # Cache for attribution setup with TTL to prevent unbounded growth
+    # maxsize=10000 entries, ttl=3600 seconds (1 hour)
+    attribution_cache: TTLCache = field(
+        default_factory=lambda: TTLCache(maxsize=10000, ttl=3600)
+    )
     # Cookie management for gemini-webapi
     cookie_manager: CookieManager | None = None
     gemini_client: GeminiClientWrapper | None = None
@@ -276,28 +281,28 @@ class ChatReq(BaseModel):
     """Request model for chat endpoint.
 
     Attributes:
-        prompt: User message/question (min 1 character).
+        prompt: User message/question (min 1 character, max 50000 chars).
         system: Optional system message to set context/behavior.
     """
 
-    prompt: str = Field(..., min_length=1)
-    system: str | None = Field(default=None)
+    prompt: str = Field(..., min_length=1, max_length=50000)
+    system: str | None = Field(default=None, max_length=10000)
 
 
 class ChatbotReq(BaseModel):
     """Request model for chatbot endpoint with history.
 
     Attributes:
-        message: User message/question (min 1 character).
-        history: Previous conversation messages (sent from client).
+        message: User message/question (min 1 character, max 50000 chars).
+        history: Previous conversation messages (max 50 messages).
         system: Optional system instruction to customize behavior.
         user_id: Optional user identifier for memory attribution.
         session_id: Optional session identifier for memory tracking.
     """
 
-    message: str = Field(..., min_length=1)
-    history: list[ChatMessage] = Field(default_factory=list)
-    system: str | None = Field(default=None)
+    message: str = Field(..., min_length=1, max_length=50000)
+    history: list[ChatMessage] = Field(default_factory=list, max_length=50)
+    system: str | None = Field(default=None, max_length=10000)
     user_id: str | None = Field(default=None)
     session_id: str | None = Field(default=None)
 
@@ -306,12 +311,12 @@ class CodeReq(BaseModel):
     """Request model for code assistance endpoint.
 
     Attributes:
-        code: Source code to be modified/analyzed (min 1 character).
-        instruction: Instruction describing desired changes (min 1 character).
+        code: Source code to be modified/analyzed (max 100000 chars).
+        instruction: Instruction describing desired changes (max 10000 chars).
     """
 
-    code: str = Field(..., min_length=1)
-    instruction: str = Field(..., min_length=1)
+    code: str = Field(..., min_length=1, max_length=100000)
+    instruction: str = Field(..., min_length=1, max_length=10000)
 
 
 class GenResponse(BaseModel):
@@ -328,21 +333,35 @@ class GenResponse(BaseModel):
 async def run_generate(
     messages: str | list[dict[str, str]],
     model: GenkitModel,
+    timeout: float = 30.0,
 ) -> GenerateResponse:
     """Run model generation in a thread pool to avoid blocking event loop.
 
     Genkit's generate method performs blocking I/O operations. To maintain
     high performance in our async FastAPI server, we execute it in a
-    thread pool executor using run_in_thread.
+    thread pool executor using run_in_thread with timeout protection.
 
     Args:
         messages: Either a string prompt or list of role/content dicts.
         model: Initialized GenkitModel instance.
+        timeout: Maximum time to wait for generation (default 30 seconds).
 
     Returns:
         GenerateResponse containing the generated text and metadata.
+
+    Raises:
+        HTTPException: 504 if generation times out.
     """
-    return await run_in_thread(model.generate, messages)
+    try:
+        return await asyncio.wait_for(
+            run_in_thread(model.generate, messages),
+            timeout=timeout,
+        )
+    except TimeoutError as e:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=f"Model generation timed out after {timeout}s",
+        ) from e
 
 
 async def _setup_memori_attribution(
@@ -354,7 +373,8 @@ async def _setup_memori_attribution(
 
     Runs attribution setup in a thread pool to avoid blocking the event loop.
     Attribution allows Memori to track conversations per user and session.
-    Uses caching to avoid redundant attribution calls for same user/session.
+    Uses TTL cache to avoid redundant attribution calls for same user/session
+    while preventing unbounded memory growth.
 
     Args:
         memori: Initialized Memori instance.
@@ -376,8 +396,8 @@ async def _setup_memori_attribution(
             if session_id:
                 await run_in_thread(memori.set_session, session_id)
 
-            # Add to cache
-            state.attribution_cache.add(cache_key)
+            # Add to cache (TTLCache expires after 1 hour)
+            state.attribution_cache[cache_key] = True
 
 
 def _build_message_list(
@@ -934,12 +954,21 @@ async def openai_chat_completions(
                 detail="Gemini client not ready",
             )
 
-        # Generate content using the client
-        raw_response = await run_in_thread(
-            gemini_client.client.generate_content,
-            prompt,
-            model=model_name,
-        )
+        # Generate content using the client with timeout protection
+        try:
+            raw_response = await asyncio.wait_for(
+                run_in_thread(
+                    gemini_client.client.generate_content,
+                    prompt,
+                    model=model_name,
+                ),
+                timeout=30.0,
+            )
+        except TimeoutError as e:
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Gemini generation timed out after 30s",
+            ) from e
 
     except Exception as exc:
         raise HTTPException(
@@ -1195,12 +1224,12 @@ class GeminiChatReq(BaseModel):
     """Request model for gemini-webapi chat endpoint.
 
     Attributes:
-        message: User message.
+        message: User message (max 50000 chars).
         conversation_id: Optional conversation ID to continue a chat.
         profile: Optional profile to use (if not already initialized).
     """
 
-    message: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1, max_length=50000)
     conversation_id: str | None = Field(default=None)
     profile: str | None = Field(default=None)
 

@@ -161,6 +161,12 @@ class CookieManager:
                 ) WITHOUT ROWID
             """)
 
+            # Create index for profile_name to optimize JOIN queries
+            await db.execute("""
+                CREATE INDEX IF NOT EXISTS idx_cookies_profile
+                ON cookies(profile_name)
+            """)
+
             await db.commit()
 
     @asynccontextmanager
@@ -242,22 +248,35 @@ class CookieManager:
         self,
         browser: BrowserType = "chrome",
         domain: str = GEMINI_DOMAIN,
+        timeout: float = 10.0,
     ) -> list[CookieData]:
-        """Extract cookies from browser asynchronously.
+        """Extract cookies from browser asynchronously with timeout.
 
         Args:
             browser: Browser type to extract from.
             domain: Domain to filter cookies by.
+            timeout: Maximum time to wait for extraction (default 10 seconds).
 
         Returns:
             List of extracted CookieData objects.
+
+        Raises:
+            RuntimeError: If extraction times out or fails.
         """
-        # Run blocking browser_cookie3 operation in thread pool
-        return await asyncio.to_thread(
-            self._extract_cookies_from_browser,
-            browser,
-            domain,
-        )
+        try:
+            # Run blocking browser_cookie3 operation in thread pool with timeout
+            return await asyncio.wait_for(
+                asyncio.to_thread(
+                    self._extract_cookies_from_browser,
+                    browser,
+                    domain,
+                ),
+                timeout=timeout,
+            )
+        except TimeoutError as e:
+            raise RuntimeError(
+                f"Cookie extraction from {browser} timed out after {timeout}s"
+            ) from e
 
     async def save_profile(
         self,
@@ -302,25 +321,29 @@ class CookieManager:
                 (profile_name,),
             )
 
-            # Insert new cookies
-            for cookie in cookies:
-                await db.execute(
-                    """
-                    INSERT INTO cookies
-                    (profile_name, name, value, domain, path, expires, secure, http_only)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        profile_name,
-                        cookie.name,
-                        cookie.value,
-                        cookie.domain,
-                        cookie.path,
-                        cookie.expires,
-                        int(cookie.secure),
-                        int(cookie.http_only),
-                    ),
+            # Batch insert new cookies using executemany for performance
+            cookie_data = [
+                (
+                    profile_name,
+                    cookie.name,
+                    cookie.value,
+                    cookie.domain,
+                    cookie.path,
+                    cookie.expires,
+                    int(cookie.secure),
+                    int(cookie.http_only),
                 )
+                for cookie in cookies
+            ]
+
+            await db.executemany(
+                """
+                INSERT INTO cookies
+                (profile_name, name, value, domain, path, expires, secure, http_only)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                cookie_data,
+            )
 
             await db.commit()
 
