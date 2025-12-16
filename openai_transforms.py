@@ -77,43 +77,38 @@ def inject_tools_into_prompt(
 # Tool Call Parsing
 # -----------------------------------------------------------------------------
 def _extract_json_with_tool_calls(text: str) -> str | None:
-    """Find a complete JSON object containing tool_calls, handling nested braces and strings."""
+    """Find a complete JSON object containing tool_calls using JSONDecoder.
+
+    Uses json.JSONDecoder for robust parsing instead of manual brace counting.
+    This is more reliable and performant for large responses.
+    """
     # Find where tool_calls appears
-    marker_idx = text.find('"tool_calls"')
-    if marker_idx < 0:
+    if '"tool_calls"' not in text:
         return None
 
-    # Find the opening brace before the marker
-    brace_start = text.rfind("{", 0, marker_idx)
-    if brace_start < 0:
-        return None
+    # Use JSONDecoder to find and parse JSON objects
+    decoder = json.JSONDecoder()
 
-    brace_count = 0
-    in_string = False
-    escape_next = False
+    # Try to find JSON starting from each opening brace
+    start = 0
+    while start < len(text):
+        # Find next opening brace
+        brace_idx = text.find("{", start)
+        if brace_idx < 0:
+            break
 
-    for i, char in enumerate(text[brace_start:], brace_start):
-        if escape_next:
-            escape_next = False
-            continue
+        try:
+            # Try to decode from this position
+            obj, end_idx = decoder.raw_decode(text, brace_idx)
 
-        if char == "\\":
-            escape_next = True
-            continue
+            # Check if this object contains tool_calls
+            if "tool_calls" in obj:
+                return text[brace_idx : brace_idx + end_idx]
 
-        if char == '"' and not escape_next:
-            in_string = not in_string
-            continue
+            start = brace_idx + 1
 
-        if in_string:
-            continue
-
-        if char == "{":
-            brace_count += 1
-        elif char == "}":
-            brace_count -= 1
-            if brace_count == 0:
-                return text[brace_start : i + 1]
+        except json.JSONDecodeError:
+            start = brace_idx + 1
 
     return None
 
