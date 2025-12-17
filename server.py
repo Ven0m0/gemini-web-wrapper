@@ -432,6 +432,23 @@ def _build_message_list(
     return msgs
 
 
+async def _prepare_chatbot_messages(
+    request: ChatbotReq,
+    memori: Memori,
+) -> list[dict[str, str]]:
+    """Prepare chatbot messages and ensure attribution is set."""
+    await _setup_memori_attribution(
+        memori,
+        request.user_id,
+        request.session_id,
+    )
+    return _build_message_list(
+        request.system,
+        request.history,
+        request.message,
+    )
+
+
 # ----- Dependencies -----
 def get_model() -> GenkitModel:
     """FastAPI dependency to get the initialized model.
@@ -605,11 +622,7 @@ async def chatbot(
     Raises:
         HTTPException: 503 if model not initialized, 500 if generation fails.
     """
-    # Set up Memori attribution for this conversation
-    await _setup_memori_attribution(memori, r.user_id, r.session_id)
-
-    # Build message list from history + new message
-    msgs = _build_message_list(r.system, r.history, r.message)
+    msgs = await _prepare_chatbot_messages(r, memori)
 
     out = await run_generate(msgs, model)
 
@@ -642,11 +655,7 @@ async def chatbot_stream(
     Raises:
         HTTPException: 503 if model not initialized, 500 if generation fails.
     """
-    # Set up Memori attribution for this conversation
-    await _setup_memori_attribution(memori, r.user_id, r.session_id)
-
-    # Build message list from history + new message
-    msgs = _build_message_list(r.system, r.history, r.message)
+    msgs = await _prepare_chatbot_messages(r, memori)
 
     async def generate_stream() -> AsyncGenerator[str, None]:
         """Generate response stream chunk by chunk."""

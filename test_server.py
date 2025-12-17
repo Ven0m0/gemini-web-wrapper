@@ -322,6 +322,37 @@ def test_chatbot_stream_with_history(client: TestClient) -> None:
     assert len(args) == 3  # history + new message
 
 
+def test_chatbot_stream_includes_system_and_history(
+    client: TestClient,
+) -> None:
+    """Ensure streaming chatbot builds messages with system + history."""
+    payload = {
+        "message": "Continue",
+        "system": "You are a storyteller",
+        "history": [
+            {"role": "user", "content": "Start a story"},
+            {"role": "model", "content": "Once upon a time..."},
+        ],
+    }
+    response = client.post("/chatbot/stream", json=payload)
+
+    assert response.status_code == 200
+
+    assert state.model is not None
+    mock_model: Any = state.model
+    args = mock_model.generate.call_args[0][0]
+    assert args == [
+        {"role": "system", "content": "You are a storyteller"},
+        {"role": "user", "content": "Start a story"},
+        {"role": "model", "content": "Once upon a time..."},
+        {"role": "user", "content": "Continue"},
+    ]
+
+    assert state.memori is not None
+    mock_memori: Any = state.memori
+    assert mock_memori.attribution.call_count == 1
+
+
 def test_chatbot_stream_not_initialized(client: TestClient) -> None:
     """Test chatbot stream endpoint returns 503 when model not initialized."""
     original_model = state.model
