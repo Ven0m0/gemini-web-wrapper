@@ -540,10 +540,7 @@ async def chat(
     Raises:
         HTTPException: 500 if generation fails.
     """
-    msgs: list[dict[str, str]] = []
-    if r.system:
-        msgs.append({"role": "system", "content": r.system})
-    msgs.append({"role": "user", "content": r.prompt})
+    msgs = _build_message_list(r.system, [], r.prompt)
 
     out = await run_generate(msgs, model)
     return {"text": out.text}
