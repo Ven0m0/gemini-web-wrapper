@@ -112,21 +112,23 @@ def _extract_json_with_tool_calls(text: str) -> str | None:
     return None
 
 
-def _find_tool_call_json(text: str) -> tuple[str | None, bool]:
+def _find_tool_call_json(
+    text: str,
+) -> tuple[str | None, bool, tuple[int, int] | None]:
     """Locate tool_call JSON directly or inside a fenced block."""
     json_str = _extract_json_with_tool_calls(text)
     if json_str:
-        return json_str, False
+        return json_str, False, None
 
     code_block_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if not code_block_match:
-        return None, False
+        return None, False, None
 
     block_content = code_block_match.group(1).strip()
     if '"tool_calls"' not in block_content:
-        return None, False
+        return None, False, None
 
-    return _extract_json_with_tool_calls(block_content), True
+    return _extract_json_with_tool_calls(block_content), True, code_block_match.span()
 
 
 def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
@@ -138,7 +140,7 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
     if not text:
         return [], ""
 
-    json_str, from_block = _find_tool_call_json(text)
+    json_str, from_block, block_span = _find_tool_call_json(text)
     if not json_str:
         return [], text
 
@@ -151,19 +153,18 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
         tool_calls = _parse_tool_calls_data(data)
 
         if tool_calls:
-            # Remove the JSON from the text to get remaining content
-            start_pos = text.find(json_str)
-            if start_pos >= 0:
+            if from_block and block_span:
                 remaining_text = (
-                    text[:start_pos] + text[start_pos + len(json_str) :]
+                    text[: block_span[0]] + text[block_span[1] :]
                 ).strip()
             else:
-                remaining_text = text.strip()
-
-            if from_block:
-                remaining_text = re.sub(
-                    r"```(?:json)?\s*```", "", remaining_text
-                ).strip()
+                start_pos = text.find(json_str)
+                if start_pos >= 0:
+                    remaining_text = (
+                        text[:start_pos] + text[start_pos + len(json_str) :]
+                    ).strip()
+                else:
+                    remaining_text = text.strip()
             return tool_calls, remaining_text
 
         return [], text
