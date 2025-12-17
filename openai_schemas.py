@@ -8,6 +8,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 
+class ExtraAllowedModel(BaseModel):
+    """Base model that permits unknown fields."""
+
+    model_config = {"extra": "allow"}
+
+
 # -----------------------------------------------------------------------------
 # Tool / Function Calling Types
 # -----------------------------------------------------------------------------
@@ -44,18 +50,17 @@ class ToolCall(BaseModel):
 # -----------------------------------------------------------------------------
 # Message Types
 # -----------------------------------------------------------------------------
-class ChatCompletionMessageContent(BaseModel):
+class ChatCompletionMessageContent(ExtraAllowedModel):
     """Content block - can be text, image_url, etc."""
 
     type: str = "text"
     text: str | None = None
     # Allow image_url and other content types (we'll ignore them for now)
     image_url: dict[str, Any] | None = None
+    # Allow unknown fields via ExtraAllowedModel
 
-    model_config = {"extra": "allow"}  # Allow unknown fields
 
-
-class ChatCompletionMessage(BaseModel):
+class ChatCompletionMessage(ExtraAllowedModel):
     """OpenAI chat message format."""
 
     role: Literal["system", "user", "assistant", "tool"]
@@ -65,8 +70,7 @@ class ChatCompletionMessage(BaseModel):
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None  # For tool role messages
     name: str | None = None  # Function name for tool responses
-
-    model_config = {"extra": "allow"}  # Allow unknown fields like refusal, etc.
+    # Allow unknown fields via ExtraAllowedModel
 
     @model_validator(mode="after")
     def validate_tool_message(self) -> ChatCompletionMessage:
@@ -79,7 +83,7 @@ class ChatCompletionMessage(BaseModel):
 # -----------------------------------------------------------------------------
 # Request / Response
 # -----------------------------------------------------------------------------
-class ChatCompletionRequest(BaseModel):
+class ChatCompletionRequest(ExtraAllowedModel):
     """OpenAI chat completion request format."""
 
     model: str | None = None
@@ -102,8 +106,6 @@ class ChatCompletionRequest(BaseModel):
     seed: int | None = None
     response_format: dict[str, Any] | None = None
     stream_options: dict[str, Any] | None = None
-
-    model_config = {"extra": "allow"}  # Allow unknown fields
 
     @model_validator(mode="after")
     def validate_capabilities(self) -> ChatCompletionRequest:
