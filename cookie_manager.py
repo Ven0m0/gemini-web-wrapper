@@ -79,6 +79,19 @@ class CookieData:
             "http_only": self.http_only,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "CookieData":
+        """Create CookieData from mapping with permissive keys."""
+        return cls(
+            name=data["name"],
+            value=data["value"],
+            domain=data["domain"],
+            path=data["path"],
+            expires=data.get("expires"),
+            secure=bool(data.get("secure")),
+            http_only=bool(data.get("http_only")),
+        )
+
 
 @dataclass
 class Profile:
@@ -379,15 +392,7 @@ class CookieManager:
             cookie_rows = await cursor.fetchall()
 
             cookies = {
-                row["name"]: CookieData(
-                    name=row["name"],
-                    value=row["value"],
-                    domain=row["domain"],
-                    path=row["path"],
-                    expires=row["expires"],
-                    secure=bool(row["secure"]),
-                    http_only=bool(row["http_only"]),
-                )
+                row["name"]: CookieData.from_dict(dict(row))
                 for row in cookie_rows
             }
 
@@ -602,18 +607,7 @@ class CookieManager:
             content = await asyncio.to_thread(Path(input_path).read_text)
             data = json.loads(content)
 
-            cookies = [
-                CookieData(
-                    name=c["name"],
-                    value=c["value"],
-                    domain=c["domain"],
-                    path=c["path"],
-                    expires=c.get("expires"),
-                    secure=c["secure"],
-                    http_only=c["http_only"],
-                )
-                for c in data["cookies"]
-            ]
+            cookies = [CookieData.from_dict(c) for c in data["cookies"]]
 
             await self.save_profile(profile_name, cookies, data["browser"])
             return True

@@ -46,18 +46,17 @@ Available tools:
 
 def format_tools_for_prompt(tools: list[ToolDefinition]) -> str:
     """Format tool definitions as JSON for prompt injection."""
-    tools_data = []
-    for tool in tools:
-        tools_data.append(
-            {
-                "type": tool.type,
-                "function": {
-                    "name": tool.function.name,
-                    "description": tool.function.description,
-                    "parameters": tool.function.parameters,
-                },
-            }
-        )
+    tools_data = [
+        {
+            "type": tool.type,
+            "function": {
+                "name": tool.function.name,
+                "description": tool.function.description,
+                "parameters": tool.function.parameters,
+            },
+        }
+        for tool in tools
+    ]
     return json.dumps(tools_data, indent=2)
 
 
@@ -113,6 +112,23 @@ def _extract_json_with_tool_calls(text: str) -> str | None:
     return None
 
 
+def _find_tool_call_json(text: str) -> str | None:
+    """Locate tool_call JSON directly or inside a fenced block."""
+    json_str = _extract_json_with_tool_calls(text)
+    if json_str:
+        return json_str
+
+    code_block_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if not code_block_match:
+        return None
+
+    block_content = code_block_match.group(1).strip()
+    if '"tool_calls"' not in block_content:
+        return None
+
+    return _extract_json_with_tool_calls(block_content)
+
+
 def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
     """Extract tool calls from model response text.
 
@@ -122,17 +138,7 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
     if not text:
         return [], ""
 
-    # Try to find JSON with tool_calls
-    json_str = _extract_json_with_tool_calls(text)
-
-    if not json_str:
-        # Also try looking for it in a code block
-        code_block_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-        if code_block_match:
-            block_content = code_block_match.group(1).strip()
-            if '"tool_calls"' in block_content:
-                json_str = _extract_json_with_tool_calls(block_content)
-
+    json_str = _find_tool_call_json(text)
     if not json_str:
         return [], text
 
@@ -146,18 +152,11 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
 
         if tool_calls:
             # Remove the JSON from the text to get remaining content
-            start_pos = text.find(json_str)
-            if start_pos >= 0:
-                remaining_text = (
-                    text[:start_pos] + text[start_pos + len(json_str) :]
-                )
-                remaining_text = remaining_text.strip()
-                # Also clean up any leftover code block markers
-                remaining_text = re.sub(
-                    r"```(?:json)?\s*```", "", remaining_text
-                ).strip()
-                return tool_calls, remaining_text
-            return tool_calls, ""
+            remaining_text = text.replace(json_str, "", 1).strip()
+            remaining_text = re.sub(
+                r"```(?:json)?\s*```", "", remaining_text
+            ).strip()
+            return tool_calls, remaining_text
 
         return [], text
 
