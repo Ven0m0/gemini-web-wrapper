@@ -196,17 +196,14 @@ class GeminiClientWrapper:
 
         try:
             # Run chat in thread pool (blocking I/O)
-            if conversation_id:
-                response = await asyncio.to_thread(
-                    self.client.send_message,
-                    message,
-                    conversation_id=conversation_id,
-                )
-            else:
-                response = await asyncio.to_thread(
-                    self.client.send_message,
-                    message,
-                )
+            kwargs = (
+                {"conversation_id": conversation_id} if conversation_id else {}
+            )
+            response = await asyncio.to_thread(
+                self.client.send_message,
+                message,
+                **kwargs,
+            )
 
             # Extract response text and conversation ID
             response_text = str(
@@ -264,7 +261,7 @@ class GeminiClientWrapper:
                 conversation_id,
             )
 
-            return list(history) if history else []
+            return history if history else []
 
         except Exception as e:
             logger.error(f"Failed to get conversation history: {e}")
@@ -288,7 +285,7 @@ class GeminiClientWrapper:
                 self.client.list_conversations,
             )
 
-            return list(conversations) if conversations else []
+            return conversations if conversations else []
 
         except Exception as e:
             logger.error(f"Failed to list conversations: {e}")
