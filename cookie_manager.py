@@ -253,9 +253,7 @@ class CookieManager:
             ]
 
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to extract cookies from {browser}: {e}"
-            ) from e
+            raise RuntimeError(f"Failed to extract cookies from {browser}: {e}") from e
 
     async def extract_cookies(
         self,
@@ -392,8 +390,7 @@ class CookieManager:
             cookie_rows = await cursor.fetchall()
 
             cookies = {
-                row["name"]: CookieData.from_dict(dict(row))
-                for row in cookie_rows
+                row["name"]: CookieData.from_dict(dict(row)) for row in cookie_rows
             }
 
             return Profile(
@@ -427,12 +424,8 @@ class CookieManager:
                 {
                     "name": row["name"],
                     "browser": row["browser"],
-                    "created_at": datetime.fromtimestamp(
-                        row["created_at"]
-                    ).isoformat(),
-                    "updated_at": datetime.fromtimestamp(
-                        row["updated_at"]
-                    ).isoformat(),
+                    "created_at": datetime.fromtimestamp(row["created_at"]).isoformat(),
+                    "updated_at": datetime.fromtimestamp(row["updated_at"]).isoformat(),
                     "cookie_count": row["cookie_count"],
                 }
                 for row in rows
@@ -456,9 +449,7 @@ class CookieManager:
 
             return cursor.rowcount > 0
 
-    async def get_gemini_cookies(
-        self, profile_name: str
-    ) -> dict[str, str] | None:
+    async def get_gemini_cookies(self, profile_name: str) -> dict[str, str] | None:
         """Get required Gemini cookies for a profile.
 
         Args:
@@ -508,9 +499,7 @@ class CookieManager:
         # Load existing profile to get browser type
         profile = await self.load_profile(profile_name)
         if not profile and not browser:
-            logger.error(
-                f"Profile '{profile_name}' not found and no browser specified"
-            )
+            logger.error(f"Profile '{profile_name}' not found and no browser specified")
             return False
 
         browser_type = browser or (profile.browser if profile else "chrome")
@@ -578,9 +567,7 @@ class CookieManager:
             "browser": profile.browser,
             "created_at": profile.created_at,
             "updated_at": profile.updated_at,
-            "cookies": [
-                cookie.to_dict() for cookie in profile.cookies.values()
-            ],
+            "cookies": [cookie.to_dict() for cookie in profile.cookies.values()],
         }
 
         try:

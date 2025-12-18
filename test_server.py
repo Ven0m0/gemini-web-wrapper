@@ -134,9 +134,7 @@ def test_code_missing_instruction(client: TestClient) -> None:
 
 def test_code_empty_code(client: TestClient) -> None:
     """Test code endpoint rejects empty code field."""
-    response = client.post(
-        "/code", json={"code": "", "instruction": "add docs"}
-    )
+    response = client.post("/code", json={"code": "", "instruction": "add docs"})
     assert response.status_code == 422
 
 

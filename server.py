@@ -17,8 +17,9 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 from uuid import uuid4
+
 from cachetools import TTLCache
-from fastapi import Depends, FastAPI, HTTPException, status, Request
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from genkit.ai import Genkit
@@ -26,6 +27,7 @@ from genkit.plugins.google_genai import GoogleAI
 from memori import Memori
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
+
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
 from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
@@ -35,6 +37,7 @@ from openai_transforms import (
     to_chat_completion_response,
 )
 from utils import handle_generation_errors, run_in_thread
+
 
 # ----- Configuration -----
 class Settings(BaseSettings):
@@ -52,10 +55,12 @@ class Settings(BaseSettings):
         "gemini-pro": "gemini-2.5-pro",
         "gemini-3-pro": "gemini-3.0-pro",
     }
+
     class Config:
         """Pydantic configuration."""
 
         env_file = ".env"
+
     def resolve_model(self, requested: str | None) -> str:
         """Return a Gemini model name for a requested OpenAI-style name."""
         if not requested:
@@ -64,6 +69,7 @@ class Settings(BaseSettings):
             return self.model_aliases[requested]
         return requested
 
+
 # ----- Type Definitions -----
 class GenerateResponse(Protocol):
     """Protocol defining the response from model generation.
@@ -71,16 +77,17 @@ class GenerateResponse(Protocol):
     This is a local Protocol to avoid importing genkit.core.action.ActionResponse
     and maintain compatibility across different genkit versions.
     """
+
     @property
     def text(self) -> str:
         """Generated text from the model."""
         ...
 
+
 class GenkitModel(Protocol):
     """Protocol defining the interface for Genkit model objects."""
-    def generate(
-        self, messages: str | list[dict[str, str]]
-    ) -> GenerateResponse:
+
+    def generate(self, messages: str | list[dict[str, str]]) -> GenerateResponse:
         """Generate a response from the model.
 
         Args:
@@ -91,6 +98,7 @@ class GenkitModel(Protocol):
         """
         ...
 
+
 # ----- State Management -----
 @dataclass
 class AppState:
@@ -99,6 +107,7 @@ class AppState:
     Uses dataclass to ensure proper instance attribute initialization
     and avoid mutable class attribute anti-pattern.
     """
+
     genkit: Genkit | None = None
     model: GenkitModel | None = None
     memori: Memori | None = None
@@ -112,7 +121,10 @@ class AppState:
     # Cookie management for gemini-webapi
     cookie_manager: CookieManager | None = None
     gemini_client: GeminiClientWrapper | None = None
+
+
 state = AppState()
+
 
 # ----- Initialization Helpers -----
 async def _setup_memori() -> None:
@@ -131,6 +143,7 @@ async def _setup_memori() -> None:
             timeout=3,
         )
 
+
 # ----- Genkit Flows -----
 def create_chatbot_flow(ai: Genkit) -> None:
     """Create a Genkit flow for the chatbot.
@@ -142,6 +155,7 @@ def create_chatbot_flow(ai: Genkit) -> None:
     Args:
         ai: Initialized Genkit instance.
     """
+
     @ai.flow()
     async def chatbot_flow(
         message: str,
@@ -161,20 +175,25 @@ def create_chatbot_flow(ai: Genkit) -> None:
         # Use the flow's model directly
         if state.model is None:
             raise ValueError("Model not initialized")
+
         # Build message list using shared helper (consolidates logic)
         # Convert history from list[dict] to required ChatMessage format for helper
         class _DictMessage:
             """Temporary adapter for dict-based messages."""
+
             def __init__(self, d: dict[str, str]) -> None:
                 self.role = d["role"]  # type: ignore
                 self.content = d["content"]
+
         history_msgs = [_DictMessage(h) for h in history] if history else []
         msgs_list = _build_message_list(system, history_msgs, message)  # type: ignore
         response = await run_in_thread(state.model.generate, msgs_list)
         # GenerateResponse.text from genkit lacks type hints
         return str(response.text)
+
     # Store flow reference (optional, for later use)
     state.chatbot_flow = chatbot_flow
+
 
 # ----- Lifespan -----
 @asynccontextmanager
@@ -233,6 +252,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.gemini_client = None
     state.attribution_cache.clear()
 
+
 # ----- App Initialization -----
 app = FastAPI(
     lifespan=lifespan,
@@ -247,6 +267,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ----- Models -----
 class ChatMessage(BaseModel):
     """A single message in a chat conversation.
@@ -259,6 +280,7 @@ class ChatMessage(BaseModel):
     role: Literal["system", "user", "model"]
     content: str = Field(..., min_length=1)
 
+
 class ChatReq(BaseModel):
     """Request model for chat endpoint.
 
@@ -270,6 +292,7 @@ class ChatReq(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=50000)
     system: str | None = Field(default=None, max_length=10000)
 
+
 class ChatbotReq(BaseModel):
     """Request model for chatbot endpoint with history.
 
@@ -280,11 +303,13 @@ class ChatbotReq(BaseModel):
         user_id: Optional user identifier for memory attribution.
         session_id: Optional session identifier for memory tracking.
     """
+
     message: str = Field(..., min_length=1, max_length=50000)
     history: list[ChatMessage] = Field(default_factory=list, max_length=50)
     system: str | None = Field(default=None, max_length=10000)
     user_id: str | None = Field(default=None)
     session_id: str | None = Field(default=None)
+
 
 class CodeReq(BaseModel):
     """Request model for code assistance endpoint.
@@ -297,6 +322,7 @@ class CodeReq(BaseModel):
     code: str = Field(..., min_length=1, max_length=100000)
     instruction: str = Field(..., min_length=1, max_length=10000)
 
+
 class GenResponse(BaseModel):
     """Response model for generation endpoints.
 
@@ -305,6 +331,7 @@ class GenResponse(BaseModel):
     """
 
     text: str
+
 
 # ----- Logic Helpers -----
 async def run_generate(
@@ -340,6 +367,7 @@ async def run_generate(
             detail=f"Model generation timed out after {timeout}s",
         ) from e
 
+
 async def _setup_memori_attribution(
     memori: Memori,
     user_id: str | None,
@@ -373,6 +401,8 @@ async def _setup_memori_attribution(
                 await run_in_thread(memori.set_session, session_id)
             # Add to cache (TTLCache expires after 1 hour)
             state.attribution_cache[cache_key] = True
+
+
 def _build_message_list(
     system: str | None,
     history: list[ChatMessage],
@@ -399,6 +429,8 @@ def _build_message_list(
     msgs.extend({"role": msg.role, "content": msg.content} for msg in history)
     msgs.append({"role": "user", "content": message})
     return msgs
+
+
 async def _prepare_chatbot_messages(
     request: ChatbotReq,
     memori: Memori,
@@ -414,6 +446,7 @@ async def _prepare_chatbot_messages(
         request.history,
         request.message,
     )
+
 
 # ----- Dependencies -----
 def get_model() -> GenkitModel:
@@ -432,6 +465,7 @@ def get_model() -> GenkitModel:
         )
     return state.model
 
+
 def get_memori() -> Memori:
     """FastAPI dependency to get the initialized Memori instance.
 
@@ -447,6 +481,7 @@ def get_memori() -> Memori:
             detail="Memory not initialized. Check server logs.",
         )
     return state.memori
+
 
 def get_cookie_manager() -> CookieManager:
     """FastAPI dependency to get the initialized CookieManager.
@@ -464,6 +499,7 @@ def get_cookie_manager() -> CookieManager:
         )
     return state.cookie_manager
 
+
 def get_gemini_client() -> GeminiClientWrapper:
     """FastAPI dependency to get the initialized GeminiClientWrapper.
 
@@ -480,6 +516,7 @@ def get_gemini_client() -> GeminiClientWrapper:
         )
     return state.gemini_client
 
+
 def get_settings() -> Settings:
     """FastAPI dependency to get the cached Settings instance.
 
@@ -495,6 +532,7 @@ def get_settings() -> Settings:
             detail="Settings not initialized.",
         )
     return state.settings
+
 
 # ----- Endpoints -----
 @app.post("/chat", response_model=GenResponse)
@@ -522,6 +560,7 @@ async def chat(
 
     out = await run_generate(msgs, model)
     return {"text": out.text}
+
 
 @app.post("/code", response_model=GenResponse)
 @handle_generation_errors
@@ -560,6 +599,7 @@ async def code(
     out = await run_generate(prompt, model)
     return {"text": out.text}
 
+
 @app.get("/health")
 async def health() -> dict[str, bool]:
     """Health check endpoint.
@@ -568,6 +608,7 @@ async def health() -> dict[str, bool]:
         Dict with 'ok: True' indicating service is running.
     """
     return {"ok": True}
+
 
 @app.post("/chatbot", response_model=GenResponse)
 @handle_generation_errors
@@ -599,6 +640,7 @@ async def chatbot(
     # for better performance instead of per-request
     return {"text": out.text}
 
+
 @app.post("/chatbot/stream")
 async def chatbot_stream(
     r: ChatbotReq,
@@ -623,6 +665,7 @@ async def chatbot_stream(
         HTTPException: 503 if model not initialized, 500 if generation fails.
     """
     msgs = await _prepare_chatbot_messages(r, memori)
+
     async def generate_stream() -> AsyncGenerator[str, None]:
         """Generate response stream chunk by chunk."""
         try:
@@ -636,10 +679,12 @@ async def chatbot_stream(
             yield response.text
         except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
             yield f"Error: Generation failed - {e}"
+
     return StreamingResponse(
         generate_stream(),
         media_type="text/plain",
     )
+
 
 @app.post("/memory/session/new")
 async def create_new_session(
@@ -675,6 +720,7 @@ async def create_new_session(
             detail=f"Memory session creation failed: {e}",
         ) from e
 
+
 class MemoryQueryReq(BaseModel):
     """Request model for memory query endpoint.
 
@@ -687,6 +733,7 @@ class MemoryQueryReq(BaseModel):
     user_id: str = Field(..., min_length=1)
     query: str | None = Field(default=None)
     limit: int = Field(default=10, ge=1, le=100)
+
 
 @app.post("/memory/query")
 async def query_memories(
@@ -730,6 +777,7 @@ async def query_memories(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Memory query failed: {e}",
         ) from e
+
 
 # ----- OpenAI-Compatible Endpoints -----
 async def generate_sse_response(
@@ -782,6 +830,7 @@ async def generate_sse_response(
     yield f"data: {json.dumps(finish_chunk)}\n\n"
     # Send done marker
     yield "data: [DONE]\n\n"
+
 
 async def generate_sse_tool_response(
     tool_calls: list,
@@ -843,6 +892,7 @@ async def generate_sse_tool_response(
     yield f"data: {json.dumps(finish_chunk)}\n\n"
 
     yield "data: [DONE]\n\n"
+
 
 @app.post("/v1/chat/completions")
 async def openai_chat_completions(
@@ -958,6 +1008,7 @@ async def openai_chat_completions(
         # Return regular JSON response
         return to_chat_completion_response(raw_response, request, model_name)
 
+
 # ----- Profile Management Endpoints -----
 class ProfileCreateReq(BaseModel):
     """Request model for creating a profile from browser cookies.
@@ -966,8 +1017,10 @@ class ProfileCreateReq(BaseModel):
         name: Profile name/identifier.
         browser: Browser to extract cookies from.
     """
+
     name: str = Field(..., min_length=1)
     browser: str = Field(default="chrome")
+
 
 class ProfileSwitchReq(BaseModel):
     """Request model for switching to a profile.
@@ -977,6 +1030,7 @@ class ProfileSwitchReq(BaseModel):
     """
 
     name: str = Field(..., min_length=1)
+
 
 @app.post("/profiles/create")
 async def create_profile(
@@ -1020,6 +1074,7 @@ async def create_profile(
             detail=f"Profile creation failed: {e}",
         ) from e
 
+
 @app.get("/profiles/list")
 async def list_profiles(
     cookie_mgr: CookieManager = Depends(get_cookie_manager),
@@ -1045,6 +1100,7 @@ async def list_profiles(
         "current_profile": current_profile,
         "count": len(profiles),
     }
+
 
 @app.post("/profiles/switch")
 async def switch_profile(
@@ -1081,6 +1137,7 @@ async def switch_profile(
             detail=f"Profile switch failed: {e}",
         ) from e
 
+
 @app.delete("/profiles/{profile_name}")
 async def delete_profile(
     profile_name: str,
@@ -1108,6 +1165,7 @@ async def delete_profile(
         "status": "success",
         "message": f"Profile '{profile_name}' deleted",
     }
+
 
 @app.post("/profiles/{profile_name}/refresh")
 async def refresh_profile(
@@ -1138,6 +1196,7 @@ async def refresh_profile(
         "message": f"Profile '{profile_name}' refreshed",
     }
 
+
 # ----- Gemini WebAPI Endpoints -----
 class GeminiChatReq(BaseModel):
     """Request model for gemini-webapi chat endpoint.
@@ -1147,9 +1206,11 @@ class GeminiChatReq(BaseModel):
         conversation_id: Optional conversation ID to continue a chat.
         profile: Optional profile to use (if not already initialized).
     """
+
     message: str = Field(..., min_length=1, max_length=50000)
     conversation_id: str | None = Field(default=None)
     profile: str | None = Field(default=None)
+
 
 @app.post("/gemini/chat")
 async def gemini_chat(
@@ -1206,6 +1267,7 @@ async def gemini_chat(
             detail=f"Chat failed: {e}",
         ) from e
 
+
 @app.get("/gemini/conversations")
 async def list_gemini_conversations(
     gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
@@ -1237,6 +1299,7 @@ async def list_gemini_conversations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list conversations: {e}",
         ) from e
+
 
 @app.delete("/gemini/conversations/{conversation_id}")
 async def delete_gemini_conversation(
@@ -1277,8 +1340,10 @@ async def delete_gemini_conversation(
             detail=f"Conversation deletion failed: {e}",
         ) from e
 
+
 if __name__ == "__main__":
     import uvicorn
+
     # Use uvloop for production performance
     # Listen on the PORT env var (Render requirement), default to 9000 for local
     port = int(os.environ.get("PORT", 9000))
@@ -1287,5 +1352,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         loop="uvloop",
-        reload=False, # Disable reload in production
+        reload=False,  # Disable reload in production
     )
