@@ -20,9 +20,7 @@
         "noVar": "error",
         "noConsole": { "level": "off", "options": { "allow": ["log"] } }
       },
-      "security": {
-        "noDangerouslySetInnerHtml": "error"
-      },
+      "security": { "noDangerouslySetInnerHtml": "error" },
       "performance": {
         "noAccumulatingSpread": "warn",
         "noDelete": "warn"
@@ -45,6 +43,7 @@
       "trailingCommas": "none",
       "semicolons": "always",
       "arrowParentheses": "always",
+      "lineWidth": 120,
       "bracketSpacing": true,
       "bracketSameLine": false,
       "attributePosition": "auto"
