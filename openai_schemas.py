@@ -64,9 +64,7 @@ class ChatCompletionMessage(ExtraAllowedModel):
     """OpenAI chat message format."""
 
     role: Literal["system", "user", "assistant", "tool"]
-    content: str | list[ChatCompletionMessageContent] | list[dict[str, Any]] | None = (
-        None
-    )
+    content: str | list[ChatCompletionMessageContent] | list[dict[str, Any]] | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None  # For tool role messages
     name: str | None = None  # Function name for tool responses
