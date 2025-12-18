@@ -60,9 +60,7 @@ def format_tools_for_prompt(tools: list[ToolDefinition]) -> str:
     return json.dumps(tools_data, indent=2)
 
 
-def inject_tools_into_prompt(
-    prompt: str, tools: list[ToolDefinition] | None
-) -> str:
+def inject_tools_into_prompt(prompt: str, tools: list[ToolDefinition] | None) -> str:
     """Prepend tool instructions to the prompt if tools are provided."""
     if not tools:
         return prompt
@@ -169,9 +167,7 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
 
         if tool_calls:
             if from_block and block_span:
-                remaining_text = (
-                    text[: block_span[0]] + text[block_span[1] :]
-                ).strip()
+                remaining_text = (text[: block_span[0]] + text[block_span[1] :]).strip()
             else:
                 start_pos = text.find(json_str)
                 if start_pos >= 0:
@@ -219,9 +215,7 @@ def _parse_tool_calls_data(data: dict) -> list[ToolCall]:
 # -----------------------------------------------------------------------------
 # Tool Result Formatting
 # -----------------------------------------------------------------------------
-def format_tool_result_for_prompt(
-    tool_call_id: str, name: str, content: str
-) -> str:
+def format_tool_result_for_prompt(tool_call_id: str, name: str, content: str) -> str:
     """Format a tool result message for injection into the prompt."""
     return f"[Tool Result for {name} (id: {tool_call_id})]\n{content}"
 
@@ -265,9 +259,7 @@ def collapse_messages(request: ChatCompletionRequest) -> str:
         if message.role == "assistant" and message.tool_calls:
             tool_calls_summary = []
             for tc in message.tool_calls:
-                tool_calls_summary.append(
-                    f"Called {tc.function.name}(id={tc.id})"
-                )
+                tool_calls_summary.append(f"Called {tc.function.name}(id={tc.id})")
             dialogue_lines.append(
                 f"ASSISTANT: [Tool calls: {', '.join(tool_calls_summary)}]"
             )
@@ -318,9 +310,7 @@ def to_chat_completion_response(
         # Regular text response
         message = ChatCompletionMessage(
             role="assistant",
-            content=[
-                ChatCompletionMessageContent(type="text", text=remaining_text)
-            ],
+            content=[ChatCompletionMessageContent(type="text", text=remaining_text)],
         )
         finish_reason = "stop"
 

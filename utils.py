@@ -19,9 +19,7 @@ T = TypeVar("T")
 # ----- Thread Pool Utilities -----
 
 
-async def run_in_thread(
-    func: Callable[P, T], *args: P.args, **kwargs: P.kwargs
-) -> T:
+async def run_in_thread(func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
     """Execute a blocking function in a thread pool.
 
     Args:
