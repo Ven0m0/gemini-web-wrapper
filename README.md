@@ -50,6 +50,7 @@ Lightweight FastAPI backend with static HTML/JS frontend providing conversationa
   - Works on Arch, Raspbian, Termux
   - LAN-visible with optional token auth
   - FastAPI auto-generated OpenAPI docs
+  - Hosted through [Render](render.com) (backend) and [Vercel](vercel.com) (frontend)
 
 - **🔌 OpenAI Compatibility**
   - Works with VS Code Copilot, Continue.dev, and any OpenAI-compatible client
