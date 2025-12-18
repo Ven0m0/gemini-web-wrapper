@@ -78,34 +78,45 @@ def inject_tools_into_prompt(
 def _extract_json_with_tool_calls(text: str) -> str | None:
     """Find a complete JSON object containing tool_calls using JSONDecoder.
 
-    Uses json.JSONDecoder for robust parsing instead of manual brace counting.
-    This is more reliable and performant for large responses.
+    Uses json.JSONDecoder for robust parsing. Optimized to search backward
+    from "tool_calls" position to find the containing JSON object start.
+    This avoids trying to parse at every brace position (O(n*m) -> O(n)).
     """
-    # Find where tool_calls appears
+    # Early exit if tool_calls not in text
     if '"tool_calls"' not in text:
         return None
 
-    # Use JSONDecoder to find and parse JSON objects
+    # Use JSONDecoder to parse JSON objects
     decoder = json.JSONDecoder()
 
-    # Try to find JSON starting from each opening brace
+    # Find position of "tool_calls" and search backward for opening brace
+    tool_calls_pos = text.find('"tool_calls"')
+    if tool_calls_pos < 0:
+        return None
+
+    # Look backward for the opening brace of the object containing tool_calls
+    # Start from the position before "tool_calls"
+    start_pos = text.rfind("{", 0, tool_calls_pos)
+    if start_pos >= 0:
+        try:
+            obj, end_idx = decoder.raw_decode(text, start_pos)
+            if "tool_calls" in obj:
+                return text[start_pos : start_pos + end_idx]
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback: try all braces if backward search fails (rare edge case)
     start = 0
     while start < len(text):
-        # Find next opening brace
         brace_idx = text.find("{", start)
         if brace_idx < 0:
             break
 
         try:
-            # Try to decode from this position
             obj, end_idx = decoder.raw_decode(text, brace_idx)
-
-            # Check if this object contains tool_calls
             if "tool_calls" in obj:
                 return text[brace_idx : brace_idx + end_idx]
-
             start = brace_idx + 1
-
         except json.JSONDecodeError:
             start = brace_idx + 1
 
@@ -128,7 +139,11 @@ def _find_tool_call_json(
     if '"tool_calls"' not in block_content:
         return None, False, None
 
-    return _extract_json_with_tool_calls(block_content), True, code_block_match.span()
+    return (
+        _extract_json_with_tool_calls(block_content),
+        True,
+        code_block_match.span(),
+    )
 
 
 def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:

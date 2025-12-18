@@ -7,12 +7,15 @@ async/await, orjson, uvloop, and comprehensive validation.
 """
 
 import asyncio
+import json
 import subprocess
 import sys
+import time
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
+from uuid import uuid4
 
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -109,6 +112,7 @@ class AppState:
     model: GenkitModel | None = None
     memori: Memori | None = None
     chatbot_flow: Callable[..., Any] | None = None
+    settings: Settings | None = None
     # Cache for attribution setup with TTL to prevent unbounded growth
     # maxsize=10000 entries, ttl=3600 seconds (1 hour)
     attribution_cache: TTLCache = field(
@@ -214,10 +218,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         SystemExit: If configuration loading fails.
     """
     try:
-        settings = Settings()
+        state.settings = Settings()
     except (ValueError, KeyError, TypeError) as e:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
+
+    settings = state.settings
 
     # Initialize Genkit
     # Note: Assuming Genkit init is synchronous.
@@ -251,6 +257,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.genkit = None
     state.model = None
     state.memori = None
+    state.settings = None
     state.cookie_manager = None
     state.gemini_client = None
     state.attribution_cache.clear()
@@ -518,6 +525,23 @@ def get_gemini_client() -> GeminiClientWrapper:
     return state.gemini_client
 
 
+def get_settings() -> Settings:
+    """FastAPI dependency to get the cached Settings instance.
+
+    Returns:
+        Cached Settings instance loaded at startup.
+
+    Raises:
+        HTTPException: 503 if Settings is not initialized.
+    """
+    if state.settings is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Settings not initialized.",
+        )
+    return state.settings
+
+
 # ----- Endpoints -----
 @app.post("/chat", response_model=GenResponse)
 @handle_generation_errors
@@ -778,9 +802,6 @@ async def generate_sse_response(
     include_usage: bool = False,
 ) -> AsyncGenerator[str, None]:
     """Generate SSE chunks that simulate streaming for a complete response."""
-    import json
-    import time
-
     created = int(time.time())
 
     # Split text into chunks (simulate streaming by sending in small pieces)
@@ -836,9 +857,6 @@ async def generate_sse_tool_response(
     include_usage: bool = False,
 ) -> AsyncGenerator[str, None]:
     """Generate SSE chunks for tool call responses."""
-    import json
-    import time
-
     created = int(time.time())
 
     # Send tool calls
@@ -900,6 +918,7 @@ async def generate_sse_tool_response(
 async def openai_chat_completions(
     request: ChatCompletionRequest,
     gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+    settings: Settings = Depends(get_settings),
 ) -> ChatCompletionResponse | StreamingResponse:
     """OpenAI-compatible chat completions endpoint.
 
@@ -913,6 +932,7 @@ async def openai_chat_completions(
     Args:
         request: ChatCompletionRequest with messages and optional tools.
         gemini_client: Injected GeminiClientWrapper dependency.
+        settings: Injected Settings dependency.
 
     Returns:
         ChatCompletionResponse or StreamingResponse if streaming is enabled.
@@ -933,14 +953,6 @@ async def openai_chat_completions(
                 ),
             )
 
-    try:
-        settings = Settings()
-    except (ValueError, KeyError, TypeError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Configuration error: {e}",
-        ) from e
-
     # Resolve model name (handle aliases)
     model_name = settings.resolve_model(request.model)
 
@@ -948,8 +960,6 @@ async def openai_chat_completions(
     prompt = collapse_messages(request)
 
     # Generate request ID
-    from uuid import uuid4
-
     request_id = f"chatcmpl-{uuid4().hex}"
 
     try:
@@ -991,8 +1001,8 @@ async def openai_chat_completions(
     # Check if streaming is requested
     is_streaming = request.stream
     include_usage = False
-    if hasattr(request, "stream_options") and request.stream_options:
-        include_usage = request.stream_options.get("include_usage", False)
+    stream_options = getattr(request, "stream_options", {}) or {}
+    include_usage = stream_options.get("include_usage", False)
 
     if is_streaming:
         # Return SSE streaming response
