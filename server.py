@@ -18,7 +18,8 @@ from typing import Any, Literal, Protocol
 from uuid import uuid4
 
 from cachetools import TTLCache
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
@@ -269,7 +270,13 @@ app = FastAPI(
     default_response_class=ORJSONResponse,
     title="Genkit Gemini Server",
 )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For production, replace "*" with your Vercel URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ----- Models -----
 class ChatMessage(BaseModel):
