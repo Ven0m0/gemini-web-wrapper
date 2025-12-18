@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: gemini-web-wrapper
+    runtime: python
+    # Force Python 3.10+ as required by your README
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: GOOGLE_API_KEY
+        sync: false
+    # Install dependencies
+    buildCommand: pip install -r requirements.txt
+    # Override server.py's default port 9000 to listen on Render's $PORT
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
