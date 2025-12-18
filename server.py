@@ -1280,10 +1280,12 @@ async def delete_gemini_conversation(
 if __name__ == "__main__":
     import uvicorn
     # Use uvloop for production performance
+    # Listen on the PORT env var (Render requirement), default to 9000 for local
+    port = int(os.environ.get("PORT", 9000))
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
-        port=9000,
+        port=port,
         loop="uvloop",
-        reload=True,
+        reload=False, # Disable reload in production
     )
