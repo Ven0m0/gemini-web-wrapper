@@ -9,6 +9,7 @@ async/await, orjson, uvloop, and comprehensive validation.
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -387,8 +388,10 @@ async def _setup_memori_attribution(
     """
     if user_id or session_id:
         # Create cache key from user_id and session_id
+        # Normalize None to sentinel to prevent cache key duplication
         effective_user_id = user_id or "default_user"
-        cache_key = (effective_user_id, session_id)
+        effective_session_id = session_id or "__no_session__"
+        cache_key = (effective_user_id, effective_session_id)
 
         # Only set up attribution if not already cached
         if cache_key not in state.attribution_cache:
@@ -397,7 +400,7 @@ async def _setup_memori_attribution(
                 entity_id=effective_user_id,
                 process_id="gemini-chatbot",
             )
-            if session_id:
+            if session_id:  # Only set session if explicitly provided
                 await run_in_thread(memori.set_session, session_id)
             # Add to cache (TTLCache expires after 1 hour)
             state.attribution_cache[cache_key] = True
@@ -425,7 +428,7 @@ def _build_message_list(
     msgs: list[dict[str, str]] = []
     if system:
         msgs.append({"role": "system", "content": system})
-    # Extend with history - O(n) operation
+    # Extend with history - O(n) operation using generator expression
     msgs.extend({"role": msg.role, "content": msg.content} for msg in history)
     msgs.append({"role": "user", "content": message})
     return msgs
@@ -667,16 +670,28 @@ async def chatbot_stream(
     msgs = await _prepare_chatbot_messages(r, memori)
 
     async def generate_stream() -> AsyncGenerator[str, None]:
-        """Generate response stream chunk by chunk."""
+        """Generate response stream chunk by chunk.
+
+        Since Genkit doesn't provide true token streaming, we split the
+        response into word-based chunks for better UX.
+        """
         try:
-            # For streaming, we need to use Genkit's streaming API
-            # Note: The exact API may vary; this demonstrates the pattern
+            # Generate complete response
             response = await run_generate(msgs, model)
             # Note: Memori model registration now happens once at startup
             # for better performance instead of per-request
-            # Yield the complete response (Genkit streaming API may differ)
-            # In production, you'd use actual streaming if Genkit supports it
-            yield response.text
+            text = response.text
+
+            # Split text into chunks by words for streaming effect
+            words = text.split()
+            chunk_size = 5  # Words per chunk
+            for i in range(0, len(words), chunk_size):
+                chunk = " ".join(words[i : i + chunk_size])
+                if i + chunk_size < len(words):
+                    chunk += " "  # Add space except for last chunk
+                yield chunk
+                # Small delay to simulate streaming
+                await asyncio.sleep(0.01)
         except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
             yield f"Error: Generation failed - {e}"
 
@@ -786,27 +801,86 @@ async def generate_sse_response(
     request_id: str,
     include_usage: bool = False,
 ) -> AsyncGenerator[str, None]:
-    """Generate SSE chunks that simulate streaming for a complete response."""
+    """Generate SSE chunks by splitting text into smaller pieces for streaming.
+
+    Since Gemini doesn't provide true token-by-token streaming, we split the
+    complete response into word-based chunks to provide a better UX.
+    """
     created = int(time.time())
-    # Split text into chunks (simulate streaming by sending in small pieces)
-    # For now, send the entire response as one chunk since Gemini doesn't stream
-    chunk_data = {
-        "id": request_id,
-        "object": "chat.completion.chunk",
-        "created": created,
-        "model": model,
-        "choices": [
-            {
-                "index": 0,
-                "delta": {
-                    "role": "assistant",
-                    "content": text,
-                },
-                "finish_reason": None,
+    # Split text into chunks by sentences or words for better streaming UX
+    # Use sentence boundaries for more natural chunking
+    # Split by sentences (periods, exclamation marks, question marks)
+    sentences = re.split(r"([.!?]+\s+)", text)
+    chunks = []
+    current_chunk = ""
+
+    # Combine sentence parts back and group into ~50 char chunks
+    for part in sentences:
+        current_chunk += part
+        if (
+            len(current_chunk) >= 50 or part.strip().endswith((".", "!", "?"))
+        ) and current_chunk.strip():
+            chunks.append(current_chunk)
+            current_chunk = ""
+
+    # Add any remaining text
+    if current_chunk.strip():
+        chunks.append(current_chunk)
+
+    # If splitting failed, use words as fallback
+    if not chunks or len(chunks) == 1:
+        words = text.split()
+        chunks = []
+        current_chunk = ""
+        for word in words:
+            current_chunk += word + " "
+            if len(current_chunk) >= 50:
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+
+    # Send first chunk with role
+    if chunks:
+        first_chunk = {
+            "id": request_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {
+                        "role": "assistant",
+                        "content": chunks[0],
+                    },
+                    "finish_reason": None,
+                }
+            ],
+        }
+        yield f"data: {json.dumps(first_chunk)}\n\n"
+
+        # Send remaining chunks
+        for chunk_text in chunks[1:]:
+            chunk_data = {
+                "id": request_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {
+                            "content": chunk_text,
+                        },
+                        "finish_reason": None,
+                    }
+                ],
             }
-        ],
-    }
-    yield f"data: {json.dumps(chunk_data)}\n\n"
+            yield f"data: {json.dumps(chunk_data)}\n\n"
+            # Small delay to simulate streaming
+            await asyncio.sleep(0.01)
+
     # Send finish chunk
     finish_chunk = {
         "id": request_id,
@@ -894,7 +968,7 @@ async def generate_sse_tool_response(
     yield "data: [DONE]\n\n"
 
 
-@app.post("/v1/chat/completions")
+@app.post("/v1/chat/completions", response_model=None)
 async def openai_chat_completions(
     request: ChatCompletionRequest,
     gemini_client: GeminiClientWrapper = Depends(get_gemini_client),

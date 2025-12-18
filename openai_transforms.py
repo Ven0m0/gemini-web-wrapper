@@ -84,6 +84,18 @@ def _extract_json_with_tool_calls(text: str) -> str | None:
     if '"tool_calls"' not in text:
         return None
 
+    # Early exit for very large responses to prevent performance issues
+    max_text_length = 50000  # 50KB limit
+    if len(text) > max_text_length:
+        # For large texts, only search in the middle section around tool_calls
+        tool_calls_pos = text.find('"tool_calls"')
+        if tool_calls_pos >= 0:
+            # Extract window around tool_calls (5KB before and after)
+            window_size = 5000
+            start_window = max(0, tool_calls_pos - window_size)
+            end_window = min(len(text), tool_calls_pos + window_size)
+            text = text[start_window:end_window]
+
     # Use JSONDecoder to parse JSON objects
     decoder = json.JSONDecoder()
 
@@ -103,9 +115,12 @@ def _extract_json_with_tool_calls(text: str) -> str | None:
         except json.JSONDecodeError:
             pass
 
-    # Fallback: try all braces if backward search fails (rare edge case)
+    # Fallback: try limited braces if backward search fails (rare edge case)
+    # Limit attempts to prevent O(n²) behavior on pathological inputs
+    max_fallback_attempts = 10
+    attempts = 0
     start = 0
-    while start < len(text):
+    while start < len(text) and attempts < max_fallback_attempts:
         brace_idx = text.find("{", start)
         if brace_idx < 0:
             break
@@ -115,8 +130,10 @@ def _extract_json_with_tool_calls(text: str) -> str | None:
             if "tool_calls" in obj:
                 return text[brace_idx : brace_idx + end_idx]
             start = brace_idx + 1
+            attempts += 1
         except json.JSONDecodeError:
             start = brace_idx + 1
+            attempts += 1
 
     return None
 
@@ -227,21 +244,24 @@ def render_message_content(message: ChatCompletionMessage) -> str:
         return ""
     if isinstance(content, str):
         return content
+    # Use generator expression instead of list comprehension
     return "\n".join(
-        [
-            part.text
-            for part in content
-            if isinstance(part, ChatCompletionMessageContent)
-            and part.type == "text"
-            and part.text is not None
-        ]
+        part.text
+        for part in content
+        if isinstance(part, ChatCompletionMessageContent)
+        and part.type == "text"
+        and part.text is not None
     )
 
 
 def collapse_messages(request: ChatCompletionRequest) -> str:
-    """Collapse OpenAI chat messages into a single Gemini prompt."""
-    system_prompts: list[str] = []
-    dialogue_lines: list[str] = []
+    """Collapse OpenAI chat messages into a single Gemini prompt efficiently.
+
+    Uses a single-pass approach with minimal intermediate allocations.
+    """
+    # Pre-allocate list with estimated size to reduce reallocations
+    parts: list[str] = []
+    system_section: list[str] = []
 
     for message in request.messages:
         # Handle tool result messages
@@ -252,32 +272,33 @@ def collapse_messages(request: ChatCompletionRequest) -> str:
                 message.name or "unknown",
                 rendered,
             )
-            dialogue_lines.append(tool_result)
+            parts.append(tool_result)
             continue
 
         # Handle assistant messages with tool calls (echo them for context)
         if message.role == "assistant" and message.tool_calls:
-            tool_calls_summary = []
-            for tc in message.tool_calls:
-                tool_calls_summary.append(f"Called {tc.function.name}(id={tc.id})")
-            dialogue_lines.append(
-                f"ASSISTANT: [Tool calls: {', '.join(tool_calls_summary)}]"
+            # Build tool calls summary directly without intermediate list
+            tool_names = ", ".join(
+                f"Called {tc.function.name}(id={tc.id})" for tc in message.tool_calls
             )
+            parts.append(f"ASSISTANT: [Tool calls: {tool_names}]")
             continue
 
         rendered = render_message_content(message)
         if message.role == "system":
-            system_prompts.append(rendered)
+            system_section.append(rendered)
             continue
+
+        # Build message line directly
         prefix = "USER" if message.role == "user" else message.role.upper()
-        dialogue_lines.append(f"{prefix}: {rendered}")
+        parts.append(f"{prefix}: {rendered}")
 
-    prompt_sections: list[str] = []
-    if system_prompts:
-        prompt_sections.append("\n".join(system_prompts))
-    prompt_sections.append("\n".join(dialogue_lines))
-
-    base_prompt = "\n\n".join(section for section in prompt_sections if section)
+    # Build final prompt with minimal joins
+    if system_section:
+        # Join system prompts and add to beginning
+        base_prompt = "\n".join(system_section) + "\n\n" + "\n".join(parts)
+    else:
+        base_prompt = "\n".join(parts)
 
     # Inject tool definitions if present
     return inject_tools_into_prompt(base_prompt, request.tools)

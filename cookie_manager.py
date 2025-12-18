@@ -147,8 +147,13 @@ class CookieManager:
 
         Creates the profiles and cookies tables if they don't exist.
         Uses WITHOUT ROWID optimization for better performance.
+        Enables WAL mode for concurrent read access.
         """
         async with aiosqlite.connect(self.db_path) as db:
+            # Enable WAL mode for better concurrent access
+            # This allows multiple readers to access the DB while a writer is active
+            await db.execute("PRAGMA journal_mode=WAL")
+
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS profiles (
                     name TEXT PRIMARY KEY,
@@ -185,15 +190,27 @@ class CookieManager:
     @asynccontextmanager
     async def _db_connection(
         self,
+        write: bool = False,
     ) -> AsyncGenerator[aiosqlite.Connection, None]:
         """Async context manager for database connections.
+
+        Args:
+            write: If True, acquires lock for write operations. Read operations
+                   don't need locks due to WAL mode's concurrent read support.
 
         Yields:
             SQLite connection with row factory enabled.
         """
-        async with self._lock, aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            yield db
+        if write:
+            # Write operations need lock to serialize writes
+            async with self._lock, aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                yield db
+        else:
+            # Read operations can proceed concurrently thanks to WAL mode
+            async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                yield db
 
     def _extract_cookies_from_browser(
         self,
@@ -313,7 +330,7 @@ class CookieManager:
 
         now = time.time()
 
-        async with self._db_connection() as db:
+        async with self._db_connection(write=True) as db:
             # Insert or update profile
             await db.execute(
                 """
@@ -363,7 +380,7 @@ class CookieManager:
         )
 
     async def load_profile(self, profile_name: str) -> Profile | None:
-        """Load a profile and its cookies from the database.
+        """Load a profile and its cookies from the database using a single JOIN query.
 
         Args:
             profile_name: Name of the profile to load.
@@ -372,33 +389,60 @@ class CookieManager:
             Profile object if found, None otherwise.
         """
         async with self._db_connection() as db:
-            # Get profile metadata
+            # Get profile and cookies in a single JOIN query
             cursor = await db.execute(
-                "SELECT * FROM profiles WHERE name = ?",
+                """
+                SELECT
+                    p.name as profile_name,
+                    p.browser,
+                    p.created_at,
+                    p.updated_at,
+                    c.name as cookie_name,
+                    c.value,
+                    c.domain,
+                    c.path,
+                    c.expires,
+                    c.secure,
+                    c.http_only
+                FROM profiles p
+                LEFT JOIN cookies c ON p.name = c.profile_name
+                WHERE p.name = ?
+                """,
                 (profile_name,),
             )
-            profile_row = await cursor.fetchone()
+            rows = await cursor.fetchall()
 
-            if not profile_row:
+            if not rows:
                 return None
 
-            # Get cookies for this profile
-            cursor = await db.execute(
-                "SELECT * FROM cookies WHERE profile_name = ?",
-                (profile_name,),
-            )
-            cookie_rows = await cursor.fetchall()
+            # Build profile from first row (all rows have same profile data)
+            first_row = rows[0]
+            profile_name_val = first_row["profile_name"]
+            browser = first_row["browser"]
+            created_at = first_row["created_at"]
+            updated_at = first_row["updated_at"]
 
-            cookies = {
-                row["name"]: CookieData.from_dict(dict(row)) for row in cookie_rows
-            }
+            # Build cookies dict from all rows
+            cookies: dict[str, CookieData] = {}
+            for row in rows:
+                # LEFT JOIN might have NULL cookie columns if profile has no cookies
+                if row["cookie_name"] is not None:
+                    cookies[row["cookie_name"]] = CookieData(
+                        name=row["cookie_name"],
+                        value=row["value"],
+                        domain=row["domain"],
+                        path=row["path"],
+                        expires=row["expires"],
+                        secure=bool(row["secure"]),
+                        http_only=bool(row["http_only"]),
+                    )
 
             return Profile(
-                name=profile_row["name"],
-                browser=profile_row["browser"],
+                name=profile_name_val,
+                browser=browser,
                 cookies=cookies,
-                created_at=profile_row["created_at"],
-                updated_at=profile_row["updated_at"],
+                created_at=created_at,
+                updated_at=updated_at,
             )
 
     async def list_profiles(self) -> list[dict[str, Any]]:
@@ -440,7 +484,7 @@ class CookieManager:
         Returns:
             True if profile was deleted, False if it didn't exist.
         """
-        async with self._db_connection() as db:
+        async with self._db_connection(write=True) as db:
             cursor = await db.execute(
                 "DELETE FROM profiles WHERE name = ?",
                 (profile_name,),
@@ -450,37 +494,61 @@ class CookieManager:
             return cursor.rowcount > 0
 
     async def get_gemini_cookies(self, profile_name: str) -> dict[str, str] | None:
-        """Get required Gemini cookies for a profile.
+        """Get required Gemini cookies for a profile efficiently.
+
+        This method queries only the required cookies instead of loading
+        the entire profile for better performance.
 
         Args:
             profile_name: Name of the profile.
 
         Returns:
-            Dict with cookie names as keys and values, or None if profile not found.
+            Dict with cookie names as keys and values, or None if profile not found
+            or required cookies are missing/expired.
         """
-        profile = await self.load_profile(profile_name)
-        if not profile:
-            return None
+        async with self._db_connection() as db:
+            # Query only the required cookies
+            placeholders = ", ".join("?" * len(self.REQUIRED_COOKIES))
+            cursor = await db.execute(
+                f"""
+                SELECT name, value, expires
+                FROM cookies
+                WHERE profile_name = ?
+                  AND name IN ({placeholders})
+                """,
+                (profile_name, *self.REQUIRED_COOKIES),
+            )
+            rows = await cursor.fetchall()
 
-        # Extract required cookies and check expiration
-        result = {}
-        for cookie_name in self.REQUIRED_COOKIES:
-            cookie = profile.cookies.get(cookie_name)
-            if not cookie:
+            if not rows:
+                return None
+
+            # Check we got all required cookies
+            found_cookies = {row["name"] for row in rows}
+            missing = set(self.REQUIRED_COOKIES) - found_cookies
+            if missing:
                 logger.warning(
-                    f"Profile '{profile_name}' missing required cookie: {cookie_name}"
+                    f"Profile '{profile_name}' missing required cookies: {missing}"
                 )
                 return None
 
-            if cookie.is_expired():
-                logger.warning(
-                    f"Cookie {cookie_name} in profile '{profile_name}' has expired"
-                )
-                return None
+            # Build result and check expiration
+            result = {}
+            current_time = time.time()
+            for row in rows:
+                cookie_name = row["name"]
+                expires = row["expires"]
 
-            result[cookie_name] = cookie.value
+                # Check if expired
+                if expires is not None and current_time > expires:
+                    logger.warning(
+                        f"Cookie {cookie_name} in profile '{profile_name}' has expired"
+                    )
+                    return None
 
-        return result
+                result[cookie_name] = row["value"]
+
+            return result
 
     async def refresh_profile(
         self,
