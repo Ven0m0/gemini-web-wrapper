@@ -1,0 +1,46 @@
+name: autofix.ci
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+permissions:
+  contents: write
+  pull-requests: write
+env:
+  DEBIAN_FRONTEND: noninteractive
+  LC_ALL: C
+  GITHUB_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+      - name: Install the latest version of uv and activate the environment
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          activate-environment: "true"
+          github-token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          cache-python: "true"
+      - run: |
+          uv pip install pip
+          uv pip install -r requirements.txt
+      # Fix
+      - run: |
+          uv run ruff check --fix-only .
+          uv run ruff format .
+
+      - name: autofix.ci
+        uses: autofix-ci/action@v1.3.2
+        with:
+          fail-fast: false
