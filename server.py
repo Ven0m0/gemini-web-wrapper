@@ -116,7 +116,9 @@ class AppState:
     settings: Settings | None = None
     # Cache for attribution setup with TTL to prevent unbounded growth
     # maxsize=10000 entries, ttl=3600 seconds (1 hour)
-    attribution_cache: TTLCache = field(default_factory=lambda: TTLCache(maxsize=10000, ttl=3600))
+    attribution_cache: TTLCache = field(
+        default_factory=lambda: TTLCache(maxsize=10000, ttl=3600)
+    )
     # Cookie management for gemini-webapi
     cookie_manager: CookieManager | None = None
     gemini_client: GeminiClientWrapper | None = None
@@ -780,7 +782,9 @@ async def query_memories(
         # In production, you'd use Memori's search/query methods
         return {
             "memories": [],
-            "message": ("Memory query functionality - check Memori docs for specific query methods"),
+            "message": (
+                "Memory query functionality - check Memori docs for specific query methods"
+            ),
         }
     except (RuntimeError, ValueError, AttributeError) as e:
         raise HTTPException(
@@ -812,7 +816,9 @@ async def generate_sse_response(
     # Combine sentence parts back and group into ~50 char chunks
     for part in sentences:
         current_chunk += part
-        if (len(current_chunk) >= 50 or part.strip().endswith((".", "!", "?"))) and current_chunk.strip():
+        if (
+            len(current_chunk) >= 50 or part.strip().endswith((".", "!", "?"))
+        ) and current_chunk.strip():
             chunks.append(current_chunk)
             current_chunk = ""
 
@@ -993,7 +999,9 @@ async def openai_chat_completions(
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=("Failed to auto-initialize. Please login to gemini.google.com or create a profile."),
+                detail=(
+                    "Failed to auto-initialize. Please login to gemini.google.com or create a profile."
+                ),
             )
     # Resolve model name (handle aliases)
     model_name = settings.resolve_model(request.model)
@@ -1310,7 +1318,9 @@ async def gemini_chat(
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=("Failed to auto-initialize. Please login to gemini.google.com or create a profile."),
+                detail=(
+                    "Failed to auto-initialize. Please login to gemini.google.com or create a profile."
+                ),
             )
     try:
         response_text, conversation_id = await gemini_client.chat(

@@ -188,7 +188,9 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
             else:
                 start_pos = text.find(json_str)
                 if start_pos >= 0:
-                    remaining_text = (text[:start_pos] + text[start_pos + len(json_str) :]).strip()
+                    remaining_text = (
+                        text[:start_pos] + text[start_pos + len(json_str) :]
+                    ).strip()
                 else:
                     remaining_text = text.strip()
             return tool_calls, remaining_text
@@ -246,7 +248,9 @@ def render_message_content(message: ChatCompletionMessage) -> str:
     return "\n".join(
         part.text
         for part in content
-        if isinstance(part, ChatCompletionMessageContent) and part.type == "text" and part.text is not None
+        if isinstance(part, ChatCompletionMessageContent)
+        and part.type == "text"
+        and part.text is not None
     )
 
 
@@ -274,7 +278,9 @@ def collapse_messages(request: ChatCompletionRequest) -> str:
         # Handle assistant messages with tool calls (echo them for context)
         if message.role == "assistant" and message.tool_calls:
             # Build tool calls summary directly without intermediate list
-            tool_names = ", ".join(f"Called {tc.function.name}(id={tc.id})" for tc in message.tool_calls)
+            tool_names = ", ".join(
+                f"Called {tc.function.name}(id={tc.id})" for tc in message.tool_calls
+            )
             parts.append(f"ASSISTANT: [Tool calls: {tool_names}]")
             continue
 

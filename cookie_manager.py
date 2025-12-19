@@ -302,7 +302,9 @@ class CookieManager:
                 timeout=timeout,
             )
         except TimeoutError as e:
-            raise RuntimeError(f"Cookie extraction from {browser} timed out after {timeout}s") from e
+            raise RuntimeError(
+                f"Cookie extraction from {browser} timed out after {timeout}s"
+            ) from e
 
     async def save_profile(
         self,
@@ -373,7 +375,9 @@ class CookieManager:
 
             await db.commit()
 
-        logger.info(f"Saved profile '{profile_name}' with {len(cookies)} cookies from {browser}")
+        logger.info(
+            f"Saved profile '{profile_name}' with {len(cookies)} cookies from {browser}"
+        )
 
     async def load_profile(self, profile_name: str) -> Profile | None:
         """Load a profile and its cookies from the database using a single JOIN query.
@@ -523,7 +527,9 @@ class CookieManager:
             found_cookies = {row["name"] for row in rows}
             missing = set(self.REQUIRED_COOKIES) - found_cookies
             if missing:
-                logger.warning(f"Profile '{profile_name}' missing required cookies: {missing}")
+                logger.warning(
+                    f"Profile '{profile_name}' missing required cookies: {missing}"
+                )
                 return None
 
             # Build result and check expiration
@@ -535,7 +541,9 @@ class CookieManager:
 
                 # Check if expired
                 if expires is not None and current_time > expires:
-                    logger.warning(f"Cookie {cookie_name} in profile '{profile_name}' has expired")
+                    logger.warning(
+                        f"Cookie {cookie_name} in profile '{profile_name}' has expired"
+                    )
                     return None
 
                 result[cookie_name] = row["value"]

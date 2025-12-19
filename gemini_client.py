@@ -56,7 +56,9 @@ class GeminiClientWrapper:
             cookies = await self.cookie_manager.get_gemini_cookies(profile_name)
 
             if not cookies:
-                logger.error(f"Failed to load valid cookies from profile '{profile_name}'")
+                logger.error(
+                    f"Failed to load valid cookies from profile '{profile_name}'"
+                )
                 return False
 
             # Extract required cookie values
@@ -155,9 +157,9 @@ class GeminiClientWrapper:
             # Try to refresh cookies if using a profile
             if self.profile_name:
                 logger.info(f"Attempting to refresh profile '{self.profile_name}'")
-                if await self.cookie_manager.refresh_profile(self.profile_name) and await self.init_with_profile(
+                if await self.cookie_manager.refresh_profile(
                     self.profile_name
-                ):
+                ) and await self.init_with_profile(self.profile_name):
                     # Retry generation once
                     return await self.generate(prompt, image)
 
@@ -194,7 +196,9 @@ class GeminiClientWrapper:
             )
 
             # Extract response text and conversation ID
-            response_text = str(response.text if hasattr(response, "text") else response)
+            response_text = str(
+                response.text if hasattr(response, "text") else response
+            )
 
             # Get conversation ID from response or client
             conv_id = (
@@ -212,9 +216,9 @@ class GeminiClientWrapper:
             # Try to refresh cookies if using a profile
             if self.profile_name:
                 logger.info(f"Attempting to refresh profile '{self.profile_name}'")
-                if await self.cookie_manager.refresh_profile(self.profile_name) and await self.init_with_profile(
+                if await self.cookie_manager.refresh_profile(
                     self.profile_name
-                ):
+                ) and await self.init_with_profile(self.profile_name):
                     # Retry chat once
                     return await self.chat(message, conversation_id)
 
