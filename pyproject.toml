@@ -1,6 +1,6 @@
 [project]
 name = "genkit-gemini-server"
-version = "0.1.0"
+version = "0.1.1"
 description = "High-performance FastAPI server for Gemini API with strict typing and modern tooling"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,7 +55,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Ven0m0/gemini-web-wrapper"
+Homepage = "https://gemini-web-wrapper.vercel.app"
 Issues = "https://github.com/Ven0m0/gemini-web-wrapper/issues"
 Repository = "https://github.com/Ven0m0/gemini-web-wrapper"
 
