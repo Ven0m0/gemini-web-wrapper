@@ -10,11 +10,10 @@ import asyncio
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from collections.abc import AsyncGenerator, Callable
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 from uuid import uuid4
@@ -25,7 +24,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
-from memori import Memori
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
@@ -37,6 +35,7 @@ from openai_transforms import (
     parse_tool_calls,
     to_chat_completion_response,
 )
+from session_manager import SessionManager
 from utils import handle_generation_errors, run_in_thread
 
 
@@ -103,7 +102,7 @@ class GenkitModel(Protocol):
 # ----- State Management -----
 @dataclass
 class AppState:
-    """Global application state for Genkit and Memori resources.
+    """Global application state for Genkit and session management resources.
 
     Uses dataclass to ensure proper instance attribute initialization
     and avoid mutable class attribute anti-pattern.
@@ -111,10 +110,10 @@ class AppState:
 
     genkit: Genkit | None = None
     model: GenkitModel | None = None
-    memori: Memori | None = None
+    session_manager: SessionManager | None = None
     chatbot_flow: Callable[..., Any] | None = None
     settings: Settings | None = None
-    # Cache for attribution setup with TTL to prevent unbounded growth
+    # Cache for session setup with TTL to prevent unbounded growth
     # maxsize=10000 entries, ttl=3600 seconds (1 hour)
     attribution_cache: TTLCache = field(
         default_factory=lambda: TTLCache(maxsize=10000, ttl=3600)
@@ -125,24 +124,6 @@ class AppState:
 
 
 state = AppState()
-
-
-# ----- Initialization Helpers -----
-async def _setup_memori() -> None:
-    """Initialize Memori setup if needed.
-
-    Runs the memori setup command in a thread pool to avoid blocking.
-    This is idempotent - if already set up, it will not cause issues.
-    Errors are silently caught as setup may already be complete.
-    """
-    with suppress(subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        await run_in_thread(
-            subprocess.run,
-            ["python", "-m", "memori", "setup"],
-            capture_output=True,
-            check=False,
-            timeout=3,
-        )
 
 
 # ----- Genkit Flows -----
@@ -229,14 +210,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Get model reference - format: "provider/model-name"
     model_path = f"{settings.model_provider}ai/{settings.model_name}"
     state.model = state.genkit.get_model(model_path)
-    # Initialize Memori for persistent memory
-    state.memori = Memori()
-    # Register the LLM client with Memori (uses default attribution)
-    # Note: Memori will automatically track conversations
-    await _setup_memori()
-    # Register the model with Memori once at startup (performance optimization)
-    if state.model and state.memori:
-        await run_in_thread(state.memori.llm.register, state.model)
+    # Initialize lightweight session manager for user/session tracking
+    state.session_manager = SessionManager()
     # Create Genkit flows
     create_chatbot_flow(state.genkit)
     # Initialize cookie manager and gemini-webapi client
@@ -247,7 +222,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Cleanup if necessary
     state.genkit = None
     state.model = None
-    state.memori = None
+    state.session_manager = None
     state.settings = None
     state.cookie_manager = None
     state.gemini_client = None
@@ -369,20 +344,19 @@ async def run_generate(
         ) from e
 
 
-async def _setup_memori_attribution(
-    memori: Memori,
+async def _setup_session_attribution(
+    session_mgr: SessionManager,
     user_id: str | None,
     session_id: str | None,
 ) -> None:
-    """Set up Memori attribution for conversation tracking.
+    """Set up session attribution for conversation tracking.
 
-    Runs attribution setup in a thread pool to avoid blocking the event loop.
-    Attribution allows Memori to track conversations per user and session.
+    Configures session manager with user and session identifiers.
     Uses TTL cache to avoid redundant attribution calls for same user/session
     while preventing unbounded memory growth.
 
     Args:
-        memori: Initialized Memori instance.
+        session_mgr: Initialized SessionManager instance.
         user_id: Optional user identifier (defaults to "default_user").
         session_id: Optional session identifier for grouping interactions.
     """
@@ -395,13 +369,12 @@ async def _setup_memori_attribution(
 
         # Only set up attribution if not already cached
         if cache_key not in state.attribution_cache:
-            await run_in_thread(
-                memori.attribution,
+            session_mgr.attribution(
                 entity_id=effective_user_id,
                 process_id="gemini-chatbot",
             )
             if session_id:  # Only set session if explicitly provided
-                await run_in_thread(memori.set_session, session_id)
+                session_mgr.set_session(session_id)
             # Add to cache (TTLCache expires after 1 hour)
             state.attribution_cache[cache_key] = True
 
@@ -436,11 +409,11 @@ def _build_message_list(
 
 async def _prepare_chatbot_messages(
     request: ChatbotReq,
-    memori: Memori,
+    session_mgr: SessionManager,
 ) -> list[dict[str, str]]:
     """Prepare chatbot messages and ensure attribution is set."""
-    await _setup_memori_attribution(
-        memori,
+    await _setup_session_attribution(
+        session_mgr,
         request.user_id,
         request.session_id,
     )
@@ -469,21 +442,21 @@ def get_model() -> GenkitModel:
     return state.model
 
 
-def get_memori() -> Memori:
-    """FastAPI dependency to get the initialized Memori instance.
+def get_session_manager() -> SessionManager:
+    """FastAPI dependency to get the initialized SessionManager instance.
 
     Returns:
-        Initialized Memori instance.
+        Initialized SessionManager instance.
 
     Raises:
-        HTTPException: 503 if Memori is not initialized.
+        HTTPException: 503 if SessionManager is not initialized.
     """
-    if state.memori is None:
+    if state.session_manager is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Memory not initialized. Check server logs.",
+            detail="Session manager not initialized. Check server logs.",
         )
-    return state.memori
+    return state.session_manager
 
 
 def get_cookie_manager() -> CookieManager:
@@ -618,18 +591,18 @@ async def health() -> dict[str, bool]:
 async def chatbot(
     r: ChatbotReq,
     model: GenkitModel = Depends(get_model),
-    memori: Memori = Depends(get_memori),
+    session_mgr: SessionManager = Depends(get_session_manager),
 ) -> dict[str, str]:
-    """Handle chatbot requests with conversation history and memory.
+    """Handle chatbot requests with conversation history and session tracking.
 
     This endpoint follows the Genkit chatbot pattern, accepting a message
-    along with conversation history. Now enhanced with Memori for persistent
-    memory across sessions.
+    along with conversation history. Now enhanced with lightweight session
+    tracking for user and session management.
 
     Args:
         r: ChatbotReq with message, history, and optional system instruction.
         model: Injected GenkitModel dependency.
-        memori: Injected Memori dependency.
+        session_mgr: Injected SessionManager dependency.
 
     Returns:
         Dict with 'text' key containing the model's response.
@@ -637,10 +610,8 @@ async def chatbot(
     Raises:
         HTTPException: 503 if model not initialized, 500 if generation fails.
     """
-    msgs = await _prepare_chatbot_messages(r, memori)
+    msgs = await _prepare_chatbot_messages(r, session_mgr)
     out = await run_generate(msgs, model)
-    # Note: Memori model registration now happens once at startup
-    # for better performance instead of per-request
     return {"text": out.text}
 
 
@@ -648,18 +619,18 @@ async def chatbot(
 async def chatbot_stream(
     r: ChatbotReq,
     model: GenkitModel = Depends(get_model),
-    memori: Memori = Depends(get_memori),
+    session_mgr: SessionManager = Depends(get_session_manager),
 ) -> StreamingResponse:
-    """Handle chatbot requests with streaming responses and memory.
+    """Handle chatbot requests with streaming responses and session tracking.
 
     This endpoint streams the model's response token-by-token for a more
     interactive experience. Like /chatbot, it accepts conversation history
-    and maintains a stateless server pattern. Now enhanced with Memori.
+    and maintains a stateless server pattern with lightweight session tracking.
 
     Args:
         r: ChatbotReq with message, history, and optional system instruction.
         model: Injected GenkitModel dependency.
-        memori: Injected Memori dependency.
+        session_mgr: Injected SessionManager dependency.
 
     Returns:
         StreamingResponse that yields text chunks as they're generated.
@@ -667,7 +638,7 @@ async def chatbot_stream(
     Raises:
         HTTPException: 503 if model not initialized, 500 if generation fails.
     """
-    msgs = await _prepare_chatbot_messages(r, memori)
+    msgs = await _prepare_chatbot_messages(r, session_mgr)
 
     async def generate_stream() -> AsyncGenerator[str, None]:
         """Generate response stream chunk by chunk.
@@ -678,8 +649,6 @@ async def chatbot_stream(
         try:
             # Generate complete response
             response = await run_generate(msgs, model)
-            # Note: Memori model registration now happens once at startup
-            # for better performance instead of per-request
             text = response.text
 
             # Split text into chunks by words for streaming effect
@@ -704,92 +673,87 @@ async def chatbot_stream(
 @app.post("/memory/session/new")
 async def create_new_session(
     user_id: str | None = None,
-    memori: Memori = Depends(get_memori),
+    session_mgr: SessionManager = Depends(get_session_manager),
 ) -> dict[str, str]:
-    """Create a new memory session for a user.
+    """Create a new session for a user.
 
     Args:
         user_id: Optional user identifier for the session.
-        memori: Injected Memori dependency.
+        session_mgr: Injected SessionManager dependency.
 
     Returns:
-        Dict with 'status' and 'message' indicating session creation.
+        Dict with 'status', 'message', and 'session_id'.
 
     Raises:
-        HTTPException: 503 if memory not initialized.
+        HTTPException: 503 if session manager not initialized, 500 on failure.
     """
     try:
-        await run_in_thread(
-            memori.attribution,
+        session_mgr.attribution(
             entity_id=user_id or "default_user",
             process_id="gemini-chatbot",
         )
-        await run_in_thread(memori.new_session)
+        session_id = session_mgr.new_session()
         return {
             "status": "success",
-            "message": "New memory session created",
+            "message": "New session created",
+            "session_id": session_id,
         }
     except (RuntimeError, ValueError, AttributeError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Memory session creation failed: {e}",
+            detail=f"Session creation failed: {e}",
         ) from e
 
 
-class MemoryQueryReq(BaseModel):
-    """Request model for memory query endpoint.
+class SessionQueryReq(BaseModel):
+    """Request model for session query endpoint.
 
     Attributes:
-        user_id: User identifier to query memories for.
-        query: Optional search query for semantic memory retrieval.
-        limit: Maximum number of memories to retrieve.
+        user_id: User identifier to query sessions for.
     """
 
     user_id: str = Field(..., min_length=1)
-    query: str | None = Field(default=None)
-    limit: int = Field(default=10, ge=1, le=100)
 
 
 @app.post("/memory/query")
-async def query_memories(
-    r: MemoryQueryReq,
-    memori: Memori = Depends(get_memori),
+async def query_sessions(
+    r: SessionQueryReq,
+    session_mgr: SessionManager = Depends(get_session_manager),
 ) -> dict[str, Any]:
-    """Query stored memories for a user.
+    """Query active sessions for a user.
 
-    This endpoint allows retrieving past conversation context and memories
-    stored by Memori for a specific user.
+    Returns all active (non-expired) sessions for a given user.
 
     Args:
-        r: MemoryQueryReq containing user_id and optional query parameters.
-        memori: Injected Memori dependency.
+        r: SessionQueryReq containing user_id.
+        session_mgr: Injected SessionManager dependency.
 
     Returns:
-        Dict with 'memories' list and informational 'message' string.
+        Dict with 'sessions' list containing session details.
 
     Raises:
-        HTTPException: 503 if memory not initialized, 500 if query fails.
+        HTTPException: 503 if session manager not initialized, 500 on failure.
     """
     try:
-        # Set attribution to query this user's memories
-        await run_in_thread(
-            memori.attribution,
-            entity_id=r.user_id,
-            process_id="gemini-chatbot",
-        )
-        # Note: The actual Memori API for querying may differ
-        # This is a placeholder showing the pattern
-        # In production, you'd use Memori's search/query methods
+        sessions = session_mgr.get_user_sessions(r.user_id)
+        session_data = [
+            {
+                "session_id": s.session_id,
+                "user_id": s.user_id,
+                "process_id": s.process_id,
+                "created_at": s.created_at,
+                "last_accessed": s.last_accessed,
+            }
+            for s in sessions
+        ]
         return {
-            "memories": [],
-            "message": (
-                "Memory query functionality - check Memori docs for specific query methods"
-            ),
+            "sessions": session_data,
+            "count": len(session_data),
         }
     except (RuntimeError, ValueError, AttributeError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Memory query failed: {e}",
+            detail=f"Session query failed: {e}",
         ) from e
 
 

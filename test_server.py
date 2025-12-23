@@ -10,6 +10,7 @@ Tests cover:
 
 import os
 from collections.abc import Generator
+from contextlib import asynccontextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -34,25 +35,36 @@ def client() -> Generator[TestClient, None, None]:
     mock_response.text = "Mocked response"
     mock_model.generate.return_value = mock_response
 
-    # Mock Memori instance
-    mock_memori = MagicMock()
-    mock_memori.attribution = MagicMock()
-    mock_memori.set_session = MagicMock()
-    mock_memori.new_session = MagicMock()
-    mock_memori.llm.register = MagicMock()
+    # Mock SessionManager instance
+    mock_session_mgr = MagicMock()
+    mock_session_mgr.attribution = MagicMock()
+    mock_session_mgr.set_session = MagicMock()
+    mock_session_mgr.new_session = MagicMock(return_value="test-session-id")
 
-    # Inject into global state
-    state.model = mock_model
-    state.genkit = MagicMock()
-    state.memori = mock_memori
+    # Create a no-op lifespan for testing
+    @asynccontextmanager
+    async def test_lifespan(app: Any) -> Generator[None, None, None]:
+        # Setup: inject mocks into state
+        state.model = mock_model
+        state.genkit = MagicMock()
+        state.session_manager = mock_session_mgr
+        state.settings = MagicMock()
+        state.cookie_manager = MagicMock()
+        state.gemini_client = MagicMock()
+        yield
+        # Cleanup
+        state.model = None
+        state.genkit = None
+        state.session_manager = None
+        state.settings = None
+        state.cookie_manager = None
+        state.gemini_client = None
+
+    # Override the app lifespan with our test lifespan
+    app.router.lifespan_context = test_lifespan  # type: ignore
 
     with TestClient(app) as c:
         yield c
-
-    # Cleanup
-    state.model = None
-    state.genkit = None
-    state.memori = None
 
 
 def test_health(client: TestClient) -> None:
@@ -270,18 +282,18 @@ def test_chatbot_validation_invalid_role(client: TestClient) -> None:
 def test_chatbot_not_initialized(client: TestClient) -> None:
     """Test chatbot endpoint returns 503 when model not initialized."""
     original_model = state.model
-    original_memori = state.memori
+    original_session_mgr = state.session_manager
     state.model = None
 
     response = client.post("/chatbot", json={"message": "Hello"})
     assert response.status_code == 503
     assert (
-        "Model or memory not initialized" in response.json()["detail"]
+        "Model or session manager not initialized" in response.json()["detail"]
         or "Model not initialized" in response.json()["detail"]
     )
 
     state.model = original_model
-    state.memori = original_memori
+    state.session_manager = original_session_mgr
 
 
 def test_chatbot_stream_endpoint(client: TestClient) -> None:
@@ -331,6 +343,7 @@ def test_chatbot_stream_includes_system_and_history(
             {"role": "user", "content": "Start a story"},
             {"role": "model", "content": "Once upon a time..."},
         ],
+        "user_id": "test_user",  # Add user_id to trigger attribution
     }
     response = client.post("/chatbot/stream", json=payload)
 
@@ -346,19 +359,19 @@ def test_chatbot_stream_includes_system_and_history(
         {"role": "user", "content": "Continue"},
     ]
 
-    assert state.memori is not None
-    mock_memori: Any = state.memori
-    assert mock_memori.attribution.call_count == 1
+    assert state.session_manager is not None
+    mock_session_mgr: Any = state.session_manager
+    assert mock_session_mgr.attribution.call_count == 1
 
 
 def test_chatbot_stream_not_initialized(client: TestClient) -> None:
     """Test chatbot stream endpoint returns 503 when model not initialized."""
     original_model = state.model
-    original_memori = state.memori
+    original_session_mgr = state.session_manager
     state.model = None
 
     response = client.post("/chatbot/stream", json={"message": "Hello"})
     assert response.status_code == 503
 
     state.model = original_model
-    state.memori = original_memori
+    state.session_manager = original_session_mgr
