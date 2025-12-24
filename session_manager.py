@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 from uuid import uuid4
 
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 
 
 @dataclass
@@ -116,7 +116,7 @@ class SessionManager:
         Returns:
             Session object if found and not expired, None otherwise.
         """
-        session: Session | None = self._sessions.get(session_id)  # type: ignore[assignment]
+        session: Session | None = self._sessions.get(session_id)
         if session:
             session.touch()
         return session

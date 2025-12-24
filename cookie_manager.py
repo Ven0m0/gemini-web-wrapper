@@ -410,7 +410,8 @@ class CookieManager:
                 """,
                 (profile_name,),
             )
-            rows = await cursor.fetchall()
+            rows_result = await cursor.fetchall()
+            rows = list(rows_result)
 
             if not rows:
                 return None
@@ -570,18 +571,18 @@ class CookieManager:
             logger.error(f"Profile '{profile_name}' not found and no browser specified")
             return False
 
-        browser_type = browser or (profile.browser if profile else "chrome")
+        browser_type: BrowserType = browser or (profile.browser if profile else "chrome")  # type: ignore[assignment]
 
         try:
             # Extract fresh cookies
-            cookies = await self.extract_cookies(browser_type)  # type: ignore
+            cookies = await self.extract_cookies(browser_type)
 
             if not cookies:
                 logger.error(f"No cookies extracted from {browser_type}")
                 return False
 
             # Save with updated timestamp
-            await self.save_profile(profile_name, cookies, browser_type)  # type: ignore
+            await self.save_profile(profile_name, cookies, browser_type)
             return True
 
         except Exception as e:

@@ -12,24 +12,24 @@ import os
 import re
 import sys
 import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 from uuid import uuid4
 
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
-from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleAI
+from genkit.ai import Genkit  # type: ignore[attr-defined]
+from genkit.plugins.google_genai import GoogleAI  # type: ignore[attr-defined]
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
-from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
+from openai_schemas import ChatCompletionRequest, ChatCompletionResponse, ToolCall
 from openai_transforms import (
     collapse_messages,
     parse_tool_calls,
@@ -99,6 +99,13 @@ class GenkitModel(Protocol):
         ...
 
 
+class MessageLike(Protocol):
+    """Protocol for message-like objects with role and content."""
+
+    role: str
+    content: str
+
+
 # ----- State Management -----
 @dataclass
 class AppState:
@@ -164,11 +171,11 @@ def create_chatbot_flow(ai: Genkit) -> None:
             """Temporary adapter for dict-based messages."""
 
             def __init__(self, d: dict[str, str]) -> None:
-                self.role = d["role"]  # type: ignore
+                self.role = d["role"]
                 self.content = d["content"]
 
         history_msgs = [_DictMessage(h) for h in history] if history else []
-        msgs_list = _build_message_list(system, history_msgs, message)  # type: ignore
+        msgs_list = _build_message_list(system, history_msgs, message)
         response = await run_in_thread(state.model.generate, msgs_list)
         # GenerateResponse.text from genkit lacks type hints
         return str(response.text)
@@ -198,7 +205,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         SystemExit: If configuration loading fails.
     """
     try:
-        state.settings = Settings()
+        state.settings = Settings()  # type: ignore[call-arg]
     except (ValueError, KeyError, TypeError) as e:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -209,7 +216,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.genkit = Genkit(plugins=[GoogleAI(api_key=settings.google_api_key)])
     # Get model reference - format: "provider/model-name"
     model_path = f"{settings.model_provider}ai/{settings.model_name}"
-    state.model = state.genkit.get_model(model_path)
+    state.model = state.genkit.get_model(model_path)  # type: ignore[attr-defined]
     # Initialize lightweight session manager for user/session tracking
     state.session_manager = SessionManager()
     # Create Genkit flows
@@ -228,6 +235,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.gemini_client = None
     state.attribution_cache.clear()
 
+
 # ----- App Initialization -----
 app = FastAPI(
     lifespan=lifespan,
@@ -244,6 +252,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ----- Models -----
 class ChatMessage(BaseModel):
@@ -382,7 +391,7 @@ async def _setup_session_attribution(
 
 def _build_message_list(
     system: str | None,
-    history: list[ChatMessage],
+    history: Sequence[MessageLike],
     message: str,
 ) -> list[dict[str, str]]:
     """Build a message list for model generation.
@@ -418,9 +427,11 @@ async def _prepare_chatbot_messages(
         request.user_id,
         request.session_id,
     )
+    # Cast to Sequence[MessageLike] since Pydantic models don't auto-satisfy Protocols
+    history: Sequence[MessageLike] = request.history  # type: ignore[assignment]
     return _build_message_list(
         request.system,
-        request.history,
+        history,
         request.message,
     )
 
@@ -871,7 +882,7 @@ async def generate_sse_response(
 
 
 async def generate_sse_tool_response(
-    tool_calls: list,
+    tool_calls: list[ToolCall],
     model: str,
     request_id: str,
     include_usage: bool = False,
@@ -1003,7 +1014,7 @@ async def openai_chat_completions(
         ) from exc
     # Parse for tool calls
     text = raw_response.text or ""
-    tool_calls = []
+    tool_calls: list[ToolCall] = []
     if request.tools and request.tool_choice != "none":
         tool_calls, text = parse_tool_calls(text)
     # Check if streaming is requested

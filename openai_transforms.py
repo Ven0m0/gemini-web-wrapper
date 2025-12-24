@@ -7,6 +7,7 @@ import json
 import logging
 import re
 import time
+from typing import Any
 from uuid import uuid4
 
 from gemini_webapi import ModelOutput
@@ -203,7 +204,7 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
         return [], text
 
 
-def _parse_tool_calls_data(data: dict) -> list[ToolCall]:
+def _parse_tool_calls_data(data: dict[str, Any]) -> list[ToolCall]:
     """Parse tool_calls from a decoded JSON dict."""
     tool_calls = []
 
