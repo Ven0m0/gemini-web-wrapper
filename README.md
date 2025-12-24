@@ -59,6 +59,13 @@ Lightweight FastAPI backend with static HTML/JS frontend providing conversationa
   - SSE streaming for real-time responses
   - Function calling / tool use support
 
+- **🎨 Chainlit UI Integration**
+  - Modern conversational UI powered by Chainlit
+  - Interactive chat interface with settings
+  - Conversation history management
+  - Real-time streaming responses
+  - Model switching on the fly
+
 ---
 
 ## 📋 Requirements
@@ -96,7 +103,9 @@ export GOOGLE_API_KEY="your_gemini_api_key_here"
 echo "GOOGLE_API_KEY=your_key" > .env
 ```
 
-### 2. Start the Backend
+### 2. Start the Application
+
+**Option A: FastAPI Backend (for API access)**
 
 ```bash
 # Development mode with auto-reload
@@ -107,6 +116,15 @@ python server.py
 ```
 
 The server will be available at: `http://localhost:9000`
+
+**Option B: Chainlit UI (for chat interface)**
+
+```bash
+# Start the Chainlit chat interface
+uv run chainlit run chainlit_app.py
+```
+
+The Chainlit interface will be available at: `http://localhost:8000`
 
 ### 3. Access API Documentation
 
@@ -474,6 +492,51 @@ python3 -m http.server 8000
 Then open: <http://localhost:8000>
 
 Configure the backend host and optional token in the UI.
+
+---
+
+## 🎨 Chainlit UI
+
+For a modern, production-ready chat interface, you can use the integrated Chainlit UI.
+
+### Starting the Chainlit Interface
+
+```bash
+# Make sure you have your GOOGLE_API_KEY configured
+export GOOGLE_API_KEY="your_gemini_api_key_here"
+
+# Run the Chainlit app
+uv run chainlit run chainlit_app.py
+```
+
+The Chainlit interface will be available at: <http://localhost:8000>
+
+### Features
+
+- **Interactive Chat**: Beautiful, responsive chat interface
+- **Settings Panel**:
+  - Switch between Gemini models (flash, pro, 3.0-pro)
+  - Enable/disable streaming
+  - Control conversation history length
+- **Conversation Management**: Automatic history tracking
+- **Welcome Screen**: Informative README when starting a new chat
+- **Real-time Responses**: See AI responses as they're generated
+
+### Configuration
+
+The Chainlit configuration is stored in `.chainlit/config.toml`. You can customize:
+- UI theme (light/dark mode colors)
+- Session timeout
+- Feature flags (LaTeX, HTML rendering, etc.)
+- Assistant name and description
+
+### Development Mode
+
+For auto-reload during development:
+
+```bash
+uv run chainlit run chainlit_app.py --watch
+```
 
 ---
 
