@@ -228,12 +228,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.gemini_client = None
     state.attribution_cache.clear()
 
-
 # ----- App Initialization -----
 app = FastAPI(
     lifespan=lifespan,
     default_response_class=ORJSONResponse,
     title="Genkit Gemini Server",
+    docs_url=None,  # Disable documentation to avoid schema generation issues
+    redoc_url=None,  # Disable redoc to avoid schema generation issues
+    openapi_url=None,  # Disable OpenAPI schema to avoid httpx.Client schema issues
 )
 app.add_middleware(
     CORSMiddleware,
@@ -242,7 +244,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ----- Models -----
 class ChatMessage(BaseModel):
