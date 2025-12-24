@@ -68,8 +68,6 @@ This document contains critical information about working with this codebase. Fo
 - use pydantic and langchain
 - this project is a very simple chatbot. Keep files to a minimum
 
-
-
 ## Pull Requests
 
 - Create a detailed message of what changed. Focus on the high level description of
@@ -121,13 +119,13 @@ This document contains critical information about working with this codebase. Fo
      - Imports: split into multiple lines
 
 2. Type Checking
-  - run `pyrefly init` to start
-  - run `pyrefly check` after every change and fix resultings errors
-   - Requirements:
-     - Explicit None checks for Optional
-     - Type narrowing for strings
-     - Version warnings can be ignored if checks pass
 
+- run `pyrefly init` to start
+- run `pyrefly check` after every change and fix resultings errors
+- Requirements:
+  - Explicit None checks for Optional
+  - Type narrowing for strings
+  - Version warnings can be ignored if checks pass
 
 ## Error Resolution
 
