@@ -38,10 +38,14 @@ jobs:
           activate-environment: "true"
           github-token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           cache-python: "true"
+          resolution-strategy: "highest"
       - run: |
-          uv pip install pip; uv pip install -r requirements.txt
+          uv pip install pip
+          uv pip install -r requirements.txt
           uv lock -U --fork-strategy requires-python --index-strategy unsafe-best-match --resolution highest
-          uv run ruff check --fix-only .
-          uv run ruff format --target-version py313 .
+      - uses: astral-sh/ruff-action@v3
+      - run: ruff check --fix-only
+      - run: ruff format
+
       - name: autofix.ci
         uses: autofix-ci/action@v1.3.2
