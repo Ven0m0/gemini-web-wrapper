@@ -16,6 +16,12 @@ env:
   DEBIAN_FRONTEND: noninteractive
   LC_ALL: C
   GITHUB_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+  UV_FORK_STRATEGY: requires-python
+  UV_RESOLUTION: highest
+  UV_PRERELEASE: if-necessary-or-explicit
+  UV_INDEX_STRATEGY: unsafe-best-match
+  UV_NATIVE_TLS: 0
+  UV_NO_PROGRESS: 1
 
 jobs:
   autofix:
@@ -33,14 +39,9 @@ jobs:
           github-token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           cache-python: "true"
       - run: |
-          uv pip install pip
-          uv pip install -r requirements.txt
-      # Fix
-      - run: |
+          uv pip install pip; uv pip install -r requirements.txt
+          uv lock -U --fork-strategy requires-python --index-strategy unsafe-best-match --resolution highest
           uv run ruff check --fix-only .
-          uv run ruff format .
-
+          uv run ruff format --target-version py313 .
       - name: autofix.ci
         uses: autofix-ci/action@v1.3.2
-        with:
-          fail-fast: true
