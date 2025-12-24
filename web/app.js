@@ -16,12 +16,10 @@ document.addEventListener("DOMContentLoaded", () => {
     btnSendChat: $("btn-send-chat"),
     btnCopy: $("btn-copy"),
     btnDownload: $("btn-download"),
-    btnClearOutput: $("btn-clear-output"),
+    btnClearOutput: $("btn-clear-output")
   };
   const ls = localStorage;
-  els.apiUrl.value =
-    ls.getItem("gemini_api_url") ||
-    `${location.protocol}//${location.hostname}:9000`;
+  els.apiUrl.value = ls.getItem("gemini_api_url") || `${location.protocol}//${location.hostname}:9000`;
   els.apiToken.value = ls.getItem("gemini_api_token") || "";
 
   const saveConfig = () => {
@@ -38,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   const headers = () => ({
     "Content-Type": "application/json",
-    "X-API-KEY": els.apiToken.value,
+    "X-API-KEY": els.apiToken.value
   });
   const setLoading = (on) => {
     els.spinner.classList.toggle("hidden", !on);
@@ -52,12 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const frag = document.createDocumentFragment();
     for (const { text, type } of batch) {
       const d = document.createElement("div");
-      d.className =
-        type === "error"
-          ? "error-msg"
-          : type === "user"
-            ? "user-msg"
-            : "ai-msg";
+      d.className = type === "error" ? "error-msg" : type === "user" ? "user-msg" : "ai-msg";
       d.textContent = text;
       frag.appendChild(d);
     }
@@ -80,19 +73,17 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: headers(),
         body: JSON.stringify(payload),
-        signal: controller.signal,
+        signal: controller.signal
       });
       clearTimeout(tid);
       if (!res.ok) {
-        if (res.status === 401)
-          throw new Error("401 Unauthorized: Check API Token");
+        if (res.status === 401) throw new Error("401 Unauthorized: Check API Token");
         throw new Error(`API Error: ${res.status} ${res.statusText}`);
       }
       return await res.json();
     } catch (err) {
       clearTimeout(tid);
-      if (err.name === "AbortError")
-        throw new Error("Request timed out (server unreachable?)");
+      if (err.name === "AbortError") throw new Error("Request timed out (server unreachable?)");
       throw err;
     } finally {
       setLoading(false);
@@ -114,8 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const sendCode = async () => {
     const code = els.codeEditor.value;
     const instruction = els.instructionInput.value.trim();
-    if (!code && !instruction)
-      return log("Error: Code or instruction required", "error");
+    if (!code && !instruction) return log("Error: Code or instruction required", "error");
     log(`> Processing code with instruction: ${instruction}`, "user");
     try {
       const data = await apiRequest("/code", { code, instruction });
@@ -153,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   els.btnDownload.addEventListener("click", () => {
     const blob = new Blob([els.outputDisplay.textContent], {
-      type: "text/plain",
+      type: "text/plain"
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

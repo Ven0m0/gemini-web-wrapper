@@ -77,6 +77,7 @@ uv pip install -r requirements.txt
 ```
 
 **Key Dependencies:**
+
 - `fastapi>=0.110.0` - Modern async web framework
 - `uvicorn[standard]>=0.29.0` - ASGI server with uvloop
 - `orjson>=3.10.0` - Fast JSON serialization
@@ -109,9 +110,9 @@ The server will be available at: `http://localhost:9000`
 
 ### 3. Access API Documentation
 
-- **Interactive docs**: http://localhost:9000/docs
-- **ReDoc**: http://localhost:9000/redoc
-- **Health check**: http://localhost:9000/health
+- **Interactive docs**: <http://localhost:9000/docs>
+- **ReDoc**: <http://localhost:9000/redoc>
+- **Health check**: <http://localhost:9000/health>
 
 ---
 
@@ -121,8 +122,9 @@ The wrapper now supports extracting cookies from your browser and managing multi
 
 ### Quick Start with Cookies
 
-1. **Login to Gemini**: Open https://gemini.google.com in your browser and login
+1. **Login to Gemini**: Open <https://gemini.google.com> in your browser and login
 2. **Create a profile** (extracts cookies automatically):
+
 ```bash
 curl -X POST http://localhost:9000/profiles/create \
   -H "Content-Type: application/json" \
@@ -130,6 +132,7 @@ curl -X POST http://localhost:9000/profiles/create \
 ```
 
 3. **Use the profile** for chatting:
+
 ```bash
 curl -X POST http://localhost:9000/gemini/chat \
   -H "Content-Type: application/json" \
@@ -137,6 +140,7 @@ curl -X POST http://localhost:9000/gemini/chat \
 ```
 
 ### Supported Browsers
+
 - `chrome` - Google Chrome
 - `firefox` - Mozilla Firefox
 - `edge` - Microsoft Edge
@@ -147,11 +151,13 @@ curl -X POST http://localhost:9000/gemini/chat \
 ### Profile Management
 
 **List profiles:**
+
 ```bash
 curl http://localhost:9000/profiles/list
 ```
 
 **Switch profile:**
+
 ```bash
 curl -X POST http://localhost:9000/profiles/switch \
   -H "Content-Type: application/json" \
@@ -159,11 +165,13 @@ curl -X POST http://localhost:9000/profiles/switch \
 ```
 
 **Refresh cookies:**
+
 ```bash
 curl -X POST http://localhost:9000/profiles/my-account/refresh
 ```
 
 **Delete profile:**
+
 ```bash
 curl -X DELETE http://localhost:9000/profiles/my-account
 ```
@@ -171,6 +179,7 @@ curl -X DELETE http://localhost:9000/profiles/my-account
 ### Auto Cookie Import
 
 You can also use automatic cookie import without creating profiles:
+
 ```bash
 # Just make sure you're logged into gemini.google.com in your browser
 curl -X POST http://localhost:9000/gemini/chat \
@@ -236,12 +245,15 @@ Copilot will automatically use tools when needed. You can also force tool usage 
 ## 📡 API Endpoints
 
 ### Health Check
+
 ```bash
 GET /health
 ```
+
 Returns: `{"ok": true}`
 
 ### OpenAI-Compatible Chat Completions
+
 ```bash
 POST /v1/chat/completions
 Content-Type: application/json
@@ -256,6 +268,7 @@ Content-Type: application/json
 ```
 
 **Streaming Request:**
+
 ```bash
 POST /v1/chat/completions
 Content-Type: application/json
@@ -268,6 +281,7 @@ Content-Type: application/json
 ```
 
 **Tool Calling Request:**
+
 ```bash
 POST /v1/chat/completions
 Content-Type: application/json
@@ -301,6 +315,7 @@ Content-Type: application/json
 | `gemini-2.5-flash` | `gpt-4o-mini`, `gemini-flash` | Gemini 2.5 Flash - Fast and efficient (default) |
 
 ### Chat Endpoint
+
 ```bash
 POST /chat
 Content-Type: application/json
@@ -312,6 +327,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "text": "Async/await in Python allows..."
@@ -319,6 +335,7 @@ Content-Type: application/json
 ```
 
 ### Chatbot Endpoint (with History)
+
 ```bash
 POST /chatbot
 Content-Type: application/json
@@ -334,6 +351,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "text": "You should also know that Python has..."
@@ -343,6 +361,7 @@ Content-Type: application/json
 **Note:** This endpoint follows the Genkit chatbot pattern where the client maintains conversation history and sends it with each request (stateless server pattern).
 
 ### Chatbot Streaming Endpoint
+
 ```bash
 POST /chatbot/stream
 Content-Type: application/json
@@ -357,6 +376,7 @@ Content-Type: application/json
 **Response:** Streams the response as `text/plain` for real-time output.
 
 ### Gemini WebAPI Chat (with Cookie Auth)
+
 ```bash
 POST /gemini/chat
 Content-Type: application/json
@@ -369,6 +389,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "text": "I'm doing well, thank you for asking!",
@@ -378,16 +399,19 @@ Content-Type: application/json
 ```
 
 **Note:** This endpoint uses gemini-webapi with cookie-based authentication. It supports:
+
 - Auto cookie import from browser (if logged into gemini.google.com)
 - Profile-based authentication
 - Conversation continuity via conversation_id
 
 ### List Gemini Conversations
+
 ```bash
 GET /gemini/conversations
 ```
 
 **Response:**
+
 ```json
 {
   "conversations": [...],
@@ -396,11 +420,13 @@ GET /gemini/conversations
 ```
 
 ### Delete Gemini Conversation
+
 ```bash
 DELETE /gemini/conversations/{conversation_id}
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -409,6 +435,7 @@ DELETE /gemini/conversations/{conversation_id}
 ```
 
 ### Code Assistance
+
 ```bash
 POST /code
 Content-Type: application/json
@@ -420,6 +447,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "text": "def calculate(x: int, y: int) -> int:\n    \"\"\"Add two numbers...\"\"\""
@@ -443,7 +471,7 @@ cd web
 python3 -m http.server 8000
 ```
 
-Then open: http://localhost:8000
+Then open: <http://localhost:8000>
 
 Configure the backend host and optional token in the UI.
 
@@ -462,6 +490,7 @@ pytest test_server.py --cov=server --cov-report=html
 ```
 
 **Test Coverage:**
+
 - ✅ Health check endpoint
 - ✅ Chat with system/user messages
 - ✅ Chatbot with conversation history
@@ -551,6 +580,7 @@ pre-commit run --all-files
 ```
 
 **Performance Optimizations:**
+
 - **ORJSONResponse**: 6x faster JSON serialization
 - **uvloop**: High-performance event loop
 - **Thread pool**: Blocking Genkit calls don't block async server
@@ -562,7 +592,7 @@ pre-commit run --all-files
 
 ⚠️ **Important**: This application is designed for **LAN/local development only**.
 
-### For Production Deployment:
+### For Production Deployment
 
 1. **Add authentication** (JWT, OAuth, API keys)
 2. **Enable CORS** properly with allowed origins
@@ -631,6 +661,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 This project has integrated patterns and features from:
 
 ### From [racaes/rev_gemini_api](https://github.com/racaes/rev_gemini_api)
+
 - **OpenAI-compatible API**: Drop-in replacement for `/v1/chat/completions` endpoint
 - **SSE streaming support**: Real-time response streaming compatible with VS Code Copilot
 - **Tool calling support**: Function calling via prompt injection (works with MCP tools)
@@ -639,14 +670,17 @@ This project has integrated patterns and features from:
 - **Tool call parsing**: Extract and format tool calls from model responses
 
 ### From [odomcl22/gemini-web-wrapper](https://github.com/odomcl22/gemini-web-wrapper) (Electron)
+
 - **Multi-profile cookie persistence**: Store and manage multiple Google account profiles
 - **Cookie persistence architecture**: Inspired session management patterns
 - **Profile switching**: Quick switching between different authenticated accounts
 
 ### From [levish0/gemini-desktop](https://github.com/levish0/gemini-desktop) (Tauri)
+
 - **Desktop wrapper patterns**: Cross-platform considerations
 
 ### Additional Enhancements
+
 - **aiosqlite integration**: Async SQLite for high-performance cookie storage
 - **browser-cookie3 integration**: Automatic cookie extraction from all major browsers
 - **Triple backend support**: Genkit (API-based), gemini-webapi (cookie-based), and OpenAI-compatible

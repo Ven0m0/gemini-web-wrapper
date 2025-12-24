@@ -11,6 +11,7 @@ A minimal static frontend for the local Gemini Wrapper API.
 # From project root
 python3 server.py
 ```
+
 2. **Serve Frontend**:
   You can serve this folder using any static file server.
 
@@ -18,12 +19,14 @@ python3 server.py
 cd web
 python3 -m http.server 8000
 ```
+
 Or use `uvicorn` if available:
 
 ```bash
 uvicorn web.main:app --port 8000 # if wrapped in python
 # OR just python http server is simplest
 ```
+
 3. **Access**:
   Open browser to `http://localhost:8000`.
 
