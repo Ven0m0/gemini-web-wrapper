@@ -20,8 +20,16 @@ switch_case_indent = false
 function_next_line = false
 binary_next_line = true
 
+[*.{sh,bash},PKGBUILD]
+shell_variant = bash
+spaces_around_operators = true
+spaces_around_brackets = false
+keep_padding = false
+space_redirects = false
+switch_case_indent = true
+function_next_line = false
+binary_next_line = true
+
 [*.{py,pyw,pyi}]
-indent_style = space
-indent_size = 2
 max_line_length = 120
 quote_type = double
