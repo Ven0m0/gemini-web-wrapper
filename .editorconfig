@@ -1,0 +1,27 @@
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+tab_width = 2
+max_line_length = 120
+spaces_around_operators = true
+spaces_around_brackets = false
+quote_type = auto
+spelling_language = en
+shell_variant = auto
+keep_padding = false
+space_redirects = false
+switch_case_indent = false
+function_next_line = false
+binary_next_line = true
+
+[*.{py,pyw,pyi}]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+quote_type = double
