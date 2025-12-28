@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck enable=all shell=bash source-path=SCRIPTDIR external-sources=true
+# shellcheck enable=all shell=bash source-path=SCRIPTDIR
 set -euo pipefail; shopt -s nullglob globstar
 IFS=$'\n\t' LC_ALL=C
 
@@ -11,7 +11,6 @@ die(){ printf '%s\n' "$1" >&2; exit "${2:-1}"; }
 readonly SUMMARY_DIR=".summary_files"
 readonly IGNORE_LIST=(". git" "venv" "__pycache__" ".vscode" ".idea" "node_modules" "build" "dist" "*.pyc" "*. pyo" "*.egg-info" ".DS_Store" ".env" "$SUMMARY_DIR")
 readonly OUTPUT_FILE="${SUMMARY_DIR}/code_summary.md"
-# Check Python3 availability
 has python3 || die "python3 not found.  Install Python 3.8+." 2
 # Detect repo root or use current directory
 detect_root(){
@@ -146,5 +145,4 @@ main(){
   msg "  Estimated tokens: ~$tokens"
   [[ -f "$OUTPUT_FILE" ]] && { has xclip && xclip -sel clip <"$OUTPUT_FILE" && msg "  Copied to clipboard (xclip)"; true; }
 }
-
 main "$@"
