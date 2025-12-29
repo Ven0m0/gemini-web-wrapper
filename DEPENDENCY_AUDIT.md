@@ -251,7 +251,7 @@ cd frontend
 npm install
 
 # Update safe packages
-npm update @codemirror/lang-javascript@^6.2.4 \
+npm install @codemirror/lang-javascript@^6.2.4 \
   @codemirror/lang-json@^6.0.2 \
   @codemirror/lang-markdown@^6.5.0 \
   @codemirror/state@^6.5.3 \
