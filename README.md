@@ -650,9 +650,9 @@ pip install -r requirements.txt
 
 ---
 
-## 📱 Chat GitHub Integration (NEW!)
+## 📱 GitHub Editor PWA (Integrated!)
 
-This wrapper now includes **Chat_github** - a mobile-first Progressive Web App for AI-powered GitHub file editing!
+This wrapper now includes a **mobile-first Progressive Web App** for AI-powered GitHub file editing! The frontend is fully integrated and served directly by the FastAPI backend.
 
 ### Features
 
@@ -664,30 +664,31 @@ This wrapper now includes **Chat_github** - a mobile-first Progressive Web App f
 
 ### Quick Start
 
-#### 1. Start the Backend Server
+#### 1. Build the Frontend (One-Time Setup)
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+```
+
+#### 2. Start the Server
+
+The backend automatically serves the built frontend:
 
 ```bash
 # Ensure GOOGLE_API_KEY is set
 export GOOGLE_API_KEY="your_gemini_api_key_here"
 
-# Start the FastAPI backend
-uvicorn server:app --host 0.0.0.0 --port 9000
+# Start the unified server (backend + frontend)
+python server.py
 ```
 
-#### 2. Install and Start Chat_github PWA
-
-```bash
-cd chat-github
-
-# Install dependencies
-npm install
-
-# Development mode (connects to backend on localhost:9000)
-npm run dev
-
-# Production build
-npm run build
-```
+The PWA will be available at: `http://localhost:9000/`
 
 #### 3. Optional: Start WebSocket Server
 
@@ -697,6 +698,21 @@ For file transfer features:
 # Start WebSocket server
 node websocket_server.js
 ```
+
+#### Development Mode
+
+For frontend development with hot reload:
+
+```bash
+# Terminal 1: Start backend
+python server.py
+
+# Terminal 2: Start Vite dev server
+cd frontend
+npm run dev
+```
+
+The dev server runs on `http://localhost:5173` with hot reload.
 
 ### New API Endpoints
 
@@ -774,38 +790,38 @@ Content-Type: application/json
 ### Architecture
 
 ```
-┌─────────────────────────────────────┐
-│  Chat_github PWA (React + TypeScript) │
-│  • Mobile-first UI                   │
-│  • Command-line interface            │
-│  • CodeMirror editor                 │
-│  • Service worker (offline)          │
-└────────────┬────────────────────────┘
-             │ HTTP/WebSocket
-             ▼
-┌─────────────────────────────────────┐
-│  FastAPI Backend (server.py)        │
-│  ┌───────────────────────────────┐  │
-│  │ New GitHub Endpoints:         │  │
-│  │ • /github/file/read           │  │
-│  │ • /github/file/write          │  │
-│  │ • /github/list                │  │
-│  │ • /github/branches            │  │
-│  └───────────────────────────────┘  │
-│  ┌───────────────────────────────┐  │
-│  │ Existing Endpoints:           │  │
-│  │ • /v1/chat/completions        │  │
-│  │ • /chat, /chatbot             │  │
-│  │ • /gemini/chat                │  │
-│  └───────────────────────────────┘  │
-└────────────┬────────────────────────┘
-             │
-    ┌────────┴─────────┐
-    ▼                  ▼
-┌─────────┐      ┌──────────┐
-│ Gemini  │      │ GitHub   │
-│ API     │      │ REST API │
-└─────────┘      └──────────┘
+┌─────────────────────────────────────────────────┐
+│  FastAPI Backend (server.py)                    │
+│  ┌───────────────────────────────────────────┐  │
+│  │ Static File Serving (/)                   │  │
+│  │ • Serves frontend/dist/ (built PWA)       │  │
+│  │ • Single-page app (SPA) routing           │  │
+│  └───────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────┐  │
+│  │ GitHub API Endpoints:                     │  │
+│  │ • /github/file/read                       │  │
+│  │ • /github/file/write                      │  │
+│  │ • /github/list                            │  │
+│  │ • /github/branches                        │  │
+│  └───────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────┐  │
+│  │ AI & Chat Endpoints:                      │  │
+│  │ • /v1/chat/completions (OpenAI compat)    │  │
+│  │ • /chat, /chatbot, /code                  │  │
+│  │ • /gemini/chat (cookie auth)              │  │
+│  └───────────────────────────────────────────┘  │
+└────────────┬──────────────────────┬─────────────┘
+             │                      │
+    ┌────────┴────────┐    ┌────────▼─────────┐
+    ▼                 ▼    ▼
+┌─────────┐   ┌──────────┐ ┌──────────────────┐
+│ Gemini  │   │ GitHub   │ │ Frontend PWA     │
+│ API     │   │ REST API │ │ (React + TS)     │
+└─────────┘   └──────────┘ │ • Mobile-first   │
+                           │ • CLI interface  │
+                           │ • CodeMirror     │
+                           │ • Offline mode   │
+                           └──────────────────┘
 ```
 
 ### Using Gemini for AI Editing
@@ -821,16 +837,16 @@ The integration allows Chat_github to use Gemini (via this backend) instead of O
 
 ```
 /home/user/gemini-web-wrapper/
-├── server.py                # FastAPI backend (with GitHub endpoints)
-├── github_service.py        # NEW: GitHub API integration
-├── websocket_server.js      # NEW: WebSocket file transfer server
-├── websocket_files/         # NEW: File transfer storage
-├── chat-github/             # NEW: Chat_github PWA
-│   ├── src/                 # React components
-│   ├── dist/                # Built files
+├── server.py                # FastAPI backend (serves frontend + APIs)
+├── github_service.py        # GitHub API integration
+├── websocket_server.js      # WebSocket file transfer server
+├── websocket_files/         # File transfer storage
+├── frontend/                # GitHub Editor PWA (integrated)
+│   ├── src/                 # React + TypeScript components
+│   ├── dist/                # Built files (served by backend)
 │   ├── package.json
 │   └── vite.config.ts
-├── web/                     # Original simple frontend
+├── web-old/                 # Original simple frontend (backup)
 └── pyproject.toml
 ```
 
@@ -873,7 +889,7 @@ Features:
 
 ### Documentation
 
-- **Chat_github Full Docs**: See `chat-github/README.md`
+- **Frontend Docs**: See `frontend/README.md`
 - **Integration Plan**: See `INTEGRATION_PLAN.md`
 - **API Reference**: Visit `http://localhost:9000/docs` when server is running
 

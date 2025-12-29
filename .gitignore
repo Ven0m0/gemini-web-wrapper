@@ -6,8 +6,8 @@ __pycache__/
 .venv/
 venv/
 node_modules/
-chat-github/node_modules/
-chat-github/dist/
+frontend/node_modules/
+frontend/dist/
 
 # Logs and temp files
 *.log
@@ -36,9 +36,12 @@ __pycache__/
 .Python
 *.so
 
-# Chat_github build artifacts
-chat-github/.config
-chat-github/test-results*.json
+# Frontend build artifacts
+frontend/.config
+frontend/test-results*.json
 
 # WebSocket file transfers
 websocket_files/
+
+# Old backup directory
+web-old/

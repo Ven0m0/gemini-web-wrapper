@@ -23,6 +23,7 @@ from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from pydantic import BaseModel, Field
@@ -1572,6 +1573,12 @@ async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list branches: {e}",
         ) from e
+
+
+# ----- Static File Serving (Frontend) -----
+# Mount the frontend build directory to serve the React PWA
+# This must be at the end so API routes take precedence
+app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
 
 
 if __name__ == "__main__":

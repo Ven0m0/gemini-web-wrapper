@@ -45,7 +45,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
-        navigateFallback: '/Chat_github/index.html',
+        navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
         skipWaiting: true,
         clientsClaim: true,
@@ -59,7 +59,7 @@ export default defineConfig({
               plugins: [
                 {
                   handlerDidError: async () => {
-                    return await caches.match('/Chat_github/offline.html')
+                    return await caches.match('/offline.html')
                   }
                 }
               ]
@@ -95,7 +95,7 @@ export default defineConfig({
           },
           // Cache local vendor mirror of Pyodide for offline usage
           {
-            urlPattern: new RegExp('^/Chat_github/vendor/pyodide/'),
+            urlPattern: new RegExp('^/vendor/pyodide/'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'pyodide-local',
@@ -115,33 +115,33 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'maskable-icon-512x512.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Phone AI + GitHub',
-        short_name: 'Chat GitHub',
-        description: 'Mobile-First AI CLI & Text Editor for GitHub',
+        name: 'Gemini Web Wrapper - GitHub Editor',
+        short_name: 'Gemini GitHub',
+        description: 'Mobile-First AI Editor for GitHub with Gemini',
         theme_color: '#000000',
         background_color: '#000000',
-        scope: '/Chat_github/',
+        scope: '/',
         display: 'standalone',
         orientation: 'portrait-primary',
-        start_url: '/Chat_github/',
+        start_url: '/',
         categories: ['developer', 'productivity', 'utilities'],
-        lang: 'zh-TW',
+        lang: 'en',
         prefer_related_applications: false,
         icons: [
           {
-            src: '/Chat_github/icon-192.png',
+            src: '/icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/Chat_github/icon-512.png',
+            src: '/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/Chat_github/maskable-icon-512x512.png',
+            src: '/maskable-icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
@@ -150,5 +150,5 @@ export default defineConfig({
       }
     })
   ],
-  base: process.env.NODE_ENV === 'production' ? '/Chat_github/' : '/'
+  base: '/'
 })
