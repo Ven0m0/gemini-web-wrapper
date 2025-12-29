@@ -141,7 +141,7 @@ Note: Preserve proper character encoding and formatting for all text content.`
       }
       throw new Error('Unsupported image response format from AI')
     } catch (e) {
-      throw new Error(`Failed to generate image: ${e}`)
+      throw e;
     }
   }
 }
