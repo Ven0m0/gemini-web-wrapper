@@ -11,26 +11,15 @@ interface BeforeInstallPromptEvent extends Event {
 
 export const InstallPrompt: React.FC = () => {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isIOS, setIsIOS] = useState(false)
-  const [isMacSafari, setIsMacSafari] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
   const [showPrompt, setShowPrompt] = useState(false)
 
   useEffect(() => {
-    // Detect iOS and macOS Safari
-    const ua = navigator.userAgent
-    const iOS = /iPad|iPhone|iPod/.test(ua)
-    setIsIOS(iOS)
-    const isMac = /Macintosh/.test(ua)
-    const isSafari = /Safari\//.test(ua) && !/Chrome\//.test(ua) && !/Chromium\//.test(ua)
-    setIsMacSafari(isMac && isSafari)
-
     // Detect if app is already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-    const isIOSStandalone = (window.navigator as any).standalone === true
-    setIsInstalled(isStandalone || isIOSStandalone)
+    setIsInstalled(isStandalone)
 
-    // Listen for beforeinstallprompt event (Android/Desktop)
+    // Listen for beforeinstallprompt event (Chrome, Edge, Android)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       setInstallPrompt(e as BeforeInstallPromptEvent)
@@ -39,15 +28,6 @@ export const InstallPrompt: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-    // Show iOS/macOS Safari instructions after a delay if not installed
-    if ((iOS || (isMac && isSafari)) && !isStandalone && !isIOSStandalone) {
-      const timer = setTimeout(() => setShowPrompt(true), 3000)
-      return () => {
-        clearTimeout(timer)
-        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-      }
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
@@ -55,10 +35,9 @@ export const InstallPrompt: React.FC = () => {
 
   const handleInstallClick = async () => {
     if (installPrompt) {
-      // Android/Desktop installation
       installPrompt.prompt()
       const { outcome } = await installPrompt.userChoice
-      
+
       if (outcome === 'accepted') {
         setInstallPrompt(null)
         setShowPrompt(false)
@@ -83,22 +62,12 @@ export const InstallPrompt: React.FC = () => {
         <div className="install-content">
           <div className="install-icon">📱</div>
           <div className="install-text">
-            <h4>Install Chat GitHub</h4>
-            {isIOS ? (
-              <p>
-                Add to your home screen: tap <strong>Share</strong> then <strong>"Add to Home Screen"</strong>
-              </p>
-            ) : isMacSafari ? (
-              <p>
-                On Safari (macOS): go to <strong>File → Add to Dock…</strong> to install the app.
-              </p>
-            ) : (
-              <p>Install this app for a better experience</p>
-            )}
+            <h4>Install GitHub Editor</h4>
+            <p>Install this app for a better experience</p>
           </div>
         </div>
         <div className="install-actions">
-          {!isIOS && installPrompt && (
+          {installPrompt && (
             <button onClick={handleInstallClick} className="install-btn">
               Install
             </button>
@@ -213,7 +182,7 @@ export const InstallPrompt: React.FC = () => {
             gap: 12px;
             text-align: center;
           }
-          
+
           .install-content {
             justify-content: center;
           }

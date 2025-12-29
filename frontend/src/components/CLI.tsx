@@ -1022,7 +1022,7 @@ export const CLI: React.FC = () => {
       const errMsg = e instanceof Error ? e.message : String(e)
       addHistory(`❌ Wasmer compile failed: ${errMsg}`)
       addHistory('Note: This feature requires network access to fetch the LLVM/Clang package from Wasmer registry.')
-      // iOS/PWA environments may block dynamic ESM imports; try server fallback if available
+      // Some environments may block dynamic ESM imports; try server fallback if available
       if (wsService && wsService.isConnected()) {
         try {
           const base = cPath.split('/').pop() || 'program.c'

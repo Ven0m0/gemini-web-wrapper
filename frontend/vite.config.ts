@@ -113,7 +113,7 @@ export default defineConfig({
           }
         ]
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'maskable-icon-512x512.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png', 'maskable-icon-512x512.png'],
       manifest: {
         name: 'Gemini Web Wrapper - GitHub Editor',
         short_name: 'Gemini GitHub',
