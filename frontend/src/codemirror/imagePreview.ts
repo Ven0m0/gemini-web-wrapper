@@ -3,13 +3,18 @@ import { Decoration, EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@cod
 
 type ImgRef = { alt: string; src: string }
 
-// Simple sanitizer: allow http(s), data URLs, or relative paths; block javascript: URIs
+// Simple sanitizer: allow http(s), safe data:image URLs, or relative paths; block javascript:/vbscript: URIs
 function isSafeSrc(src: string): boolean {
-  const s = src.trim()
-  if (s.startsWith('javascript:')) return false
-  if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:')) return true
-  // relative or root-relative
-  return s.startsWith('/') || !s.includes('://')
+  const trimmed = src.trim()
+  const lower = trimmed.toLowerCase()
+  // Block scripting schemes regardless of casing/whitespace
+  if (lower.startsWith('javascript:') || lower.startsWith('vbscript:')) return false
+  // Allow standard http(s) URLs
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return true
+  // Only allow data URLs that are clearly images
+  if (lower.startsWith('data:image/')) return true
+  // relative or root-relative (no explicit scheme)
+  return trimmed.startsWith('/') || !trimmed.includes('://')
 }
 
 class ImagesWidget extends WidgetType {
