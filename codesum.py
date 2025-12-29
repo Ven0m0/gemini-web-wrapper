@@ -99,7 +99,9 @@ def compress_code(code: str, lang: str) -> str:
     lines = code.split("\n")
     sigs = []
     for i, line in enumerate(lines, 1):
-        if re.search(r"\b(def|function|class|interface|type|const|let|var)\s+\w+", line):
+        if re.search(
+            r"\b(def|function|class|interface|type|const|let|var)\s+\w+", line
+        ):
             sigs.append(f"L{i}: {line.strip()}")
             if len(sigs) >= 50:
                 break
