@@ -650,6 +650,251 @@ pip install -r requirements.txt
 
 ---
 
+## 📱 GitHub Editor PWA (Integrated!)
+
+This wrapper now includes a **mobile-first Progressive Web App** for AI-powered GitHub file editing! The frontend is fully integrated and served directly by the FastAPI backend.
+
+### Features
+
+- **Mobile-First PWA**: Installable app with offline support
+- **AI-Powered Editing**: Edit GitHub files using natural language instructions
+- **GitHub Integration**: Direct file reading, writing, and committing
+- **WebSocket File Transfer**: Real-time file exchange between devices
+- **Command-Line Interface**: Fast `/command` syntax for all operations
+
+### Quick Start
+
+#### 1. Build the Frontend (One-Time Setup)
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+```
+
+#### 2. Start the Server
+
+The backend automatically serves the built frontend:
+
+```bash
+# Ensure GOOGLE_API_KEY is set
+export GOOGLE_API_KEY="your_gemini_api_key_here"
+
+# Start the unified server (backend + frontend)
+python server.py
+```
+
+The PWA will be available at: `http://localhost:9000/`
+
+#### 3. Optional: Start WebSocket Server
+
+For file transfer features:
+
+```bash
+# Start WebSocket server
+node websocket_server.js
+```
+
+#### Development Mode
+
+For frontend development with hot reload:
+
+```bash
+# Terminal 1: Start backend
+python server.py
+
+# Terminal 2: Start Vite dev server
+cd frontend
+npm run dev
+```
+
+The dev server runs on `http://localhost:5173` with hot reload.
+
+### New API Endpoints
+
+The integration adds GitHub API endpoints to the FastAPI backend:
+
+#### Read File from GitHub
+
+```bash
+POST /github/file/read
+Content-Type: application/json
+
+{
+  "config": {
+    "token": "ghp_...",
+    "owner": "username",
+    "repo": "repository",
+    "branch": "main"
+  },
+  "path": "README.md"
+}
+```
+
+#### Write/Update File to GitHub
+
+```bash
+POST /github/file/write
+Content-Type: application/json
+
+{
+  "config": {
+    "token": "ghp_...",
+    "owner": "username",
+    "repo": "repository",
+    "branch": "main"
+  },
+  "path": "README.md",
+  "content": "Updated content",
+  "message": "docs: update readme",
+  "sha": "abc123..."  # Required for updates
+}
+```
+
+#### List Directory Contents
+
+```bash
+POST /github/list
+Content-Type: application/json
+
+{
+  "config": {
+    "token": "ghp_...",
+    "owner": "username",
+    "repo": "repository",
+    "branch": "main"
+  },
+  "path": "src"  # Empty string for root
+}
+```
+
+#### List Branches
+
+```bash
+POST /github/branches
+Content-Type: application/json
+
+{
+  "config": {
+    "token": "ghp_...",
+    "owner": "username",
+    "repo": "repository"
+  }
+}
+```
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│  FastAPI Backend (server.py)                    │
+│  ┌───────────────────────────────────────────┐  │
+│  │ Static File Serving (/)                   │  │
+│  │ • Serves frontend/dist/ (built PWA)       │  │
+│  │ • Single-page app (SPA) routing           │  │
+│  └───────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────┐  │
+│  │ GitHub API Endpoints:                     │  │
+│  │ • /github/file/read                       │  │
+│  │ • /github/file/write                      │  │
+│  │ • /github/list                            │  │
+│  │ • /github/branches                        │  │
+│  └───────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────┐  │
+│  │ AI & Chat Endpoints:                      │  │
+│  │ • /v1/chat/completions (OpenAI compat)    │  │
+│  │ • /chat, /chatbot, /code                  │  │
+│  │ • /gemini/chat (cookie auth)              │  │
+│  └───────────────────────────────────────────┘  │
+└────────────┬──────────────────────┬─────────────┘
+             │                      │
+    ┌────────┴────────┐    ┌────────▼─────────┐
+    ▼                 ▼    ▼
+┌─────────┐   ┌──────────┐ ┌──────────────────┐
+│ Gemini  │   │ GitHub   │ │ Frontend PWA     │
+│ API     │   │ REST API │ │ (React + TS)     │
+└─────────┘   └──────────┘ │ • Mobile-first   │
+                           │ • CLI interface  │
+                           │ • CodeMirror     │
+                           │ • Offline mode   │
+                           └──────────────────┘
+```
+
+### Using Gemini for AI Editing
+
+The integration allows Chat_github to use Gemini (via this backend) instead of OpenAI:
+
+1. **Cost Savings**: Gemini is often cheaper than OpenAI
+2. **Cookie Auth**: Use free Gemini access via cookie authentication
+3. **Unified Backend**: Single server for both chat and GitHub operations
+4. **Model Flexibility**: Switch between Gemini models easily
+
+### File Structure
+
+```
+/home/user/gemini-web-wrapper/
+├── server.py                # FastAPI backend (serves frontend + APIs)
+├── github_service.py        # GitHub API integration
+├── websocket_server.js      # WebSocket file transfer server
+├── websocket_files/         # File transfer storage
+├── frontend/                # GitHub Editor PWA (integrated)
+│   ├── src/                 # React + TypeScript components
+│   ├── dist/                # Built files (served by backend)
+│   ├── package.json
+│   └── vite.config.ts
+├── web-old/                 # Original simple frontend (backup)
+└── pyproject.toml
+```
+
+### Configuration
+
+**Backend (.env):**
+```bash
+GOOGLE_API_KEY=your_gemini_api_key_here
+```
+
+**Chat_github (in-app /config command):**
+```javascript
+{
+  "githubToken": "ghp_...",
+  "openaiKey": "sk-...",      // Or use backend endpoint
+  "owner": "username",
+  "repo": "repository",
+  "branch": "main",
+  "model": "gpt-4o-mini",
+  "temperature": 0.3
+}
+```
+
+### WebSocket File Transfer
+
+The WebSocket server enables file transfer between devices:
+
+```bash
+# In Chat_github PWA:
+/socket connect ws://localhost:8080
+/upload myfile.pdf
+/download shared.json
+```
+
+Features:
+- Binary file support (base64 encoding)
+- Real-time progress tracking
+- Command execution on remote server
+- Cross-device file sharing
+
+### Documentation
+
+- **Frontend Docs**: See `frontend/README.md`
+- **Integration Plan**: See `INTEGRATION_PLAN.md`
+- **API Reference**: Visit `http://localhost:9000/docs` when server is running
+
+---
+
 ## 📄 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
@@ -679,6 +924,14 @@ This project has integrated patterns and features from:
 
 - **Desktop wrapper patterns**: Cross-platform considerations
 
+### From [WangChengYeh/Chat_github](https://github.com/WangChengYeh/Chat_github)
+
+- **Mobile-First PWA**: Progressive Web App with offline support and installability
+- **GitHub File Editor**: Direct GitHub API integration for file operations
+- **Command-Line Interface**: Browser-based CLI for fast file operations
+- **WebSocket File Transfer**: Real-time file exchange between devices
+- **CodeMirror Integration**: Syntax highlighting for multiple languages
+
 ### Additional Enhancements
 
 - **aiosqlite integration**: Async SQLite for high-performance cookie storage
@@ -686,6 +939,8 @@ This project has integrated patterns and features from:
 - **Triple backend support**: Genkit (API-based), gemini-webapi (cookie-based), and OpenAI-compatible
 - **Cookie refresh mechanism**: Automatic cookie validation and refresh
 - **Thread-safe operations**: Async locks for concurrent profile management
+- **GitHub API service**: Complete GitHub REST API integration for file operations
+- **Hybrid AI backend**: Chat_github can use Gemini instead of OpenAI
 
 ---
 

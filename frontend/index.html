@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Mobile-First AI CLI & Text Editor for GitHub" />
+    <meta name="keywords" content="PWA, GitHub, AI, Editor, Mobile, Gemini" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Configure local Pyodide base for offline Python (/preload python) -->
+    <script>
+      window.__PYODIDE_BASE = '/vendor/pyodide/0.28.2/full';
+    </script>
+    <title>Gemini Web Wrapper - GitHub Editor</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

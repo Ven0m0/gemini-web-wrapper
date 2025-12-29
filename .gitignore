@@ -6,6 +6,9 @@ __pycache__/
 .venv/
 venv/
 node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/bun.lock
 
 # Logs and temp files
 *.log
@@ -33,3 +36,13 @@ __pycache__/
 *.pyd
 .Python
 *.so
+
+# Frontend build artifacts
+frontend/.config
+frontend/test-results*.json
+
+# WebSocket file transfers
+websocket_files/
+
+# Old backup directory
+web-old/

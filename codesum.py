@@ -56,7 +56,7 @@ def is_binary(path: Path) -> bool:
             or sum(1 for b in chunk if b < 32 and b not in (9, 10, 13))
             > len(chunk) * 0.1
         )
-    except:
+    except Exception:
         return True
 
 
@@ -98,9 +98,11 @@ def compress_code(code: str, lang: str) -> str:
     """Semantic compression: extract function/class signatures."""
     lines = code.split("\n")
     sigs = []
-    for i, l in enumerate(lines, 1):
-        if re.search(r"\b(def|function|class|interface|type|const|let|var)\s+\w+", l):
-            sigs.append(f"L{i}: {l.strip()}")
+    for i, line in enumerate(lines, 1):
+        if re.search(
+            r"\b(def|function|class|interface|type|const|let|var)\s+\w+", line
+        ):
+            sigs.append(f"L{i}: {line.strip()}")
             if len(sigs) >= 50:
                 break
     return (
@@ -202,7 +204,7 @@ def main():
                 f"xclip -sel clip < {output} 2>/dev/null || xsel --clipboard < {output} 2>/dev/null"
             )
         print("  Copied to clipboard", file=sys.stderr)
-    except:
+    except Exception:
         pass
 
     return 0

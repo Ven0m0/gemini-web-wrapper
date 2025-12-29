@@ -18,10 +18,12 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 from uuid import uuid4
 
+import httpx
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from pydantic import BaseModel, Field
@@ -29,6 +31,7 @@ from pydantic_settings import BaseSettings
 
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
+from github_service import GitHubConfig, GitHubService
 from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
 from openai_transforms import (
     collapse_messages,
@@ -228,6 +231,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     state.gemini_client = None
     state.attribution_cache.clear()
 
+
 # ----- App Initialization -----
 app = FastAPI(
     lifespan=lifespan,
@@ -244,6 +248,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ----- Models -----
 class ChatMessage(BaseModel):
@@ -1375,6 +1380,205 @@ async def delete_gemini_conversation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Conversation deletion failed: {e}",
         ) from e
+
+
+# ----- GitHub Integration Endpoints -----
+class GitHubFileReadReq(BaseModel):
+    """Request model for reading a file from GitHub.
+
+    Attributes:
+        config: GitHub configuration (token, owner, repo, branch).
+        path: File path in repository.
+    """
+
+    config: GitHubConfig
+    path: str = Field(..., min_length=1)
+
+
+class GitHubFileWriteReq(BaseModel):
+    """Request model for writing/updating a file to GitHub.
+
+    Attributes:
+        config: GitHub configuration (token, owner, repo, branch).
+        path: File path in repository.
+        content: File content to write.
+        message: Commit message.
+        sha: File SHA for updates (optional, required for existing files).
+    """
+
+    config: GitHubConfig
+    path: str = Field(..., min_length=1)
+    content: str
+    message: str = Field(..., min_length=1)
+    sha: str | None = None
+
+
+class GitHubListReq(BaseModel):
+    """Request model for listing directory contents.
+
+    Attributes:
+        config: GitHub configuration (token, owner, repo, branch).
+        path: Directory path in repository (empty for root).
+    """
+
+    config: GitHubConfig
+    path: str = ""
+
+
+@app.post("/github/file/read")
+async def github_read_file(r: GitHubFileReadReq) -> dict[str, Any]:
+    """Read a file from GitHub repository.
+
+    Args:
+        r: GitHubFileReadReq with config and file path.
+
+    Returns:
+        Dict with file content, sha, and metadata.
+
+    Raises:
+        HTTPException: 404 if file not found, 500 on other errors.
+    """
+    try:
+        service = GitHubService(r.config)
+        result = await service.get_file(r.path)
+        return result
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found: {r.path}",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read file: {e}",
+        ) from e
+
+
+@app.post("/github/file/write")
+async def github_write_file(r: GitHubFileWriteReq) -> dict[str, Any]:
+    """Create or update a file in GitHub repository.
+
+    Args:
+        r: GitHubFileWriteReq with config, path, content, message, and optional sha.
+
+    Returns:
+        Dict with commit and file metadata.
+
+    Raises:
+        HTTPException: 409 if SHA mismatch, 500 on other errors.
+    """
+    try:
+        service = GitHubService(r.config)
+        result = await service.create_or_update_file(
+            r.path, r.content, r.message, r.sha
+        )
+        return result
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 409:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="File SHA mismatch. Fetch file again before updating.",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to write file: {e}",
+        ) from e
+
+
+@app.post("/github/list")
+async def github_list_directory(r: GitHubListReq) -> dict[str, Any]:
+    """List files in a GitHub repository directory.
+
+    Args:
+        r: GitHubListReq with config and directory path.
+
+    Returns:
+        Dict with list of files and directories.
+
+    Raises:
+        HTTPException: 404 if directory not found, 500 on other errors.
+    """
+    try:
+        service = GitHubService(r.config)
+        items = await service.list_directory(r.path)
+        return {
+            "items": items,
+            "count": len(items),
+            "path": r.path,
+        }
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Directory not found: {r.path}",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list directory: {e}",
+        ) from e
+
+
+class GitHubBranchesReq(BaseModel):
+    """Request model for listing branches.
+
+    Attributes:
+        config: GitHub configuration (token, owner, repo).
+    """
+
+    config: GitHubConfig
+
+
+@app.post("/github/branches")
+async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
+    """List all branches in a GitHub repository.
+
+    Args:
+        r: GitHubBranchesReq with config.
+
+    Returns:
+        Dict with list of branches.
+
+    Raises:
+        HTTPException: 500 on API errors.
+    """
+    try:
+        service = GitHubService(r.config)
+        branches = await service.get_branches()
+        return {
+            "branches": branches,
+            "count": len(branches),
+        }
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list branches: {e}",
+        ) from e
+
+
+# ----- Static File Serving (Frontend) -----
+# Mount the frontend build directory to serve the React PWA
+# This must be at the end so API routes take precedence
+app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
 
 
 if __name__ == "__main__":
