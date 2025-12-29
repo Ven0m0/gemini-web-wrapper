@@ -214,7 +214,7 @@ export const Editor: React.FC = () => {
             searchKeymap: false
           }}
           className={`editor-codemirror ${diffMode === 'diff' ? 'diff-view' : ''}`}
-          placeholder={diffMode === 'modified' ? '在此輸入或編輯文字... / Type or edit text here...' : undefined}
+          placeholder={diffMode === 'modified' ? 'Type or edit text here...' : undefined}
         />
       </div>
 

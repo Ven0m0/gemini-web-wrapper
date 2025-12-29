@@ -5,7 +5,7 @@
   padding: 0;
 }
 
-/* Ensure proper Chinese character rendering */
+/* Ensure proper text rendering */
 * {
   -webkit-font-feature-settings: "kern" 1, "liga" 0, "calt" 0;
   font-feature-settings: "kern" 1, "liga" 0, "calt" 0;
@@ -104,7 +104,7 @@ html, body, #root {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", 'Segoe UI', 'Roboto', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", 'Segoe UI', 'Roboto', sans-serif;
   background: #000;
   color: #fff;
   -webkit-font-smoothing: antialiased;
@@ -144,7 +144,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Consolas, 'Courier New', monospace;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.6;
   scroll-behavior: smooth;
@@ -181,7 +181,7 @@ body {
   background: transparent;
   border: none;
   color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   font-size: 16px; /* Prevent zoom on iOS */
   outline: none;
   padding: 0.75rem;
@@ -303,7 +303,7 @@ body {
 }
 
 .editor-codemirror .cm-scroller {
-  font-family: "SF Pro Text", "SF Mono", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace !important;
+  font-family: "SF Pro Text", "SF Mono", Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace !important;
   font-size: 14px;
   line-height: 1.6;
   /* iOS scrolling fixes */
@@ -326,11 +326,11 @@ body {
   }
 }
 
-/* Force Chinese font support for CodeMirror */
+/* Force proper font rendering for CodeMirror */
 .editor-codemirror .cm-content,
 .editor-codemirror .cm-editor,
 .editor-codemirror .cm-line {
-  font-family: "SF Pro Text", "SF Mono", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", "Helvetica Neue", Arial, sans-serif !important;
+  font-family: "SF Pro Text", "SF Mono", "Helvetica Neue", Arial, sans-serif !important;
   font-feature-settings: normal !important;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -703,7 +703,7 @@ body {
   height: 100vh;
   background: #000;
   color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", 'Segoe UI', 'Roboto', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", 'Segoe UI', 'Roboto', sans-serif;
 }
 
 .tool-header {

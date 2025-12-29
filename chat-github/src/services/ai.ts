@@ -32,7 +32,7 @@ Current file content:
 ${currentContent}
 ---END FILE---
 
-Note: If working with Chinese text, preserve proper character encoding and formatting. Handle both Traditional Chinese (繁體中文) and Simplified Chinese (简体中文) correctly.`
+Note: Preserve proper character encoding and formatting for all text content.`
 
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {

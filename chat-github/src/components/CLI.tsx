@@ -1356,9 +1356,8 @@ export const CLI: React.FC = () => {
           onChange={(e) => setInput(e.target.value)}
           disabled={processing}
           className="cli-input"
-          placeholder="輸入指令或AI指示... (以/開始指令) / Enter command (start with /) or AI instruction..."
+          placeholder="Enter command (start with /) or AI instruction..."
           autoComplete="off"
-          lang="zh-TW"
           spellCheck={false}
         />
       </form>
