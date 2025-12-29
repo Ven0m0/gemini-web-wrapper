@@ -1,0 +1,9 @@
+{
+  "githubToken": "ghp_test_token_for_playwright",
+  "openaiKey": "sk-test_key_for_playwright",
+  "owner": "test-user",
+  "repo": "test-repo",
+  "branch": "main",
+  "model": "gpt-4o-mini",
+  "temperature": 0.3
+}

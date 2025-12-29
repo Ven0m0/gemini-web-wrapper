@@ -1,0 +1,48 @@
+{
+  "snippets": [
+    {
+      "id": "react-component",
+      "name": "React Component Template",
+      "description": "Basic React functional component with TypeScript",
+      "language": "tsx",
+      "content": "import React from 'react';\n\ninterface Props {\n  // Define your props here\n}\n\nconst ComponentName: React.FC<Props> = () => {\n  return (\n    <div>\n      {/* Component content */}\n    </div>\n  );\n};\n\nexport default ComponentName;"
+    },
+    {
+      "id": "api-fetch",
+      "name": "API Fetch with Error Handling",
+      "description": "Async function to fetch data with proper error handling",
+      "language": "ts",
+      "content": "async function fetchData<T>(url: string): Promise<T> {\n  try {\n    const response = await fetch(url, {\n      method: 'GET',\n      headers: {\n        'Content-Type': 'application/json',\n      },\n    });\n\n    if (!response.ok) {\n      throw new Error(`HTTP error! status: ${response.status}`);\n    }\n\n    const data: T = await response.json();\n    return data;\n  } catch (error) {\n    console.error('Fetch error:', error);\n    throw error;\n  }\n}"
+    },
+    {
+      "id": "github-service",
+      "name": "GitHub API Service Method",
+      "description": "Template for adding methods to GitHub service class",
+      "language": "ts",
+      "content": "async methodName(param: string): Promise<ResponseType> {\n  try {\n    const data = await this.request(`endpoint/${param}`, {\n      method: 'GET', // or POST, PUT, DELETE\n      // body: JSON.stringify(requestBody), // for POST/PUT\n    });\n    \n    return data;\n  } catch (error) {\n    throw new Error(`Failed to perform operation: ${error}`);\n  }\n}"
+    },
+    {
+      "id": "cli-command",
+      "name": "CLI Command Handler",
+      "description": "Template for adding new CLI commands",
+      "language": "ts",
+      "content": "const handleNewCommand = async (arg: string) => {\n  if (!arg) {\n    addHistory('Usage: /command <argument>');\n    return;\n  }\n\n  try {\n    // Command logic here\n    addHistory(`Command executed successfully: ${arg}`);\n  } catch (error) {\n    addHistory(`Error: ${error instanceof Error ? error.message : String(error)}`);\n  }\n};"
+    },
+    {
+      "id": "pwa-manifest",
+      "name": "PWA Manifest Template",
+      "description": "Progressive Web App manifest configuration",
+      "language": "json",
+      "content": "{\n  \"name\": \"Your App Name\",\n  \"short_name\": \"App\",\n  \"description\": \"Your app description\",\n  \"start_url\": \"/\",\n  \"scope\": \"/\",\n  \"display\": \"standalone\",\n  \"orientation\": \"portrait-primary\",\n  \"background_color\": \"#ffffff\",\n  \"theme_color\": \"#000000\",\n  \"icons\": [\n    {\n      \"src\": \"icon-192.png\",\n      \"sizes\": \"192x192\",\n      \"type\": \"image/png\"\n    },\n    {\n      \"src\": \"icon-512.png\",\n      \"sizes\": \"512x512\",\n      \"type\": \"image/png\"\n    }\n  ],\n  \"categories\": [\"productivity\", \"developer\"],\n  \"prefer_related_applications\": false\n}"
+    }
+  ],
+  "uploadConfig": {
+    "targetRepo": {
+      "owner": "WangChengYeh",
+      "repo": "Chat_github",
+      "branch": "main",
+      "path": "snippets/"
+    },
+    "commitMessage": "feat: add code snippets"
+  }
+}

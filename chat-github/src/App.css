@@ -1,0 +1,960 @@
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure proper Chinese character rendering */
+* {
+  -webkit-font-feature-settings: "kern" 1, "liga" 0, "calt" 0;
+  font-feature-settings: "kern" 1, "liga" 0, "calt" 0;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+}
+
+html, body, #root {
+  height: 100%;
+  /* Avoid locking root scrolling on Safari, enable inner scrollers */
+  overflow: auto;
+  /* iOS specific fixes */
+  -webkit-overflow-scrolling: touch;
+  -webkit-touch-callout: none;
+}
+
+/* iOS viewport fixes */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    height: -webkit-fill-available;
+    overflow: auto;
+  }
+}
+
+/* Use custom viewport height for iOS */
+:root {
+  --vh: 1vh;
+}
+
+/* Selective user selection rules */
+.app {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in content areas */
+.cli-history,
+.cli-input,
+.editor-content,
+.config-content,
+.cm-content,
+.cm-editor {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Ensure scrollable areas have proper touch scrolling on iOS */
+.cli-history,
+.editor-content,
+.config-content,
+.tool-section,
+.log-content {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Additional iOS scrolling fixes for CLI and Editor */
+@supports (-webkit-touch-callout: none) {
+  .cli-history {
+    /* Force hardware acceleration for smooth scrolling */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Ensure momentum scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Make sure it can scroll */
+    min-height: 0;
+  }
+  
+  .editor-content {
+    /* Force hardware acceleration for smooth scrolling */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Ensure momentum scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Make sure it can scroll */
+    min-height: 0;
+  }
+  
+  .editor-codemirror .cm-scroller {
+    /* Force hardware acceleration for smooth scrolling */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Ensure momentum scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Make sure it can scroll */
+    min-height: 0;
+  }
+}
+
+@media screen and (max-device-width: 768px) {
+  .app,
+  .cli-container,
+  .editor-container {
+    height: calc(var(--vh, 1vh) * 100);
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", 'Segoe UI', 'Roboto', sans-serif;
+  background: #000;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.app {
+  height: 100vh;
+  height: -webkit-fill-available; /* iOS fix */
+  min-height: 0; /* Allow children to scroll */
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  /* iOS safe area support */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* CLI Styles */
+.cli-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: -webkit-fill-available; /* iOS fix */
+  min-height: 0; /* Allow inner scrollers */
+  background: #000;
+  color: #fff;
+  /* Ensure proper overflow handling */
+  overflow: hidden;
+}
+
+.cli-history {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  /* iOS scrolling improvements */
+  -webkit-overflow-scrolling: touch;
+}
+
+.cli-line {
+  margin: 0.25rem 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.cli-line.processing {
+  color: #888;
+  animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+
+.cli-input-form {
+  padding: 1rem;
+  border-top: 1px solid #333;
+  background: #111;
+}
+
+.cli-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif;
+  font-size: 16px; /* Prevent zoom on iOS */
+  outline: none;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #333;
+  ime-mode: auto;
+  composition-mode: auto;
+  /* iOS specific input fixes */
+  -webkit-appearance: none;
+  -webkit-border-radius: 4px;
+}
+
+.cli-input:focus {
+  border-color: #0969da;
+}
+
+.cli-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Editor Styles */
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: -webkit-fill-available; /* iOS fix */
+  min-height: 0; /* Allow editor to scroll */
+  background: #0d1117;
+}
+
+.editor-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #21262d;
+  border-bottom: 1px solid #30363d;
+  font-size: 12px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-center {
+  display: flex;
+  align-items: center;
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.branch-info {
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+.path-info {
+  color: #6b7280;
+}
+
+.dirty-flag {
+  color: #f59e0b;
+  font-weight: bold;
+}
+
+.diff-mode-btn {
+  background: #30363d;
+  color: #f0f6fc;
+  border: 1px solid #484f58;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.diff-mode-btn:hover {
+  background: #484f58;
+}
+
+.theme-btn,
+.mode-btn {
+  background: transparent;
+  color: #f0f6fc;
+  border: 1px solid #484f58;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.theme-btn:hover,
+.mode-btn:hover {
+  background: #30363d;
+}
+
+.editor-content {
+  flex: 1;
+  /* Allow inner editor to scroll on iOS/Safari */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.editor-codemirror {
+  height: 100% !important;
+  overflow: hidden;
+}
+
+.editor-codemirror .cm-editor {
+  height: 100% !important;
+}
+
+.editor-codemirror .cm-scroller {
+  font-family: "SF Pro Text", "SF Mono", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace !important;
+  font-size: 14px;
+  line-height: 1.6;
+  /* iOS scrolling fixes */
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  /* Ensure scroller fills container to enable scrolling */
+  height: 100% !important;
+  max-height: none;
+  /* Allow finger panning on Safari/iOS */
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
+/* Modern viewport unit support */
+@supports (height: 100dvh) {
+  .app,
+  .cli-container,
+  .editor-container {
+    height: 100dvh;
+  }
+}
+
+/* Force Chinese font support for CodeMirror */
+.editor-codemirror .cm-content,
+.editor-codemirror .cm-editor,
+.editor-codemirror .cm-line {
+  font-family: "SF Pro Text", "SF Mono", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", "Helvetica Neue", Arial, sans-serif !important;
+  font-feature-settings: normal !important;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  unicode-bidi: normal;
+  text-orientation: mixed;
+}
+
+/* Ensure proper character spacing and rendering */
+.editor-codemirror .cm-content {
+  white-space: pre-wrap !important;
+  word-spacing: normal;
+  letter-spacing: normal;
+}
+
+/* Additional fallback for Chinese characters */
+.editor-codemirror {
+  font-variant-ligatures: none;
+  font-variant-numeric: normal;
+}
+
+.diff-view .cm-content {
+  white-space: pre;
+}
+
+.diff-legend {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 11px;
+  z-index: 10;
+}
+
+.diff-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.diff-added {
+  color: #238636;
+  font-weight: bold;
+}
+
+.diff-removed {
+  color: #da3633;
+  font-weight: bold;
+}
+
+/* Configuration Overlay */
+.config-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  padding: 1rem;
+}
+
+.config-modal {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #30363d;
+  background: #161b22;
+}
+
+.config-header h2 {
+  color: #f0f6fc;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.config-close {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.config-close:hover {
+  background: #30363d;
+  color: #f0f6fc;
+}
+
+.config-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.config-section {
+  margin-bottom: 2rem;
+}
+
+.config-section h3 {
+  color: #f0f6fc;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 0.5rem;
+}
+
+.config-field {
+  margin-bottom: 1rem;
+}
+
+.config-field label {
+  display: block;
+  color: #f0f6fc;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.config-field input,
+.config-field select {
+  width: 100%;
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #f0f6fc;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.config-field input:focus,
+.config-field select:focus {
+  outline: none;
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+}
+
+.config-field small {
+  color: #8b949e;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.config-field input[type="checkbox"] {
+  width: auto;
+  margin-right: 0.5rem;
+}
+
+.config-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.config-action-btn {
+  background: #21262d;
+  color: #f0f6fc;
+  border: 1px solid #30363d;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.config-action-btn:hover {
+  background: #30363d;
+}
+
+.config-action-btn.danger {
+  background: #da3633;
+  border-color: #da3633;
+}
+
+.config-action-btn.danger:hover {
+  background: #c93026;
+}
+
+.config-help {
+  background: #0c2128;
+  border: 1px solid #164328;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.config-help h4 {
+  color: #7ee787;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.config-help ul {
+  list-style: none;
+  color: #8b949e;
+  font-size: 0.75rem;
+}
+
+.config-help li {
+  margin: 0.25rem 0;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.config-help li:before {
+  content: "•";
+  color: #7ee787;
+  position: absolute;
+  left: 0;
+}
+
+.config-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-top: 1px solid #30363d;
+  background: #161b22;
+}
+
+.config-btn {
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.config-btn.secondary {
+  background: #21262d;
+  color: #f0f6fc;
+  border: 1px solid #30363d;
+}
+
+.config-btn.secondary:hover {
+  background: #30363d;
+}
+
+.config-btn.primary {
+  background: #238636;
+  color: #fff;
+  border: 1px solid #238636;
+}
+
+.config-btn.primary:hover {
+  background: #2ea043;
+}
+
+/* CodeMirror image preview widgets */
+.cm-image-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+}
+.cm-image-preview img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #0d1117;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .cli-history {
+    font-size: 13px;
+    padding: 0.75rem;
+  }
+
+  .cli-input {
+    font-size: 16px; /* Prevent zoom on iOS */
+    padding: 1rem;
+  }
+
+  .editor-status-bar {
+    padding: 0.5rem;
+    font-size: 11px;
+  }
+
+  .status-left,
+  .status-center,
+  .status-right {
+    gap: 0.5rem;
+  }
+
+  .editor-codemirror .cm-scroller {
+    font-size: 13px;
+  }
+
+  .config-overlay {
+    padding: 0.5rem;
+  }
+
+  .config-modal {
+    max-height: 95vh;
+  }
+
+  .config-content {
+    padding: 0.75rem;
+  }
+
+  .config-footer {
+    padding: 0.75rem;
+    flex-direction: column;
+  }
+
+  .config-btn {
+    width: 100%;
+    padding: 0.75rem;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .cli-input,
+  .config-field input,
+  .config-field select {
+    padding: 1rem;
+    font-size: 16px;
+  }
+
+  .diff-mode-btn,
+  .theme-btn,
+  .mode-btn {
+    padding: 0.5rem;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .config-close {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 1.25rem;
+  }
+}
+
+/* Tool Styles */
+.tool-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #000;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #111;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.tool-header h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.tool-mode-switch {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tool-mode-switch button {
+  padding: 0.5rem 1rem;
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.tool-mode-switch button:hover {
+  background: #444;
+}
+
+.tool-mode-switch button.active {
+  background: #007acc;
+}
+
+.back-btn {
+  padding: 0.5rem 1rem;
+  background: #666;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.back-btn:hover {
+  background: #777;
+}
+
+.tool-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.tool-section h3 {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.upload-section, .download-section {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.upload-section h4, .download-section h4 {
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  color: #ccc;
+}
+
+.form-group {
+  margin-bottom: 0.75rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.file-input, .text-input {
+  width: 100%;
+  padding: 0.5rem;
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.file-input:focus, .text-input:focus {
+  outline: none;
+  border-color: #007acc;
+}
+
+.file-input:disabled, .text-input:disabled {
+  background: #1a1a1a;
+  border-color: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.upload-btn, .download-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: #007acc;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.upload-btn:hover, .download-btn:hover {
+  background: #005a9e;
+}
+
+.upload-btn:disabled, .download-btn:disabled {
+  background: #333;
+  cursor: not-allowed;
+}
+
+.ws-status {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.ws-status .connected {
+  color: #4ade80;
+}
+
+.ws-status .disconnected {
+  color: #f87171;
+}
+
+.ws-url {
+  margin-left: 0.5rem;
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.tool-log {
+  background: #111;
+  border-top: 1px solid #333;
+  padding: 1rem;
+  flex-shrink: 0;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-log h4 {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.log-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #000;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  max-height: 120px;
+}
+
+.log-entry {
+  margin-bottom: 0.25rem;
+  color: #ccc;
+}
+
+.log-empty {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.clear-log-btn {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: #333;
+  color: #ccc;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  align-self: flex-start;
+}
+
+.clear-log-btn:hover {
+  background: #444;
+}
+
+/* Mobile responsive adjustments for Tool */
+@media (max-width: 768px) {
+  .tool-header {
+    padding: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .tool-header h2 {
+    font-size: 1rem;
+  }
+  
+  .tool-mode-switch {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: center;
+  }
+  
+  .upload-section, .download-section {
+    padding: 0.75rem;
+  }
+  
+  .tool-log {
+    max-height: 150px;
+  }
+  
+  .log-content {
+    max-height: 80px;
+  }
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+  .app {
+    background: #0d1117;
+  }
+}

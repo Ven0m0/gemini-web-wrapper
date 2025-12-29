@@ -6,6 +6,8 @@ __pycache__/
 .venv/
 venv/
 node_modules/
+chat-github/node_modules/
+chat-github/dist/
 
 # Logs and temp files
 *.log
@@ -33,3 +35,10 @@ __pycache__/
 *.pyd
 .Python
 *.so
+
+# Chat_github build artifacts
+chat-github/.config
+chat-github/test-results*.json
+
+# WebSocket file transfers
+websocket_files/
