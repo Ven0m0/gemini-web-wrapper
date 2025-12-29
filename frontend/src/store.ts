@@ -39,7 +39,7 @@ export interface WebSocketState {
 }
 
 export interface AppState {
-  mode: 'cli' | 'editor' | 'tool'
+  mode: 'cli' | 'editor' | 'tool' | 'wsh' | 'python'
   file: FileState
   ai: AIState
   config: ConfigState
