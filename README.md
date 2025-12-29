@@ -660,7 +660,6 @@ This wrapper now includes **Chat_github** - a mobile-first Progressive Web App f
 - **AI-Powered Editing**: Edit GitHub files using natural language instructions
 - **GitHub Integration**: Direct file reading, writing, and committing
 - **WebSocket File Transfer**: Real-time file exchange between devices
-- **Chinese Language Support**: Full CJK character support
 - **Command-Line Interface**: Fast `/command` syntax for all operations
 
 ### Quick Start
@@ -915,7 +914,6 @@ This project has integrated patterns and features from:
 - **GitHub File Editor**: Direct GitHub API integration for file operations
 - **Command-Line Interface**: Browser-based CLI for fast file operations
 - **WebSocket File Transfer**: Real-time file exchange between devices
-- **Chinese Language Support**: Full CJK character rendering and input
 - **CodeMirror Integration**: Syntax highlighting for multiple languages
 
 ### Additional Enhancements
