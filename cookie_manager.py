@@ -191,7 +191,7 @@ class CookieManager:
     async def _db_connection(
         self,
         write: bool = False,
-    ) -> AsyncGenerator[aiosqlite.Connection, None]:
+    ) -> AsyncGenerator[aiosqlite.Connection]:
         """Async context manager for database connections.
 
         Args:
