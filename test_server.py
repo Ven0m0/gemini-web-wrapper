@@ -23,7 +23,7 @@ with patch.dict(os.environ, {"GOOGLE_API_KEY": "fake-key"}):
 
 
 @pytest.fixture
-def client() -> Generator[TestClient, None, None]:
+def client() -> Generator[TestClient]:
     """Create a TestClient with a mocked model state.
 
     Yields:
@@ -43,7 +43,7 @@ def client() -> Generator[TestClient, None, None]:
 
     # Create a no-op lifespan for testing
     @asynccontextmanager
-    async def test_lifespan(app: Any) -> Generator[None, None, None]:
+    async def test_lifespan(app: Any) -> Generator[None]:
         # Setup: inject mocks into state
         state.model = mock_model
         state.genkit = MagicMock()

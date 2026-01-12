@@ -182,7 +182,7 @@ def create_chatbot_flow(ai: Genkit) -> None:
 
 # ----- Lifespan -----
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Initialize and cleanup Genkit resources on app startup/shutdown.
 
     This context manager handles:
@@ -646,7 +646,7 @@ async def chatbot_stream(
     """
     msgs = await _prepare_chatbot_messages(r, session_mgr)
 
-    async def generate_stream() -> AsyncGenerator[str, None]:
+    async def generate_stream() -> AsyncGenerator[str]:
         """Generate response stream chunk by chunk.
 
         Since Genkit doesn't provide true token streaming, we split the
@@ -769,7 +769,7 @@ async def generate_sse_response(
     model: str,
     request_id: str,
     include_usage: bool = False,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """Generate SSE chunks by splitting text into smaller pieces for streaming.
 
     Since Gemini doesn't provide true token-by-token streaming, we split the
@@ -880,7 +880,7 @@ async def generate_sse_tool_response(
     model: str,
     request_id: str,
     include_usage: bool = False,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """Generate SSE chunks for tool call responses."""
     created = int(time.time())
     # Send tool calls
