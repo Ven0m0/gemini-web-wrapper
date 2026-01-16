@@ -24,9 +24,8 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleAI
 from pydantic import BaseModel, Field
+
 from pydantic_settings import BaseSettings
 
 from cookie_manager import CookieManager
@@ -40,6 +39,9 @@ from openai_transforms import (
 )
 from session_manager import SessionManager
 from utils import handle_generation_errors, run_in_thread
+from llm_core.interfaces import LLMProvider
+from llm_core.factory import ProviderFactory
+
 
 
 # ----- Configuration -----
@@ -47,8 +49,10 @@ class Settings(BaseSettings):
     """Application settings loaded from environment or .env file."""
 
     google_api_key: str
-    model_provider: str = "google"
-    model_name: str = "gemini-2.5-flash"
+    model_provider: str = "gemini"
+    model_name: str | None = None
+    anthropic_api_key: str | None = None
+
     # Model aliases for OpenAI compatibility
     model_aliases: dict[str, str] = {
         "gpt-4o-mini": "gemini-2.5-flash",
@@ -57,6 +61,7 @@ class Settings(BaseSettings):
         "gemini-flash": "gemini-2.5-flash",
         "gemini-pro": "gemini-2.5-pro",
         "gemini-3-pro": "gemini-3.0-pro",
+        "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
     }
 
     class Config:
@@ -73,33 +78,7 @@ class Settings(BaseSettings):
         return requested
 
 
-# ----- Type Definitions -----
-class GenerateResponse(Protocol):
-    """Protocol defining the response from model generation.
 
-    This is a local Protocol to avoid importing genkit.core.action.ActionResponse
-    and maintain compatibility across different genkit versions.
-    """
-
-    @property
-    def text(self) -> str:
-        """Generated text from the model."""
-        ...
-
-
-class GenkitModel(Protocol):
-    """Protocol defining the interface for Genkit model objects."""
-
-    def generate(self, messages: str | list[dict[str, str]]) -> GenerateResponse:
-        """Generate a response from the model.
-
-        Args:
-            messages: Either a string prompt or structured message list.
-
-        Returns:
-            GenerateResponse containing the generated text.
-        """
-        ...
 
 
 # ----- State Management -----
@@ -111,8 +90,7 @@ class AppState:
     and avoid mutable class attribute anti-pattern.
     """
 
-    genkit: Genkit | None = None
-    model: GenkitModel | None = None
+    llm_provider: LLMProvider | None = None
     session_manager: SessionManager | None = None
     chatbot_flow: Callable[..., Any] | None = None
     settings: Settings | None = None
@@ -129,55 +107,7 @@ class AppState:
 state = AppState()
 
 
-# ----- Genkit Flows -----
-def create_chatbot_flow(ai: Genkit) -> None:
-    """Create a Genkit flow for the chatbot.
 
-    This demonstrates the @ai.flow() decorator pattern from Genkit docs.
-    Flows provide type-safe inputs/outputs, built-in tracing, and
-    Developer UI integration.
-
-    Args:
-        ai: Initialized Genkit instance.
-    """
-
-    @ai.flow()
-    async def chatbot_flow(
-        message: str,
-        history: list[dict[str, str]] | None = None,
-        system: str | None = None,
-    ) -> str:
-        """Genkit flow for chatbot with history.
-
-        Args:
-            message: User's message.
-            history: Previous conversation messages.
-            system: Optional system instruction.
-
-        Returns:
-            Model's response text.
-        """
-        # Use the flow's model directly
-        if state.model is None:
-            raise ValueError("Model not initialized")
-
-        # Build message list using shared helper (consolidates logic)
-        # Convert history from list[dict] to required ChatMessage format for helper
-        class _DictMessage:
-            """Temporary adapter for dict-based messages."""
-
-            def __init__(self, d: dict[str, str]) -> None:
-                self.role = d["role"]  # type: ignore
-                self.content = d["content"]
-
-        history_msgs = [_DictMessage(h) for h in history] if history else []
-        msgs_list = _build_message_list(system, history_msgs, message)  # type: ignore
-        response = await run_in_thread(state.model.generate, msgs_list)
-        # GenerateResponse.text from genkit lacks type hints
-        return str(response.text)
-
-    # Store flow reference (optional, for later use)
-    state.chatbot_flow = chatbot_flow
 
 
 # ----- Lifespan -----
@@ -206,25 +136,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
     settings = state.settings
-    # Initialize Genkit
-    # Note: Assuming Genkit init is synchronous.
-    # If it performs I/O, wrap in to_thread.
-    state.genkit = Genkit(plugins=[GoogleAI(api_key=settings.google_api_key)])
-    # Get model reference - format: "provider/model-name"
-    model_path = f"{settings.model_provider}ai/{settings.model_name}"
-    state.model = state.genkit.get_model(model_path)
+
+    # Initialize LLM Provider using Factory
+    # Default to gemini if not specified or "google" (legacy)
+    provider_type = settings.model_provider
+    if provider_type == "google":
+        provider_type = "gemini"
+
+    state.llm_provider = ProviderFactory.create(
+        provider_type, # type: ignore
+        api_key=settings.google_api_key if provider_type == "gemini" else settings.anthropic_api_key,
+        model_name=settings.model_name
+    )
+
     # Initialize lightweight session manager for user/session tracking
     state.session_manager = SessionManager()
-    # Create Genkit flows
-    create_chatbot_flow(state.genkit)
     # Initialize cookie manager and gemini-webapi client
     state.cookie_manager = CookieManager(db_path="gemini_cookies.db")
     await state.cookie_manager.init_db()
     state.gemini_client = GeminiClientWrapper(state.cookie_manager)
     yield
     # Cleanup if necessary
-    state.genkit = None
-    state.model = None
+
+    state.llm_provider = None
     state.session_manager = None
     state.settings = None
     state.cookie_manager = None
@@ -318,29 +252,33 @@ class GenResponse(BaseModel):
 # ----- Logic Helpers -----
 async def run_generate(
     messages: str | list[dict[str, str]],
-    model: GenkitModel,
+    model: LLMProvider,
     timeout: float = 30.0,
-) -> GenerateResponse:
-    """Run model generation in a thread pool to avoid blocking event loop.
-
-    Genkit's generate method performs blocking I/O operations. To maintain
-    high performance in our async FastAPI server, we execute it in a
-    thread pool executor using run_in_thread with timeout protection.
+) -> str:
+    """Run model generation.
 
     Args:
         messages: Either a string prompt or list of role/content dicts.
-        model: Initialized GenkitModel instance.
+        model: Initialized LLMProvider instance.
         timeout: Maximum time to wait for generation (default 30 seconds).
 
     Returns:
-        GenerateResponse containing the generated text and metadata.
-
-    Raises:
-        HTTPException: 504 if generation times out.
+        Generated text.
     """
     try:
+        # If messages is just a string, it's a prompt
+        if isinstance(messages, str):
+            prompt = messages
+            history = []
+        else:
+            # Extract prompt (last user message) and history
+            # The LLMProvider expects prompt + history sequence
+            # We need to reverse-engineer the list we built
+            prompt = messages[-1]["content"]
+            history = messages[:-1]
+
         return await asyncio.wait_for(
-            run_in_thread(model.generate, messages),
+            model.generate(prompt, history=history),
             timeout=timeout,
         )
     except TimeoutError as e:
@@ -431,21 +369,21 @@ async def _prepare_chatbot_messages(
 
 
 # ----- Dependencies -----
-def get_model() -> GenkitModel:
+def get_llm_provider() -> LLMProvider:
     """FastAPI dependency to get the initialized model.
 
     Returns:
-        Initialized GenkitModel instance.
+        Initialized LLMProvider instance.
 
     Raises:
-        HTTPException: 503 if model is not initialized.
+        HTTPException: 503 if provider is not initialized.
     """
-    if state.model is None:
+    if state.llm_provider is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model not initialized. Check server logs.",
+            detail="LLM Provider not initialized. Check server logs.",
         )
-    return state.model
+    return state.llm_provider
 
 
 def get_session_manager() -> SessionManager:
@@ -521,51 +459,24 @@ def get_settings() -> Settings:
 @handle_generation_errors
 async def chat(
     r: ChatReq,
-    model: GenkitModel = Depends(get_model),
+    model: LLMProvider = Depends(get_llm_provider),
 ) -> dict[str, str]:
-    """Handle conversational chat requests.
-
-    Constructs a message list with optional system context and user prompt,
-    then generates a response using the Gemini model.
-
-    Args:
-        r: ChatReq containing prompt and optional system message.
-        model: Injected GenkitModel dependency.
-
-    Returns:
-        Dict with 'text' key containing the model's response.
-
-    Raises:
-        HTTPException: 500 if generation fails.
-    """
+    """Handle conversational chat requests."""
+    # LLMProvider handles full context, but we need to structure it
+    # run_generate wrapper now adapts the list to provider args
     msgs = _build_message_list(r.system, [], r.prompt)
 
-    out = await run_generate(msgs, model)
-    return {"text": out.text}
+    text = await run_generate(msgs, model)
+    return {"text": text}
 
 
 @app.post("/code", response_model=GenResponse)
 @handle_generation_errors
 async def code(
     r: CodeReq,
-    model: GenkitModel = Depends(get_model),
+    model: LLMProvider = Depends(get_llm_provider),
 ) -> dict[str, str]:
-    """Handle code assistance requests.
-
-    Formats the code and instruction into a prompt for the coding assistant,
-    then generates a response with the modified/analyzed code.
-
-    Args:
-        r: CodeReq containing code snippet and modification instruction.
-        model: Injected GenkitModel dependency.
-
-    Returns:
-        Dict with 'text' key containing the model's code response.
-
-    Raises:
-        HTTPException: 500 if generation fails.
-    """
-    # Use join for better performance with large code snippets
+    """Handle code assistance requests."""
     prompt = "\n".join(
         [
             "You are a coding assistant.",
@@ -578,8 +489,8 @@ async def code(
             r.code,
         ]
     )
-    out = await run_generate(prompt, model)
-    return {"text": out.text}
+    text = await run_generate(prompt, model)
+    return {"text": text}
 
 
 @app.get("/health")
@@ -596,69 +507,43 @@ async def health() -> dict[str, bool]:
 @handle_generation_errors
 async def chatbot(
     r: ChatbotReq,
-    model: GenkitModel = Depends(get_model),
+    model: LLMProvider = Depends(get_llm_provider),
     session_mgr: SessionManager = Depends(get_session_manager),
 ) -> dict[str, str]:
-    """Handle chatbot requests with conversation history and session tracking.
-
-    This endpoint follows the Genkit chatbot pattern, accepting a message
-    along with conversation history. Now enhanced with lightweight session
-    tracking for user and session management.
-
-    Args:
-        r: ChatbotReq with message, history, and optional system instruction.
-        model: Injected GenkitModel dependency.
-        session_mgr: Injected SessionManager dependency.
-
-    Returns:
-        Dict with 'text' key containing the model's response.
-
-    Raises:
-        HTTPException: 503 if model not initialized, 500 if generation fails.
-    """
+    """Handle chatbot requests with conversation history."""
     msgs = await _prepare_chatbot_messages(r, session_mgr)
-    out = await run_generate(msgs, model)
-    return {"text": out.text}
+    text = await run_generate(msgs, model)
+    return {"text": text}
 
 
 @app.post("/chatbot/stream")
 async def chatbot_stream(
     r: ChatbotReq,
-    model: GenkitModel = Depends(get_model),
+    model: LLMProvider = Depends(get_llm_provider),
     session_mgr: SessionManager = Depends(get_session_manager),
 ) -> StreamingResponse:
-    """Handle chatbot requests with streaming responses and session tracking.
+    """Handle chatbot requests with streaming responses."""
 
-    This endpoint streams the model's response token-by-token for a more
-    interactive experience. Like /chatbot, it accepts conversation history
-    and maintains a stateless server pattern with lightweight session tracking.
-
-    Args:
-        r: ChatbotReq with message, history, and optional system instruction.
-        model: Injected GenkitModel dependency.
-        session_mgr: Injected SessionManager dependency.
-
-    Returns:
-        StreamingResponse that yields text chunks as they're generated.
-
-    Raises:
-        HTTPException: 503 if model not initialized, 500 if generation fails.
-    """
-    msgs = await _prepare_chatbot_messages(r, session_mgr)
+    # We need to extract prompt and history for the 'stream' method
+    await _setup_session_attribution(session_mgr, r.user_id, r.session_id)
+    history_dicts = []
+    if r.history:
+        history_dicts = [{"role": m.role, "content": m.content} for m in r.history]
 
     async def generate_stream() -> AsyncGenerator[str]:
-        """Generate response stream chunk by chunk.
-
-        Since Genkit doesn't provide true token streaming, we split the
-        response into word-based chunks for better UX.
-        """
         try:
-            # Generate complete response
-            response = await run_generate(msgs, model)
-            text = response.text
+             async for chunk in model.stream(
+                 r.message,
+                 system=r.system,
+                 history=history_dicts
+             ):
+                 yield chunk
+        except Exception as e:
+            yield f"Error: Generation failed - {e}"
 
             # Split text into chunks by words for streaming effect
-            words = text.split()
+
+            words = e.args[0].split() if e.args else []
             chunk_size = 5  # Words per chunk
             for i in range(0, len(words), chunk_size):
                 chunk = " ".join(words[i : i + chunk_size])
@@ -1008,7 +893,7 @@ async def openai_chat_completions(
         ) from exc
     # Parse for tool calls
     text = raw_response.text or ""
-    tool_calls = []
+    tool_calls: list = []
     if request.tools and request.tool_choice != "none":
         tool_calls, text = parse_tool_calls(text)
     # Check if streaming is requested

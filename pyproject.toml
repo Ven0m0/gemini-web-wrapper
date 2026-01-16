@@ -37,6 +37,8 @@ dependencies = [
   "uvicorn[standard]>=0.38.0",
   "uvloop>=0.22.0",
   "sqlalchemy",
+  "anthropic>=0.30.0",
+  "github-copilot-sdk>=0.1.0",
 ]
 
 
