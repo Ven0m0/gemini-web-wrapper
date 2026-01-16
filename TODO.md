@@ -1,0 +1,4 @@
+- https://github.com/sam1am/codesum
+- https://github.com/anthropics/anthropic-sdk-python
+- https://github.com/ScrapeGraphAI/toonify
+- 
