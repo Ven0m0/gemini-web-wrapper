@@ -520,16 +520,16 @@ wheels = [
 
 [[package]]
 name = "github-copilot-sdk"
-version = "0.1.12"
+version = "0.1.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dateutil" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/af/1a0535be274fab1a8c05b038e88e73b9ddb837e068abb632b9862422d8be/github_copilot_sdk-0.1.12.tar.gz", hash = "sha256:a770f737594a9a587ec33cf3ae399c8cc45289486e1f69d326ee46c9f7790634", size = 82585, upload-time = "2026-01-15T02:46:25.471Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/44/73f9ba75638839d3a5521ec3aa702bc4fa5b68e86d8b54806c57912d5936/github_copilot_sdk-0.1.13.tar.gz", hash = "sha256:2f842fa87454781cfc7f3789c9e38cd45d5a7b72fdcd9602413acae470d4296f", size = 84103, upload-time = "2026-01-16T20:48:21.381Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d1/0d/2d66db44667425f2f5f93661f94b15e9b611354b4142d574fc0559df8386/github_copilot_sdk-0.1.12-py3-none-any.whl", hash = "sha256:d569ad4b68659972aa27ed19cb073d570c6b12df2882bb9737dba436bbd23563", size = 28947, upload-time = "2026-01-15T02:46:23.866Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/74/e5540857a723e32f1dc2208b6c3a67e1bc96eb8cc450203cdc4fbaa18d63/github_copilot_sdk-0.1.13-py3-none-any.whl", hash = "sha256:f2fa2b6547556b87ae1df2b3353aae74588042e69bf68134e4919e2ca3e1cade", size = 30052, upload-time = "2026-01-16T20:48:19.817Z" },
 ]
 
 [[package]]
