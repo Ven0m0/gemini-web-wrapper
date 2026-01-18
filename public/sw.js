@@ -27,36 +27,58 @@ self.addEventListener('install', (event) => {
 
 // Cache and return requests
 self.addEventListener('fetch', (event) => {
+  const requestUrl = new URL(event.request.url);
+
+  // Use network-first strategy for API requests and do not cache them
+  if (
+    requestUrl.pathname.startsWith('/api/') ||
+    requestUrl.pathname.startsWith('/v1/')
+  ) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Use cache-first strategy for other requests
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return the cached response if found
-        if (response) {
-          return response;
+    caches.match(event.request).then((response) => {
+      // Return the cached response if found
+      if (response) {
+        return response;
+      }
+
+      // Only cache safe, same-origin GET requests
+      if (
+        event.request.method !== 'GET' ||
+        requestUrl.origin !== self.location.origin
+      ) {
+        return fetch(event.request);
+      }
+
+      // Clone the request since we need to use it in multiple places
+      const fetchRequest = event.request.clone();
+
+      return fetch(fetchRequest).then((networkResponse) => {
+        // Check if we received a valid response
+        if (
+          !networkResponse ||
+          networkResponse.status !== 200 ||
+          networkResponse.type !== 'basic'
+        ) {
+          return networkResponse;
         }
 
-        // Clone the request since we need to use it in multiple places
-        const fetchRequest = event.request.clone();
+        // Clone the response since we need to use it in multiple places
+        const responseToCache = networkResponse.clone();
 
-        return fetch(fetchRequest).then(
-          (response) => {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
 
-            // Clone the response since we need to use it in multiple places
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          }
-        );
-      })
+        return networkResponse;
+      });
+    })
   );
 });
 
