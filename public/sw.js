@@ -2,9 +2,9 @@ const CACHE_NAME = 'gemini-web-wrapper-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/static/css/main.css',
-  '/static/js/main.js',
-  '/manifest.json'
+  '/manifest.json',
+  '/static/logo.svg',
+  '/static/default-avatar.png'
 ];
 
 // Install a service worker
