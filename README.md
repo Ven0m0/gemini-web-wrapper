@@ -23,6 +23,7 @@ Lightweight FastAPI backend with static HTML/JS frontend providing conversationa
   - **Genkit Integration**: Production-ready Google AI with flows and observability
   - **Gemini WebAPI**: Direct web interface access with cookie authentication
   - **OpenAI-Compatible API**: Drop-in replacement for `/v1/chat/completions`
+  - **Open WebUI Integration**: Enhanced UI and API compatibility with Open WebUI features
   - Conversation history support with stateless server pattern
   - Streaming responses for real-time interactions (SSE format)
   - Customizable system instructions per conversation
