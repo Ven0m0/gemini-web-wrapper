@@ -1,4 +1,3 @@
-
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
 

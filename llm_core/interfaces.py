@@ -1,11 +1,13 @@
-from typing import Protocol, runtime_checkable, Any
 from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass
+from typing import Any, Protocol, runtime_checkable
+
 
 @dataclass
 class ChatMessage:
     role: str
     content: str
+
 
 @runtime_checkable
 class LLMProvider(Protocol):
@@ -16,7 +18,7 @@ class LLMProvider(Protocol):
         prompt: str,
         system: str | None = None,
         history: Sequence[dict[str, str]] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """Generate a complete text response."""
         ...
@@ -26,7 +28,7 @@ class LLMProvider(Protocol):
         prompt: str,
         system: str | None = None,
         history: Sequence[dict[str, str]] | None = None,
-        **kwargs: Any
-    ) -> AsyncGenerator[str, None]:
+        **kwargs: Any,
+    ) -> AsyncGenerator[str]:
         """Stream the text response chunk by chunk."""
         ...

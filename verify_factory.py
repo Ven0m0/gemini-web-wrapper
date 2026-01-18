@@ -1,9 +1,9 @@
-
-import os
 import asyncio
+
 from llm_core.factory import ProviderFactory
-from llm_core.providers.gemini import GeminiProvider
 from llm_core.providers.anthropic import AnthropicProvider
+from llm_core.providers.gemini import GeminiProvider
+
 
 async def verify():
     print("Verifying LLM Factory and Providers...")
@@ -28,6 +28,7 @@ async def verify():
     # Test Copilot Creation
     try:
         from llm_core.providers.copilot import CopilotProvider
+
         copilot = ProviderFactory.create("copilot")
         print(f"✅ Copilot Provider created: {type(copilot)}")
         assert isinstance(copilot, CopilotProvider)
@@ -35,6 +36,7 @@ async def verify():
         print(f"❌ Copilot Creation Failed: {e}")
 
     print("Verification Script Finished.")
+
 
 if __name__ == "__main__":
     asyncio.run(verify())
