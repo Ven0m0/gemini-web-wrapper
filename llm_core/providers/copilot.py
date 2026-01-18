@@ -69,5 +69,5 @@ class CopilotProvider(LLMProvider):
 
     def _build_messages(
         self, prompt: str, history: Sequence[dict[str, str]] | None
-    ) -> list[dict[str, any]]:
+    ) -> list[dict[str, Any]]:
         return []
