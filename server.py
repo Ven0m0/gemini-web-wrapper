@@ -1481,7 +1481,6 @@ async def get_config():
 @app.get("/api/models")
 async def get_models():
     """Get available models, similar to Open WebUI."""
-    settings = get_settings()
     return {
         "data": [
             {
