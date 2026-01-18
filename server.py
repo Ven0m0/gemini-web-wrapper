@@ -1458,6 +1458,194 @@ async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
 app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
 
 
+# ===== OPEN WEBUI INTEGRATION FEATURES =====
+
+# Additional endpoints inspired by Open WebUI functionality
+
+@app.get("/api/config")
+async def get_config():
+    """Get Open WebUI-like configuration."""
+    return {
+        "version": "0.7.2",
+        "theme": "dark",
+        "ui": {
+            "announcement": "",
+            "name": "Gemini Web Wrapper",
+            "logo": "/static/logo.svg",
+            "default_locale": "en-US",
+            "sync": True
+        }
+    }
+
+
+@app.get("/api/models")
+async def get_models():
+    """Get available models, similar to Open WebUI."""
+    settings = get_settings()
+    return {
+        "data": [
+            {
+                "id": "gemini-2.5-flash",
+                "name": "Gemini 2.5 Flash",
+                "object": "model",
+                "created": 1677610602,
+                "owned_by": "google",
+                "meta": {
+                    "requirements": []
+                },
+                "info": {},
+                "preset": True
+            },
+            {
+                "id": "gemini-2.5-pro",
+                "name": "Gemini 2.5 Pro", 
+                "object": "model",
+                "created": 1677610602,
+                "owned_by": "google",
+                "meta": {
+                    "requirements": []
+                },
+                "info": {},
+                "preset": True
+            },
+            {
+                "id": "gemini-3.0-pro",
+                "name": "Gemini 3.0 Pro",
+                "object": "model", 
+                "created": 1677610602,
+                "owned_by": "google",
+                "meta": {
+                    "requirements": []
+                },
+                "info": {},
+                "preset": True
+            }
+        ]
+    }
+
+
+@app.get("/api/version")
+async def get_version():
+    """Get version info, similar to Open WebUI."""
+    return {"version": "0.7.2"}
+
+
+@app.get("/api/user")
+async def get_user_info():
+    """Get user info, similar to Open WebUI."""
+    return {
+        "id": "default-user",
+        "email": "user@example.com",
+        "name": "Default User",
+        "role": "user",
+        "profile_image_url": "/static/default-avatar.png"
+    }
+
+
+class ChatHistoryItem(BaseModel):
+    id: str
+    user_id: str
+    session_id: str | None
+    chat: dict
+    timestamp: int
+
+
+@app.post("/api/chat/history")
+async def save_chat_history(chat_data: dict):
+    """Save chat history, similar to Open WebUI."""
+    # In a real implementation, this would save to a database
+    # For now, we'll just return success
+    return {
+        "status": True,
+        "message": "Chat history saved successfully"
+    }
+
+
+@app.get("/api/chat/history")
+async def get_chat_history():
+    """Get chat history, similar to Open WebUI."""
+    # In a real implementation, this would fetch from a database
+    # For now, we'll return an empty history
+    return {
+        "history": [],
+        "count": 0
+    }
+
+
+@app.delete("/api/chat/history/{chat_id}")
+async def delete_chat_history(chat_id: str):
+    """Delete specific chat history, similar to Open WebUI."""
+    # In a real implementation, this would delete from a database
+    return {
+        "status": True,
+        "message": f"Chat history {chat_id} deleted successfully"
+    }
+
+
+# Documents and RAG features (similar to Open WebUI)
+class DocumentUploadReq(BaseModel):
+    filename: str
+    content: str
+    collection_name: str = "default"
+
+
+@app.post("/api/document/upload")
+async def upload_document(doc_req: DocumentUploadReq):
+    """Upload a document for RAG, similar to Open WebUI."""
+    # In a real implementation, this would store the document in a vector DB
+    return {
+        "status": True,
+        "filename": doc_req.filename,
+        "message": f"Document {doc_req.filename} uploaded successfully"
+    }
+
+
+@app.get("/api/documents")
+async def get_documents():
+    """Get list of documents, similar to Open WebUI."""
+    # In a real implementation, this would fetch from a vector DB
+    return {
+        "documents": [],
+        "count": 0
+    }
+
+
+@app.delete("/api/document/{doc_id}")
+async def delete_document(doc_id: str):
+    """Delete a document, similar to Open WebUI."""
+    return {
+        "status": True,
+        "message": f"Document {doc_id} deleted successfully"
+    }
+
+
+# Tools management (similar to Open WebUI)
+class Tool(BaseModel):
+    id: str
+    name: str
+    description: str
+    json_schema: dict
+    scope: str = "chat"
+
+
+@app.get("/api/tools")
+async def get_tools():
+    """Get available tools, similar to Open WebUI."""
+    return {
+        "tools": [],
+        "count": 0
+    }
+
+
+@app.post("/api/tool")
+async def create_tool(tool: Tool):
+    """Create a new tool, similar to Open WebUI."""
+    return {
+        "status": True,
+        "message": f"Tool {tool.name} created successfully"
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 

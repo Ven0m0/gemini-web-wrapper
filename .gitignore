@@ -1,19 +1,23 @@
-# Compiled and build artifacts
-*.pyc
+```
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build artifacts
+dist/
+build/
+frontend/dist/
 
 # Dependencies
 .venv/
 venv/
+env/
 node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/bun.lock
 
-# Logs and temp files
+# Logs
 *.log
-*.tmp
-*.swp
 
 # Environment
 .env
@@ -23,26 +27,19 @@ frontend/bun.lock
 # Editors
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Coverage
 .coverage
 coverage/
 htmlcov/
 
-# Python
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
-.Python
-*.so
-
-# Frontend build artifacts
-frontend/.config
-frontend/test-results*.json
-
-# WebSocket file transfers
-websocket_files/
-
-# Old backup directory
-web-old/
+# Testing
+.pytest_cache/
+.mypy_cache/
+```
