@@ -16,6 +16,12 @@ self.addEventListener('install', (event) => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
+      .catch((error) => {
+        // Ensure cache.addAll() failures are not silent during installation
+        console.error('Service worker install failed to pre-cache resources:', error);
+        // Resolve to avoid blocking service worker installation entirely
+        return Promise.resolve();
+      })
   );
 });
 
