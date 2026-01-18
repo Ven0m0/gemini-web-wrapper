@@ -1510,7 +1510,7 @@ async def get_models():
             {
                 "id": "gemini-3.0-pro",
                 "name": "Gemini 3.0 Pro",
-                "object": "model", 
+                "object": "model",
                 "created": 1677610602,
                 "owned_by": "google",
                 "meta": {
