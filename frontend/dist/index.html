@@ -476,9 +476,10 @@
             } catch (error) {
                 console.error('Error:', error);
                 // Remove typing indicator
-                const typingElements = document.querySelectorAll('.typing-indicator');
-                typingElements.forEach(el => chatContainer.removeChild(el));
-                
+                const lastMessage = chatContainer.querySelector('.assistant-message:last-child');
+                if (lastMessage && lastMessage.textContent === '...') {
+                    chatContainer.removeChild(lastMessage);
+                }
                 addMessage("Sorry, there was an error processing your request.", 'assistant');
             }
         }
