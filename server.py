@@ -15,7 +15,7 @@ import time
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol
+from typing import Any, Literal
 from uuid import uuid4
 
 import httpx
@@ -25,12 +25,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-
 from pydantic_settings import BaseSettings
 
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
 from github_service import GitHubConfig, GitHubService
+from llm_core.factory import ProviderFactory
+from llm_core.interfaces import LLMProvider
 from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
 from openai_transforms import (
     collapse_messages,
@@ -39,9 +40,6 @@ from openai_transforms import (
 )
 from session_manager import SessionManager
 from utils import handle_generation_errors, run_in_thread
-from llm_core.interfaces import LLMProvider
-from llm_core.factory import ProviderFactory
-
 
 
 # ----- Configuration -----
@@ -78,9 +76,6 @@ class Settings(BaseSettings):
         return requested
 
 
-
-
-
 # ----- State Management -----
 @dataclass
 class AppState:
@@ -105,9 +100,6 @@ class AppState:
 
 
 state = AppState()
-
-
-
 
 
 # ----- Lifespan -----
@@ -144,9 +136,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         provider_type = "gemini"
 
     state.llm_provider = ProviderFactory.create(
-        provider_type, # type: ignore
-        api_key=settings.google_api_key if provider_type == "gemini" else settings.anthropic_api_key,
-        model_name=settings.model_name
+        provider_type,  # type: ignore
+        api_key=settings.google_api_key
+        if provider_type == "gemini"
+        else settings.anthropic_api_key,
+        model_name=settings.model_name,
     )
 
     # Initialize lightweight session manager for user/session tracking
@@ -532,12 +526,10 @@ async def chatbot_stream(
 
     async def generate_stream() -> AsyncGenerator[str]:
         try:
-             async for chunk in model.stream(
-                 r.message,
-                 system=r.system,
-                 history=history_dicts
-             ):
-                 yield chunk
+            async for chunk in model.stream(
+                r.message, system=r.system, history=history_dicts
+            ):
+                yield chunk
         except Exception as e:
             yield f"Error: Generation failed - {e}"
 

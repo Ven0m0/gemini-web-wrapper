@@ -3,13 +3,19 @@ from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
 from anthropic import AsyncAnthropic
+
 from llm_core.interfaces import LLMProvider
+
 
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider."""
 
-    def __init__(self, api_key: str | None = None, model: str = "claude-3-5-sonnet-20241022"):
-        self.client = AsyncAnthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+    def __init__(
+        self, api_key: str | None = None, model: str = "claude-3-5-sonnet-20241022"
+    ):
+        self.client = AsyncAnthropic(
+            api_key=api_key or os.environ.get("ANTHROPIC_API_KEY")
+        )
         self.model = model
 
     async def generate(
@@ -17,7 +23,7 @@ class AnthropicProvider(LLMProvider):
         prompt: str,
         system: str | None = None,
         history: Sequence[dict[str, str]] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         messages = self._build_messages(prompt, history)
 
@@ -28,7 +34,7 @@ class AnthropicProvider(LLMProvider):
             messages=messages,
         )
         # response.content is a list of blocks, usually text.
-        text_blocks = [block.text for block in response.content if block.type == 'text']
+        text_blocks = [block.text for block in response.content if block.type == "text"]
         return "".join(text_blocks)
 
     async def stream(
@@ -36,8 +42,8 @@ class AnthropicProvider(LLMProvider):
         prompt: str,
         system: str | None = None,
         history: Sequence[dict[str, str]] | None = None,
-        **kwargs: Any
-    ) -> AsyncGenerator[str, None]:
+        **kwargs: Any,
+    ) -> AsyncGenerator[str]:
         messages = self._build_messages(prompt, history)
 
         async with self.client.messages.stream(
@@ -46,10 +52,12 @@ class AnthropicProvider(LLMProvider):
             system=system or "",
             messages=messages,
         ) as stream:
-             async for text in stream.text_stream:
-                 yield text
+            async for text in stream.text_stream:
+                yield text
 
-    def _build_messages(self, prompt: str, history: Sequence[dict[str, str]] | None) -> list[dict[str, any]]:
+    def _build_messages(
+        self, prompt: str, history: Sequence[dict[str, str]] | None
+    ) -> list[dict[str, Any]]:
         msgs = []
         if history:
             for h in history:

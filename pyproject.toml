@@ -23,7 +23,7 @@ dependencies = [
   "cachetools>=5.3.0",
   # Security fixes for transitive dependencies
   "cryptography>=46.0.0",
-  "python-dotenv",
+  "python-dotenv>=1.0.0",
   "fastapi>=0.124.0",
   "gemini-webapi>=1.10.2",
   # Gemini/Genkit dependencies
@@ -36,7 +36,6 @@ dependencies = [
   "sqlalchemy>=2.0.0",
   "uvicorn[standard]>=0.38.0",
   "uvloop>=0.22.0",
-  "sqlalchemy",
   "anthropic>=0.30.0",
   "github-copilot-sdk>=0.1.0",
 ]
