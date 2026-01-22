@@ -12,10 +12,10 @@ import os
 import re
 import sys
 import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 import httpx
@@ -30,7 +30,7 @@ from pydantic_settings import BaseSettings
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
 from github_service import GitHubConfig, GitHubService
-from llm_core.factory import ProviderFactory
+from llm_core.factory import ProviderFactory, ProviderType
 from llm_core.interfaces import LLMProvider
 from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
 from openai_transforms import (
@@ -131,15 +131,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     # Initialize LLM Provider using Factory
     # Default to gemini if not specified or "google" (legacy)
-    provider_type = settings.model_provider
-    if provider_type == "google":
-        provider_type = "gemini"
+    provider_type_raw = settings.model_provider
+    if provider_type_raw == "google":
+        provider_type_raw = "gemini"
 
-    state.llm_provider = ProviderFactory.create(
-        provider_type,  # type: ignore
-        api_key=settings.google_api_key
+    if provider_type_raw not in ("gemini", "anthropic", "copilot"):
+        print(f"Unknown provider: {provider_type_raw}", file=sys.stderr)
+        sys.exit(1)
+
+    provider_type = cast(ProviderType, provider_type_raw)
+    api_key = (
+        settings.google_api_key
         if provider_type == "gemini"
-        else settings.anthropic_api_key,
+        else settings.anthropic_api_key
+    )
+    state.llm_provider = ProviderFactory.create(
+        provider_type,
+        api_key=api_key,
         model_name=settings.model_name,
     )
 
@@ -245,34 +253,28 @@ class GenResponse(BaseModel):
 
 # ----- Logic Helpers -----
 async def run_generate(
-    messages: str | list[dict[str, str]],
+    prompt: str,
     model: LLMProvider,
+    *,
+    system: str | None = None,
+    history: Sequence[dict[str, str]] | None = None,
     timeout: float = 30.0,
 ) -> str:
-    """Run model generation.
+    """Run model generation with a timeout.
 
     Args:
-        messages: Either a string prompt or list of role/content dicts.
+        prompt: User prompt.
         model: Initialized LLMProvider instance.
+        system: Optional system instruction.
+        history: Optional conversation history.
         timeout: Maximum time to wait for generation (default 30 seconds).
 
     Returns:
         Generated text.
     """
     try:
-        # If messages is just a string, it's a prompt
-        if isinstance(messages, str):
-            prompt = messages
-            history = []
-        else:
-            # Extract prompt (last user message) and history
-            # The LLMProvider expects prompt + history sequence
-            # We need to reverse-engineer the list we built
-            prompt = messages[-1]["content"]
-            history = messages[:-1]
-
         return await asyncio.wait_for(
-            model.generate(prompt, history=history),
+            model.generate(prompt, system=system, history=history),
             timeout=timeout,
         )
     except TimeoutError as e:
@@ -315,51 +317,6 @@ async def _setup_session_attribution(
                 session_mgr.set_session(session_id)
             # Add to cache (TTLCache expires after 1 hour)
             state.attribution_cache[cache_key] = True
-
-
-def _build_message_list(
-    system: str | None,
-    history: list[ChatMessage],
-    message: str,
-) -> list[dict[str, str]]:
-    """Build a message list for model generation.
-
-    Constructs a properly formatted message list from system instruction,
-    conversation history, and current user message. Time complexity: O(n)
-    where n is the length of history.
-
-    Args:
-        system: Optional system instruction to set model behavior.
-        history: Previous conversation messages (may be empty).
-        message: Current user message to append.
-
-    Returns:
-        List of message dicts with 'role' and 'content' keys.
-    """
-    msgs: list[dict[str, str]] = []
-    if system:
-        msgs.append({"role": "system", "content": system})
-    # Extend with history - O(n) operation using generator expression
-    msgs.extend({"role": msg.role, "content": msg.content} for msg in history)
-    msgs.append({"role": "user", "content": message})
-    return msgs
-
-
-async def _prepare_chatbot_messages(
-    request: ChatbotReq,
-    session_mgr: SessionManager,
-) -> list[dict[str, str]]:
-    """Prepare chatbot messages and ensure attribution is set."""
-    await _setup_session_attribution(
-        session_mgr,
-        request.user_id,
-        request.session_id,
-    )
-    return _build_message_list(
-        request.system,
-        request.history,
-        request.message,
-    )
 
 
 # ----- Dependencies -----
@@ -456,11 +413,7 @@ async def chat(
     model: LLMProvider = Depends(get_llm_provider),
 ) -> dict[str, str]:
     """Handle conversational chat requests."""
-    # LLMProvider handles full context, but we need to structure it
-    # run_generate wrapper now adapts the list to provider args
-    msgs = _build_message_list(r.system, [], r.prompt)
-
-    text = await run_generate(msgs, model)
+    text = await run_generate(r.prompt, model, system=r.system)
     return {"text": text}
 
 
@@ -505,8 +458,18 @@ async def chatbot(
     session_mgr: SessionManager = Depends(get_session_manager),
 ) -> dict[str, str]:
     """Handle chatbot requests with conversation history."""
-    msgs = await _prepare_chatbot_messages(r, session_mgr)
-    text = await run_generate(msgs, model)
+    await _setup_session_attribution(session_mgr, r.user_id, r.session_id)
+    history_dicts = (
+        [{"role": m.role, "content": m.content} for m in r.history]
+        if r.history
+        else None
+    )
+    text = await run_generate(
+        r.message,
+        model,
+        system=r.system,
+        history=history_dicts,
+    )
     return {"text": text}
 
 
@@ -518,39 +481,25 @@ async def chatbot_stream(
 ) -> StreamingResponse:
     """Handle chatbot requests with streaming responses."""
 
-    # We need to extract prompt and history for the 'stream' method
     await _setup_session_attribution(session_mgr, r.user_id, r.session_id)
-    history_dicts = []
-    if r.history:
-        history_dicts = [{"role": m.role, "content": m.content} for m in r.history]
+    history_dicts = (
+        [{"role": m.role, "content": m.content} for m in r.history]
+        if r.history
+        else None
+    )
 
     async def generate_stream() -> AsyncGenerator[str]:
         try:
             async for chunk in model.stream(
-                r.message, system=r.system, history=history_dicts
+                r.message,
+                system=r.system,
+                history=history_dicts,
             ):
                 yield chunk
         except Exception as e:
             yield f"Error: Generation failed - {e}"
 
-            # Split text into chunks by words for streaming effect
-
-            words = e.args[0].split() if e.args else []
-            chunk_size = 5  # Words per chunk
-            for i in range(0, len(words), chunk_size):
-                chunk = " ".join(words[i : i + chunk_size])
-                if i + chunk_size < len(words):
-                    chunk += " "  # Add space except for last chunk
-                yield chunk
-                # Small delay to simulate streaming
-                await asyncio.sleep(0.01)
-        except (RuntimeError, ValueError, ConnectionError, TimeoutError) as e:
-            yield f"Error: Generation failed - {e}"
-
-    return StreamingResponse(
-        generate_stream(),
-        media_type="text/plain",
-    )
+    return StreamingResponse(generate_stream(), media_type="text/plain")
 
 
 @app.post("/memory/session/new")
@@ -1453,9 +1402,15 @@ async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
 
 
 # ----- Static File Serving (Frontend) -----
-# Mount the frontend build directory to serve the React PWA
-# This must be at the end so API routes take precedence
-app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+# Mount the frontend build directory to serve the React PWA.
+# This must be at the end so API routes take precedence.
+_frontend_dist_dir = os.environ.get("FRONTEND_DIST_DIR", "frontend/dist")
+if os.path.isdir(_frontend_dist_dir):
+    app.mount(
+        "/",
+        StaticFiles(directory=_frontend_dist_dir, html=True),
+        name="frontend",
+    )
 
 
 # ===== OPEN WEBUI INTEGRATION FEATURES =====

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
@@ -7,7 +9,7 @@ from llm_core.interfaces import LLMProvider
 
 
 class GeminiProvider(LLMProvider):
-    """Gemini provider using google.genai SDK directly."""
+    """Gemini provider using the `google.genai` SDK."""
 
     def __init__(self, api_key: str, model_name: str = "gemini-2.0-flash-exp"):
         self.client = genai.Client(api_key=api_key)
@@ -20,18 +22,17 @@ class GeminiProvider(LLMProvider):
         history: Sequence[dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> str:
-        # Build configuration for generation
-        config = {}
+        config: dict[str, Any] = {}
         if system:
             config["system_instruction"] = system
 
         messages = self._build_messages(prompt, history)
-
-        # google.genai supports async generation
         response = await self.client.aio.models.generate_content(
-            model=self.model_name, contents=messages, config=config
+            model=self.model_name,
+            contents=messages,
+            config=config,
         )
-        return response.text
+        return response.text or ""
 
     async def stream(
         self,
@@ -40,28 +41,43 @@ class GeminiProvider(LLMProvider):
         history: Sequence[dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[str]:
-        config = {}
+        config: dict[str, Any] = {}
         if system:
             config["system_instruction"] = system
 
         messages = self._build_messages(prompt, history)
 
-        async for chunk in await self.client.aio.models.generate_content_stream(
-            model=self.model_name, contents=messages, config=config
-        ):
-            if chunk.text:
-                yield chunk.text
+        stream_obj: Any = self.client.aio.models.generate_content_stream(
+            model=self.model_name,
+            contents=messages,
+            config=config,
+        )
+        if hasattr(stream_obj, "__await__"):
+            stream_obj = await stream_obj
+
+        async for chunk in stream_obj:
+            text = getattr(chunk, "text", None)
+            if text:
+                yield text
 
     def _build_messages(
-        self, prompt: str, history: Sequence[dict[str, str]] | None
-    ) -> list[dict[str, str]]:
-        msgs = []
+        self,
+        prompt: str,
+        history: Sequence[dict[str, str]] | None,
+    ) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = []
         if history:
-            for h in history:
-                role = h.get("role", "user")
-                if role == "assistant":  # Map standard assistant role to model
+            for message in history:
+                role = message.get("role", "user")
+                if role == "assistant":
                     role = "model"
-                msgs.append({"role": role, "parts": [{"text": h.get("content", "")}]})
 
-        msgs.append({"role": "user", "parts": [{"text": prompt}]})
-        return msgs
+                messages.append(
+                    {
+                        "role": role,
+                        "parts": [{"text": message.get("content", "")}],
+                    }
+                )
+
+        messages.append({"role": "user", "parts": [{"text": prompt}]})
+        return messages

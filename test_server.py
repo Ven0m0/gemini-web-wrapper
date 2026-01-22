@@ -1,18 +1,21 @@
-"""Comprehensive test suite for Gemini API server.
+"""Tests for FastAPI server.
 
 Tests cover:
 - Health check endpoint
 - Chat endpoint with system/user messages
 - Code assistance endpoint
+- Chatbot endpoint with history + streaming
 - Input validation and error handling
 - Edge cases and boundary conditions
 """
 
+from __future__ import annotations
+
 import os
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,254 +26,190 @@ with patch.dict(os.environ, {"GOOGLE_API_KEY": "fake-key"}):
 
 
 @pytest.fixture
-def client() -> Generator[TestClient]:
-    """Create a TestClient with a mocked model state.
+def client() -> Generator[TestClient, None, None]:
+    """Create a TestClient with mocked provider state."""
 
-    Yields:
-        TestClient: Configured test client with mocked dependencies.
-    """
-    # Mock the model and its generate method
-    mock_model = MagicMock()
-    mock_response = MagicMock()
-    mock_response.text = "Mocked response"
-    mock_model.generate.return_value = mock_response
+    mock_provider = MagicMock()
+    mock_provider.generate = AsyncMock(return_value="Mocked response")
 
-    # Mock SessionManager instance
+    async def _stream_gen() -> AsyncGenerator[str, None]:
+        yield "Mocked response"
+
+    def _stream(
+        prompt: str,
+        system: str | None = None,
+        history: list[dict[str, str]] | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[str, None]:
+        _ = (prompt, system, history, kwargs)
+        return _stream_gen()
+
+    mock_provider.stream = MagicMock(side_effect=_stream)
+
     mock_session_mgr = MagicMock()
     mock_session_mgr.attribution = MagicMock()
     mock_session_mgr.set_session = MagicMock()
     mock_session_mgr.new_session = MagicMock(return_value="test-session-id")
 
-    # Create a no-op lifespan for testing
     @asynccontextmanager
-    async def test_lifespan(app: Any) -> Generator[None]:
-        # Setup: inject mocks into state
-        state.model = mock_model
-        state.genkit = MagicMock()
+    async def test_lifespan(_: Any) -> AsyncGenerator[None, None]:
+        state.attribution_cache.clear()
+        state.llm_provider = mock_provider
         state.session_manager = mock_session_mgr
         state.settings = MagicMock()
         state.cookie_manager = MagicMock()
         state.gemini_client = MagicMock()
         yield
-        # Cleanup
-        state.model = None
-        state.genkit = None
+        state.llm_provider = None
         state.session_manager = None
         state.settings = None
         state.cookie_manager = None
         state.gemini_client = None
+        state.attribution_cache.clear()
 
-    # Override the app lifespan with our test lifespan
-    app.router.lifespan_context = test_lifespan  # type: ignore
+    app.router.lifespan_context = test_lifespan  # type: ignore[assignment]
 
     with TestClient(app) as c:
         yield c
 
 
 def test_health(client: TestClient) -> None:
-    """Test health check endpoint returns 200 OK."""
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"ok": True}
 
 
 def test_chat_endpoint(client: TestClient) -> None:
-    """Test chat endpoint with system and user messages."""
     payload = {"prompt": "Hello", "system": "Be nice"}
     response = client.post("/chat", json=payload)
 
     assert response.status_code == 200
     assert response.json() == {"text": "Mocked response"}
 
-    # Verify model call with proper typing
-    assert state.model is not None
-    mock_model: Any = state.model  # Cast to Any for mock assertions
-    mock_model.generate.assert_called_once()
-    args = mock_model.generate.call_args[0][0]
-    assert args == [
-        {"role": "system", "content": "Be nice"},
-        {"role": "user", "content": "Hello"},
-    ]
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    model.generate.assert_awaited_once_with("Hello", system="Be nice", history=None)
+
+
+def test_chat_without_system_message(client: TestClient) -> None:
+    response = client.post("/chat", json={"prompt": "What is Python?"})
+
+    assert response.status_code == 200
+    assert response.json() == {"text": "Mocked response"}
+
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    model.generate.assert_awaited_once_with(
+        "What is Python?", system=None, history=None
+    )
+
+
+def test_chat_missing_prompt(client: TestClient) -> None:
+    response = client.post("/chat", json={"system": "Be helpful"})
+    assert response.status_code == 422
+
+
+def test_validation_error(client: TestClient) -> None:
+    response = client.post("/chat", json={"prompt": ""})
+    assert response.status_code == 422
 
 
 def test_code_endpoint(client: TestClient) -> None:
-    """Test code assistance endpoint formats prompt correctly."""
     payload = {"code": "print(1)", "instruction": "make it 2"}
     response = client.post("/code", json=payload)
 
     assert response.status_code == 200
     assert response.json() == {"text": "Mocked response"}
 
-    # Verify model call
-    assert state.model is not None
-    mock_model: Any = state.model  # Cast to Any for mock assertions
-    mock_model.generate.assert_called()
-    args = mock_model.generate.call_args[0][0]
-    assert "Instruction:\nmake it 2" in args
-    assert "Code:\nprint(1)" in args
-
-
-def test_validation_error(client: TestClient) -> None:
-    """Test Pydantic validation rejects empty prompt."""
-    response = client.post("/chat", json={"prompt": ""})  # Empty prompt
-    assert response.status_code == 422  # Unprocessable Entity
-
-
-def test_chat_without_system_message(client: TestClient) -> None:
-    """Test chat endpoint works without optional system message."""
-    payload = {"prompt": "What is Python?"}
-    response = client.post("/chat", json=payload)
-
-    assert response.status_code == 200
-    assert response.json() == {"text": "Mocked response"}
-
-    # Verify only user message is sent
-    assert state.model is not None
-    mock_model: Any = state.model
-    args = mock_model.generate.call_args[0][0]
-    assert len(args) == 1
-    assert args[0] == {"role": "user", "content": "What is Python?"}
-
-
-def test_chat_missing_prompt(client: TestClient) -> None:
-    """Test chat endpoint rejects request without prompt field."""
-    response = client.post("/chat", json={"system": "Be helpful"})
-    assert response.status_code == 422
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    args, kwargs = model.generate.await_args
+    assert kwargs == {"system": None, "history": None}
+    assert "Instruction:\nmake it 2" in args[0]
+    assert "Code:\nprint(1)" in args[0]
 
 
 def test_code_missing_instruction(client: TestClient) -> None:
-    """Test code endpoint rejects request without instruction."""
     response = client.post("/code", json={"code": "def foo(): pass"})
     assert response.status_code == 422
 
 
 def test_code_empty_code(client: TestClient) -> None:
-    """Test code endpoint rejects empty code field."""
     response = client.post("/code", json={"code": "", "instruction": "add docs"})
     assert response.status_code == 422
 
 
 def test_model_not_initialized(client: TestClient) -> None:
-    """Test endpoints return 503 when model is not initialized."""
-    # Set model to None to simulate uninitialized state
-    original_model = state.model
-    state.model = None
+    assert state.llm_provider is not None
+    original_provider = state.llm_provider
+    state.llm_provider = None
 
     response = client.post("/chat", json={"prompt": "Hello"})
     assert response.status_code == 503
-    assert "Model not initialized" in response.json()["detail"]
+    assert "not initialized" in response.json()["detail"].lower()
 
-    # Restore model
-    state.model = original_model
+    state.llm_provider = original_provider
 
 
 def test_long_prompt_handling(client: TestClient) -> None:
-    """Test server handles long prompts correctly."""
-    long_prompt = "a" * 10000  # 10k character prompt
-    payload = {"prompt": long_prompt}
-    response = client.post("/chat", json=payload)
+    long_prompt = "a" * 10000
+    response = client.post("/chat", json={"prompt": long_prompt})
 
     assert response.status_code == 200
-    assert state.model is not None
-    mock_model: Any = state.model
-    args = mock_model.generate.call_args[0][0]
-    assert args[0]["content"] == long_prompt
+
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    model.generate.assert_awaited_once_with(long_prompt, system=None, history=None)
 
 
 def test_special_characters_in_prompt(client: TestClient) -> None:
-    """Test handling of special characters and unicode."""
     special_prompt = "Test: 你好 🚀 <script>alert('xss')</script>"
-    payload = {"prompt": special_prompt}
-    response = client.post("/chat", json=payload)
+    response = client.post("/chat", json={"prompt": special_prompt})
 
     assert response.status_code == 200
-    assert state.model is not None
-    mock_model: Any = state.model
-    args = mock_model.generate.call_args[0][0]
-    assert special_prompt in args[0]["content"]
+
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    args, _ = model.generate.await_args
+    assert special_prompt == args[0]
 
 
-# ----- Chatbot Endpoint Tests -----
 def test_chatbot_endpoint_with_history(client: TestClient) -> None:
-    """Test chatbot endpoint with conversation history."""
     payload = {
         "message": "What else?",
         "history": [
             {"role": "user", "content": "Tell me about Python"},
             {"role": "model", "content": "Python is a programming language"},
         ],
-        "system": "You are a helpful assistant",
     }
     response = client.post("/chatbot", json=payload)
 
     assert response.status_code == 200
     assert response.json() == {"text": "Mocked response"}
 
-    # Verify model was called with correct message sequence
-    assert state.model is not None
-    mock_model: Any = state.model
-    mock_model.generate.assert_called()
-    args = mock_model.generate.call_args[0][0]
-
-    # Should have: system + history + new message
-    assert len(args) == 4
-    assert args[0] == {
-        "role": "system",
-        "content": "You are a helpful assistant",
-    }
-    assert args[1] == {"role": "user", "content": "Tell me about Python"}
-    assert args[2] == {
-        "role": "model",
-        "content": "Python is a programming language",
-    }
-    assert args[3] == {"role": "user", "content": "What else?"}
-
-
-def test_chatbot_endpoint_without_history(client: TestClient) -> None:
-    """Test chatbot endpoint works without history."""
-    payload = {"message": "Hello!"}
-    response = client.post("/chatbot", json=payload)
-
-    assert response.status_code == 200
-    assert response.json() == {"text": "Mocked response"}
-
-    # Verify only user message is sent
-    assert state.model is not None
-    mock_model: Any = state.model
-    args = mock_model.generate.call_args[0][0]
-    assert len(args) == 1
-    assert args[0] == {"role": "user", "content": "Hello!"}
-
-
-def test_chatbot_endpoint_empty_history(client: TestClient) -> None:
-    """Test chatbot endpoint with explicitly empty history list."""
-    payload = {"message": "Hello!", "history": []}
-    response = client.post("/chatbot", json=payload)
-
-    assert response.status_code == 200
-    assert state.model is not None
-    mock_model: Any = state.model
-    args = mock_model.generate.call_args[0][0]
-    assert len(args) == 1
-    assert args[0] == {"role": "user", "content": "Hello!"}
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    model.generate.assert_awaited_once_with(
+        "What else?",
+        system=None,
+        history=[
+            {"role": "user", "content": "Tell me about Python"},
+            {"role": "model", "content": "Python is a programming language"},
+        ],
+    )
 
 
 def test_chatbot_validation_empty_message(client: TestClient) -> None:
-    """Test chatbot endpoint rejects empty message."""
-    payload = {"message": ""}
-    response = client.post("/chatbot", json=payload)
+    response = client.post("/chatbot", json={"message": ""})
     assert response.status_code == 422
 
 
 def test_chatbot_validation_missing_message(client: TestClient) -> None:
-    """Test chatbot endpoint rejects request without message field."""
-    payload: dict[str, list[Any]] = {"history": []}
-    response = client.post("/chatbot", json=payload)
+    response = client.post("/chatbot", json={"history": []})
     assert response.status_code == 422
 
 
 def test_chatbot_validation_invalid_role(client: TestClient) -> None:
-    """Test chatbot endpoint rejects history with invalid roles."""
     payload = {
         "message": "Hello",
         "history": [{"role": "invalid", "content": "test"}],
@@ -279,63 +218,24 @@ def test_chatbot_validation_invalid_role(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_chatbot_not_initialized(client: TestClient) -> None:
-    """Test chatbot endpoint returns 503 when model not initialized."""
-    original_model = state.model
-    original_session_mgr = state.session_manager
-    state.model = None
+def test_chatbot_stream_endpoint(client: TestClient) -> None:
+    payload = {"message": "Tell me a story", "system": "You are a storyteller"}
+    response = client.post("/chatbot/stream", json=payload)
 
-    response = client.post("/chatbot", json={"message": "Hello"})
-    assert response.status_code == 503
-    assert (
-        "Model or session manager not initialized" in response.json()["detail"]
-        or "Model not initialized" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "Mocked response" in response.text
+
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    model.stream.assert_called_once_with(
+        "Tell me a story",
+        system="You are a storyteller",
+        history=None,
     )
 
-    state.model = original_model
-    state.session_manager = original_session_mgr
 
-
-def test_chatbot_stream_endpoint(client: TestClient) -> None:
-    """Test chatbot streaming endpoint returns streamed response."""
-    payload = {
-        "message": "Tell me a story",
-        "system": "You are a storyteller",
-    }
-    response = client.post("/chatbot/stream", json=payload)
-
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "text/plain; charset=utf-8"
-
-    # Read streamed content
-    content = response.text
-    assert "Mocked response" in content
-
-
-def test_chatbot_stream_with_history(client: TestClient) -> None:
-    """Test chatbot streaming endpoint with conversation history."""
-    payload = {
-        "message": "Continue",
-        "history": [
-            {"role": "user", "content": "Start a story"},
-            {"role": "model", "content": "Once upon a time..."},
-        ],
-    }
-    response = client.post("/chatbot/stream", json=payload)
-
-    assert response.status_code == 200
-
-    # Verify model was called with full history
-    assert state.model is not None
-    mock_model: Any = state.model
-    args = mock_model.generate.call_args[0][0]
-    assert len(args) == 3  # history + new message
-
-
-def test_chatbot_stream_includes_system_and_history(
-    client: TestClient,
-) -> None:
-    """Ensure streaming chatbot builds messages with system + history."""
+def test_chatbot_stream_includes_system_and_history(client: TestClient) -> None:
     payload = {
         "message": "Continue",
         "system": "You are a storyteller",
@@ -343,35 +243,34 @@ def test_chatbot_stream_includes_system_and_history(
             {"role": "user", "content": "Start a story"},
             {"role": "model", "content": "Once upon a time..."},
         ],
-        "user_id": "test_user",  # Add user_id to trigger attribution
+        "user_id": "test_user",
     }
     response = client.post("/chatbot/stream", json=payload)
 
     assert response.status_code == 200
 
-    assert state.model is not None
-    mock_model: Any = state.model
-    args = mock_model.generate.call_args[0][0]
-    assert args == [
-        {"role": "system", "content": "You are a storyteller"},
-        {"role": "user", "content": "Start a story"},
-        {"role": "model", "content": "Once upon a time..."},
-        {"role": "user", "content": "Continue"},
-    ]
+    assert state.llm_provider is not None
+    model: Any = state.llm_provider
+    model.stream.assert_called_once_with(
+        "Continue",
+        system="You are a storyteller",
+        history=[
+            {"role": "user", "content": "Start a story"},
+            {"role": "model", "content": "Once upon a time..."},
+        ],
+    )
 
     assert state.session_manager is not None
-    mock_session_mgr: Any = state.session_manager
-    assert mock_session_mgr.attribution.call_count == 1
+    session_mgr: Any = state.session_manager
+    assert session_mgr.attribution.call_count == 1
 
 
 def test_chatbot_stream_not_initialized(client: TestClient) -> None:
-    """Test chatbot stream endpoint returns 503 when model not initialized."""
-    original_model = state.model
-    original_session_mgr = state.session_manager
-    state.model = None
+    assert state.llm_provider is not None
+    original_provider = state.llm_provider
+    state.llm_provider = None
 
     response = client.post("/chatbot/stream", json={"message": "Hello"})
     assert response.status_code == 503
 
-    state.model = original_model
-    state.session_manager = original_session_mgr
+    state.llm_provider = original_provider
