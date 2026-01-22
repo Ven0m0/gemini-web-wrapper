@@ -1,4 +1,6 @@
-from typing import Literal
+from __future__ import annotations
+
+from typing import Any, Literal
 
 from llm_core.interfaces import LLMProvider
 from llm_core.providers.anthropic import AnthropicProvider
@@ -9,30 +11,43 @@ ProviderType = Literal["gemini", "anthropic", "copilot"]
 
 
 class ProviderFactory:
-    """Factory for creating LLM providers."""
+    """Factory for creating LLM provider implementations."""
 
     @staticmethod
     def create(
         provider: ProviderType,
         api_key: str | None = None,
         model_name: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> LLMProvider:
-        if provider == "gemini":
-            if not api_key:
-                raise ValueError("API key required for Gemini provider")
-            return GeminiProvider(
-                api_key=api_key, model_name=model_name or "gemini-2.5-flash"
-            )
+        """Create an LLM provider.
 
-        elif provider == "anthropic":
-            # API key can be None (loaded from env)
-            return AnthropicProvider(
-                api_key=api_key, model=model_name or "claude-3-5-sonnet-20241022"
-            )
+        Args:
+            provider: Provider identifier.
+            api_key: Optional API key for the provider.
+            model_name: Optional model override.
+            **kwargs: Provider-specific parameters.
 
-        elif provider == "copilot":
-            return CopilotProvider(**kwargs)
+        Returns:
+            An initialized provider instance.
 
-        else:
-            raise ValueError(f"Unknown provider: {provider}")
+        Raises:
+            ValueError: If provider is unknown or required configuration is missing.
+        """
+        match provider:
+            case "gemini":
+                if not api_key:
+                    raise ValueError("API key required for Gemini provider")
+                return GeminiProvider(
+                    api_key=api_key,
+                    model_name=model_name or "gemini-2.5-flash",
+                )
+            case "anthropic":
+                return AnthropicProvider(
+                    api_key=api_key,
+                    model=model_name or "claude-3-5-sonnet-20241022",
+                )
+            case "copilot":
+                return CopilotProvider(**kwargs)
+            case _:
+                raise ValueError(f"Unknown provider: {provider}")
