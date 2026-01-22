@@ -9,31 +9,20 @@
     <meta name="keywords" content="PWA, GitHub, AI, Editor, Mobile, Gemini" />
 
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    
-    <!-- Add to Home Screen -->
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS standalone hints -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Gemini GitHub" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
 
     <!-- Configure local Pyodide base for offline Python (/preload python) -->
     <script>
       window.__PYODIDE_BASE = '/vendor/pyodide/0.28.2/full';
     </script>
-    
-    <!-- Service Worker Registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('ServiceWorker registered successfully:', registration.scope);
-            })
-            .catch((error) => {
-              console.log('ServiceWorker registration failed:', error);
-            });
-        });
-      }
-    </script>
-    
+
     <title>Gemini Web Wrapper - GitHub Editor</title>
   </head>
   <body>

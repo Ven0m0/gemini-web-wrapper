@@ -8,6 +8,7 @@ async/await, orjson, uvloop, and comprehensive validation.
 
 import asyncio
 import json
+import mimetypes
 import os
 import re
 import sys
@@ -1401,18 +1402,6 @@ async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
         ) from e
 
 
-# ----- Static File Serving (Frontend) -----
-# Mount the frontend build directory to serve the React PWA.
-# This must be at the end so API routes take precedence.
-_frontend_dist_dir = os.environ.get("FRONTEND_DIST_DIR", "frontend/dist")
-if os.path.isdir(_frontend_dist_dir):
-    app.mount(
-        "/",
-        StaticFiles(directory=_frontend_dist_dir, html=True),
-        name="frontend",
-    )
-
-
 # ===== OPEN WEBUI INTEGRATION FEATURES =====
 
 # Additional endpoints inspired by Open WebUI functionality
@@ -1426,10 +1415,10 @@ async def get_config():
         "ui": {
             "announcement": "",
             "name": "Gemini Web Wrapper",
-            "logo": "/static/logo.svg",
+            "logo": "/icon-192.png",
             "default_locale": "en-US",
-            "sync": True
-        }
+            "sync": True,
+        },
     }
 
 
@@ -1492,7 +1481,7 @@ async def get_user_info():
         "email": "user@example.com",
         "name": "Default User",
         "role": "user",
-        "profile_image_url": "/static/default-avatar.png"
+        "profile_image_url": "/icon-192.png",
     }
 
 
@@ -1596,8 +1585,20 @@ async def create_tool(tool: Tool):
     """Create a new tool, similar to Open WebUI."""
     return {
         "status": True,
-        "message": f"Tool {tool.name} created successfully"
+        "message": f"Tool {tool.name} created successfully",
     }
+
+
+# ----- Static File Serving (Frontend / PWA) -----
+# Keep this at the end so API routes take precedence.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+_frontend_dist_dir = os.environ.get("FRONTEND_DIST_DIR", "frontend/dist")
+if os.path.isdir(_frontend_dist_dir):
+    app.mount(
+        "/",
+        StaticFiles(directory=_frontend_dist_dir, html=True),
+        name="frontend",
+    )
 
 
 if __name__ == "__main__":
