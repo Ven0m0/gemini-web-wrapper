@@ -498,7 +498,9 @@ async def chatbot_stream(
             ):
                 yield chunk
         except Exception as e:
-            yield f"Error: Generation failed - {e}"
+            # Log detailed error server-side, but return a generic message to the client
+            print(f"chatbot_stream generation error: {e}", file=sys.stderr)
+            yield "Error: Generation failed"
 
     return StreamingResponse(generate_stream(), media_type="text/plain")
 
