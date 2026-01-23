@@ -38,6 +38,11 @@ dependencies = [
   "uvloop>=0.22.0",
   "anthropic>=0.30.0",
   "github-copilot-sdk>=0.1.0",
+  "google-genai>=1.60.0",
+  "google-api-core>=2.29.0",
+  "google-auth>=2.47.0",
+  "google-cloud-aiplatform>=1.134.0",
+  "starlette>=0.50.0",
 ]
 
 
@@ -78,6 +83,7 @@ select = [
 ignore = [
   "B008",  # FastAPI Depends() in defaults is intentional
   "E501",  # Line length soft limit, enforced via formatter
+  "UP047", # Type parameter syntax not yet supported by mypy
 ]
 
 [tool.ruff.lint.per-file-ignores]

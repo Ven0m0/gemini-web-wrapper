@@ -1408,6 +1408,7 @@ async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
 
 # Additional endpoints inspired by Open WebUI functionality
 
+
 @app.get("/api/config")
 async def get_config():
     """Get Open WebUI-like configuration."""
@@ -1435,23 +1436,19 @@ async def get_models():
                 "object": "model",
                 "created": 1677610602,
                 "owned_by": "google",
-                "meta": {
-                    "requirements": []
-                },
+                "meta": {"requirements": []},
                 "info": {},
-                "preset": True
+                "preset": True,
             },
             {
                 "id": "gemini-2.5-pro",
-                "name": "Gemini 2.5 Pro", 
+                "name": "Gemini 2.5 Pro",
                 "object": "model",
                 "created": 1677610602,
                 "owned_by": "google",
-                "meta": {
-                    "requirements": []
-                },
+                "meta": {"requirements": []},
                 "info": {},
-                "preset": True
+                "preset": True,
             },
             {
                 "id": "gemini-3.0-pro",
@@ -1459,12 +1456,10 @@ async def get_models():
                 "object": "model",
                 "created": 1677610602,
                 "owned_by": "google",
-                "meta": {
-                    "requirements": []
-                },
+                "meta": {"requirements": []},
                 "info": {},
-                "preset": True
-            }
+                "preset": True,
+            },
         ]
     }
 
@@ -1500,10 +1495,7 @@ async def save_chat_history(chat_data: dict):
     """Save chat history, similar to Open WebUI."""
     # In a real implementation, this would save to a database
     # For now, we'll just return success
-    return {
-        "status": True,
-        "message": "Chat history saved successfully"
-    }
+    return {"status": True, "message": "Chat history saved successfully"}
 
 
 @app.get("/api/chat/history")
@@ -1511,20 +1503,14 @@ async def get_chat_history():
     """Get chat history, similar to Open WebUI."""
     # In a real implementation, this would fetch from a database
     # For now, we'll return an empty history
-    return {
-        "history": [],
-        "count": 0
-    }
+    return {"history": [], "count": 0}
 
 
 @app.delete("/api/chat/history/{chat_id}")
 async def delete_chat_history(chat_id: str):
     """Delete specific chat history, similar to Open WebUI."""
     # In a real implementation, this would delete from a database
-    return {
-        "status": True,
-        "message": f"Chat history {chat_id} deleted successfully"
-    }
+    return {"status": True, "message": f"Chat history {chat_id} deleted successfully"}
 
 
 # Documents and RAG features (similar to Open WebUI)
@@ -1541,7 +1527,7 @@ async def upload_document(doc_req: DocumentUploadReq):
     return {
         "status": True,
         "filename": doc_req.filename,
-        "message": f"Document {doc_req.filename} uploaded successfully"
+        "message": f"Document {doc_req.filename} uploaded successfully",
     }
 
 
@@ -1549,19 +1535,13 @@ async def upload_document(doc_req: DocumentUploadReq):
 async def get_documents():
     """Get list of documents, similar to Open WebUI."""
     # In a real implementation, this would fetch from a vector DB
-    return {
-        "documents": [],
-        "count": 0
-    }
+    return {"documents": [], "count": 0}
 
 
 @app.delete("/api/document/{doc_id}")
 async def delete_document(doc_id: str):
     """Delete a document, similar to Open WebUI."""
-    return {
-        "status": True,
-        "message": f"Document {doc_id} deleted successfully"
-    }
+    return {"status": True, "message": f"Document {doc_id} deleted successfully"}
 
 
 # Tools management (similar to Open WebUI)
@@ -1576,10 +1556,7 @@ class Tool(BaseModel):
 @app.get("/api/tools")
 async def get_tools():
     """Get available tools, similar to Open WebUI."""
-    return {
-        "tools": [],
-        "count": 0
-    }
+    return {"tools": [], "count": 0}
 
 
 @app.post("/api/tool")
