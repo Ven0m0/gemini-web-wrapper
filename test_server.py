@@ -26,13 +26,13 @@ with patch.dict(os.environ, {"GOOGLE_API_KEY": "fake-key"}):
 
 
 @pytest.fixture
-def client() -> Generator[TestClient, None, None]:
+def client() -> Generator[TestClient]:
     """Create a TestClient with mocked provider state."""
 
     mock_provider = MagicMock()
     mock_provider.generate = AsyncMock(return_value="Mocked response")
 
-    async def _stream_gen() -> AsyncGenerator[str, None]:
+    async def _stream_gen() -> AsyncGenerator[str]:
         yield "Mocked response"
 
     def _stream(
@@ -40,7 +40,7 @@ def client() -> Generator[TestClient, None, None]:
         system: str | None = None,
         history: list[dict[str, str]] | None = None,
         **kwargs: Any,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         _ = (prompt, system, history, kwargs)
         return _stream_gen()
 
@@ -52,7 +52,7 @@ def client() -> Generator[TestClient, None, None]:
     mock_session_mgr.new_session = MagicMock(return_value="test-session-id")
 
     @asynccontextmanager
-    async def test_lifespan(_: Any) -> AsyncGenerator[None, None]:
+    async def test_lifespan(_: Any) -> AsyncGenerator[None]:
         state.attribution_cache.clear()
         state.llm_provider = mock_provider
         state.session_manager = mock_session_mgr
