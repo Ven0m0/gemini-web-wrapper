@@ -26,7 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cookie_manager import CookieManager
 from gemini_client import GeminiClientWrapper
@@ -47,6 +47,8 @@ from utils import handle_generation_errors, run_in_thread
 class Settings(BaseSettings):
     """Application settings loaded from environment or .env file."""
 
+    model_config = SettingsConfigDict(env_file=".env")
+
     google_api_key: str
     model_provider: str = "gemini"
     model_name: str | None = None
@@ -62,11 +64,6 @@ class Settings(BaseSettings):
         "gemini-3-pro": "gemini-3.0-pro",
         "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
     }
-
-    class Config:
-        """Pydantic configuration."""
-
-        env_file = ".env"
 
     def resolve_model(self, requested: str | None) -> str:
         """Return a Gemini model name for a requested OpenAI-style name."""
