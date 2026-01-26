@@ -35,9 +35,6 @@ dependencies = [
   "anthropic>=0.30.0",
   "github-copilot-sdk>=0.1.0",
   "google-genai>=1.60.0",
-  "google-api-core>=2.29.0",
-  "google-auth>=2.47.0",
-  "starlette>=0.50.0",
 ]
 
 
