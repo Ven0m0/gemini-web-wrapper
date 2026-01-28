@@ -247,8 +247,8 @@ class CookieManager:
                 for func in browser_funcs.values():
                     try:
                         cookies.extend(func(domain_name=domain))
-                    except Exception:
-                        # Skip browsers that fail
+                    except Exception:  # nosec B112
+                        # Skip browsers that fail (intentional)
                         continue
             elif browser in browser_funcs:
                 cookies = browser_funcs[browser](domain_name=domain)
@@ -507,17 +507,15 @@ class CookieManager:
             or required cookies are missing/expired.
         """
         async with self._db_connection() as db:
-            # Query only the required cookies
+            # Query only the required cookies (parameterized - placeholders are "?" chars)
             placeholders = ", ".join("?" * len(self.REQUIRED_COOKIES))
-            cursor = await db.execute(
-                f"""
+            query = f"""
                 SELECT name, value, expires
                 FROM cookies
                 WHERE profile_name = ?
                   AND name IN ({placeholders})
-                """,
-                (profile_name, *self.REQUIRED_COOKIES),
-            )
+                """  # nosec B608
+            cursor = await db.execute(query, (profile_name, *self.REQUIRED_COOKIES))
             rows = await cursor.fetchall()
 
             if not rows:

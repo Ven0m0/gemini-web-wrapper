@@ -1585,8 +1585,8 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 9000))
     uvicorn.run(
         "server:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # nosec B104
         port=port,
         loop="uvloop",
-        reload=False,  # Disable reload in production
+        reload=False,
     )
