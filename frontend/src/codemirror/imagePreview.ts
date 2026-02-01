@@ -10,9 +10,9 @@ function isSafeSrc(src: string): boolean {
   // Only allow data URLs that are clearly images
   if (lower.startsWith('data:image/')) return true
   // Block scripting or generic data schemes regardless of casing/whitespace
-  if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:')) return false
+  if (['javascript:', 'vbscript:', 'data:'].some(scheme => lower.startsWith(scheme))) return false
   // Allow standard http(s) URLs
-  if (lower.startsWith('http://') || lower.startsWith('https://')) return true
+  if (['http://', 'https://'].some(scheme => lower.startsWith(scheme))) return true
   // relative or root-relative (no explicit scheme)
   return trimmed.startsWith('/') || !trimmed.includes('://')
 }
