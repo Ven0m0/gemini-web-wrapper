@@ -3,16 +3,16 @@ import { Decoration, EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@cod
 
 type ImgRef = { alt: string; src: string }
 
-// Simple sanitizer: allow http(s), safe data:image URLs, or relative paths; block javascript:/vbscript: URIs
+// Simple sanitizer: allow http(s), safe data:image URLs, or relative paths; block javascript:/vbscript:/data: URIs
 function isSafeSrc(src: string): boolean {
   const trimmed = src.trim()
   const lower = trimmed.toLowerCase()
-  // Block scripting schemes regardless of casing/whitespace
-  if (lower.startsWith('javascript:') || lower.startsWith('vbscript:')) return false
-  // Allow standard http(s) URLs
-  if (lower.startsWith('http://') || lower.startsWith('https://')) return true
   // Only allow data URLs that are clearly images
   if (lower.startsWith('data:image/')) return true
+  // Block scripting or generic data schemes regardless of casing/whitespace
+  if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:')) return false
+  // Allow standard http(s) URLs
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return true
   // relative or root-relative (no explicit scheme)
   return trimmed.startsWith('/') || !trimmed.includes('://')
 }
