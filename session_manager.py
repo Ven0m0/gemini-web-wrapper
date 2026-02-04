@@ -8,6 +8,7 @@ a minimal implementation using cachetools.
 from __future__ import annotations
 
 import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import ClassVar
 from uuid import uuid4
@@ -60,6 +61,7 @@ class SessionManager:
             max_sessions: Maximum number of sessions to cache.
         """
         self._sessions: TTLCache[str, Session] = TTLCache(maxsize=max_sessions, ttl=ttl)
+        self._user_sessions: dict[str, set[str]] = defaultdict(set)
         self._current_user_id: str | None = None
         self._current_session_id: str | None = None
         self._current_process_id: str = "gemini-chatbot"
@@ -93,6 +95,7 @@ class SessionManager:
             process_id=self._current_process_id,
         )
         self._sessions[session_id] = session
+        self._user_sessions[self._current_user_id].add(session_id)
         self._current_session_id = session_id
         return session_id
 
@@ -116,7 +119,7 @@ class SessionManager:
         Returns:
             Session object if found and not expired, None otherwise.
         """
-        session: Session | None = self._sessions.get(session_id)  # type: ignore[assignment]
+        session: Session | None = self._sessions.get(session_id)
         if session:
             session.touch()
         return session
@@ -140,7 +143,26 @@ class SessionManager:
         Returns:
             List of active sessions for the user.
         """
-        return [s for s in self._sessions.values() if s.user_id == user_id]
+        if user_id not in self._user_sessions:
+            return []
+
+        active_sessions = []
+        valid_ids = set()
+
+        # Iterate over the user's known session IDs
+        for sid in self._user_sessions[user_id]:
+            # Check if the session is still active (not expired/evicted)
+            if sid in self._sessions:
+                active_sessions.append(self._sessions[sid])
+                valid_ids.add(sid)
+
+        # Lazy cleanup: update the index if sessions have expired/evicted
+        if not valid_ids:
+            del self._user_sessions[user_id]
+        elif len(valid_ids) < len(self._user_sessions[user_id]):
+            self._user_sessions[user_id] = valid_ids
+
+        return active_sessions
 
     def clear_user_sessions(self, user_id: str) -> int:
         """Clear all sessions for a user.
@@ -151,15 +173,21 @@ class SessionManager:
         Returns:
             Number of sessions cleared.
         """
-        sessions_to_clear = [
-            sid for sid, s in self._sessions.items() if s.user_id == user_id
-        ]
-        for sid in sessions_to_clear:
-            del self._sessions[sid]
-        return len(sessions_to_clear)
+        if user_id not in self._user_sessions:
+            return 0
+
+        count = 0
+        for sid in self._user_sessions[user_id]:
+            if sid in self._sessions:
+                del self._sessions[sid]
+                count += 1
+
+        del self._user_sessions[user_id]
+        return count
 
     def clear_all(self) -> None:
         """Clear all sessions."""
         self._sessions.clear()
+        self._user_sessions.clear()
         self._current_user_id = None
         self._current_session_id = None
