@@ -1,9 +1,12 @@
+"""Tests for the SessionManager class."""
+
 import time
-import pytest
+
 from session_manager import SessionManager
 
 
 def test_session_creation():
+    """Test creating a new session and verifying its attributes."""
     sm = SessionManager()
     sm.attribution("user1")
     session_id = sm.new_session()
@@ -15,6 +18,7 @@ def test_session_creation():
 
 
 def test_get_user_sessions():
+    """Test retrieving all sessions for a specific user."""
     sm = SessionManager()
     sm.attribution("user1")
     s1 = sm.new_session()
@@ -33,6 +37,7 @@ def test_get_user_sessions():
 
 
 def test_clear_user_sessions():
+    """Test clearing all sessions for a specific user."""
     sm = SessionManager()
     sm.attribution("user1")
     sm.new_session()
@@ -46,6 +51,7 @@ def test_clear_user_sessions():
 
 
 def test_expiration_cleanup():
+    """Test that expired sessions are cleaned up."""
     # Use a short TTL for testing
     sm = SessionManager(ttl=0.1)
     sm.attribution("user1")
@@ -64,6 +70,7 @@ def test_expiration_cleanup():
 
 
 def test_clear_all():
+    """Test clearing all sessions and state."""
     sm = SessionManager()
     sm.attribution("user1")
     sm.new_session()
@@ -75,21 +82,17 @@ def test_clear_all():
 
 
 def test_lazy_cleanup_logic():
+    """Test the lazy cleanup mechanism during session retrieval."""
     # Manually simulate a scenario where index has stale ID
-    sm = SessionManager()
-    # We need to rely on the implementation details or public API.
-    # Since we haven't implemented the index yet, this test checks current behavior
-    # or behavior after change.
-    # But to test lazy cleanup, we can rely on expiration.
-
+    # We rely on expiration to simulate staleness
     sm = SessionManager(ttl=0.1)
     sm.attribution("user1")
-    s1 = sm.new_session()
+    sm.new_session()
 
     time.sleep(0.2)
 
-    # Should return empty list
-    assert sm.get_user_sessions("user1") == []
+    # Should return empty list (implicit boolean check)
+    assert not sm.get_user_sessions("user1")
 
     # If we add a new session now
     s2 = sm.new_session()
