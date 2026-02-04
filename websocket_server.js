@@ -41,7 +41,7 @@ wss.on('connection', (ws, request) => {
     timestamp: Date.now()
   }));
   
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message);
       console.log(`📨 ${clientId} -> ${data.type}: ${data.data?.substring(0, 50)}${data.data?.length > 50 ? '...' : ''}`);
@@ -112,7 +112,7 @@ wss.on('connection', (ws, request) => {
             console.log(`📤 ${clientId} uploading text: ${filename} (${data.fileSize} bytes)`);
           }
           
-          fs.writeFileSync(filepath, fileContent);
+          await fs.promises.writeFile(path.join(filesDir, path.basename(filename)), fileContent);
           
           ws.send(JSON.stringify({
             type: 'status',
