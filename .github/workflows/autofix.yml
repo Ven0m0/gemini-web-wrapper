@@ -48,4 +48,4 @@ jobs:
       - run: ruff format
 
       - name: autofix.ci
-        uses: autofix-ci/action@v1.3.2
+        uses: autofix-ci/action@v1.3.3
