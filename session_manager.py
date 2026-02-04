@@ -62,6 +62,7 @@ class SessionManager:
         """
         self._sessions: TTLCache[str, Session] = TTLCache(maxsize=max_sessions, ttl=ttl)
         self._user_sessions: dict[str, set[str]] = defaultdict(set)
+        self._lock = threading.Lock()
         self._current_user_id: str | None = None
         self._current_session_id: str | None = None
         self._current_process_id: str = "gemini-chatbot"
