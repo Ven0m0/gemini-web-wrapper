@@ -153,8 +153,9 @@ class SessionManager:
         # Iterate over the user's known session IDs
         for sid in self._user_sessions[user_id]:
             # Check if the session is still active (not expired/evicted)
-            if sid in self._sessions:
-                active_sessions.append(self._sessions[sid])
+            session = self._sessions.get(sid)
+            if session:
+                active_sessions.append(session)
                 valid_ids.add(sid)
 
         # Lazy cleanup: update the index if sessions have expired/evicted
