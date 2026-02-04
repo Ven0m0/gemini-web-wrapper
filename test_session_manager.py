@@ -2,6 +2,7 @@ import time
 import pytest
 from session_manager import SessionManager
 
+
 def test_session_creation():
     sm = SessionManager()
     sm.attribution("user1")
@@ -11,6 +12,7 @@ def test_session_creation():
     assert sm.get_session(session_id) is not None
     assert sm.current_session_id == session_id
     assert sm.current_user_id == "user1"
+
 
 def test_get_user_sessions():
     sm = SessionManager()
@@ -29,6 +31,7 @@ def test_get_user_sessions():
     assert len(sessions2) == 1
     assert sessions2[0].session_id == s3
 
+
 def test_clear_user_sessions():
     sm = SessionManager()
     sm.attribution("user1")
@@ -40,6 +43,7 @@ def test_clear_user_sessions():
     count = sm.clear_user_sessions("user1")
     assert count == 2
     assert len(sm.get_user_sessions("user1")) == 0
+
 
 def test_expiration_cleanup():
     # Use a short TTL for testing
@@ -58,6 +62,7 @@ def test_expiration_cleanup():
     sessions = sm.get_user_sessions("user1")
     assert len(sessions) == 0
 
+
 def test_clear_all():
     sm = SessionManager()
     sm.attribution("user1")
@@ -67,6 +72,7 @@ def test_clear_all():
     assert len(sm.get_user_sessions("user1")) == 0
     assert sm.current_user_id is None
     assert sm.current_session_id is None
+
 
 def test_lazy_cleanup_logic():
     # Manually simulate a scenario where index has stale ID
