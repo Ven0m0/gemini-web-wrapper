@@ -8,6 +8,7 @@ a minimal implementation using cachetools.
 from __future__ import annotations
 
 import time
+import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import ClassVar
