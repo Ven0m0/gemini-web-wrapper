@@ -112,7 +112,7 @@ wss.on('connection', (ws, request) => {
             console.log(`📤 ${clientId} uploading text: ${filename} (${data.fileSize} bytes)`);
           }
           
-          await fs.promises.writeFile(filepath, fileContent);
+          await fs.promises.writeFile(path.join(filesDir, path.basename(filename)), fileContent);
           
           ws.send(JSON.stringify({
             type: 'status',
