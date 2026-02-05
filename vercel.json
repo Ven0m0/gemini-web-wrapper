@@ -1,0 +1,77 @@
+{
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "frontend/dist"
+      }
+    },
+    {
+      "src": "server.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server.py"
+    },
+    {
+      "src": "/health",
+      "dest": "server.py"
+    },
+    {
+      "src": "/chat",
+      "dest": "server.py"
+    },
+    {
+      "src": "/code",
+      "dest": "server.py"
+    },
+    {
+      "src": "/chatbot",
+      "dest": "server.py"
+    },
+    {
+      "src": "/chatbot/stream",
+      "dest": "server.py"
+    },
+    {
+      "src": "/v1/chat/completions",
+      "dest": "server.py"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "server.py"
+    },
+    {
+      "src": "/profiles/(.*)",
+      "dest": "server.py"
+    },
+    {
+      "src": "/gemini/(.*)",
+      "dest": "server.py"
+    },
+    {
+      "src": "/github/(.*)",
+      "dest": "server.py"
+    },
+    {
+      "src": "/memory/(.*)",
+      "dest": "server.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/$1"
+    }
+  ],
+  "env": {
+    "FRONTEND_DIST_DIR": "frontend/dist"
+  },
+  "functions": {
+    "server.py": {
+      "maxDuration": 30
+    }
+  }
+}
