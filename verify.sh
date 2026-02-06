@@ -43,6 +43,24 @@ else
     exit 1
 fi
 
+# Check zagi (agent-optimised git)
+echo "📋 Checking zagi..."
+if command -v zagi &> /dev/null; then
+    ZAGI_VERSION=$(zagi --version 2>/dev/null || echo "unknown")
+    echo "✅ zagi version: $ZAGI_VERSION"
+else
+    echo "⚠️  zagi not found. Install: curl -fsSL https://zagi.sh/install | sh"
+fi
+
+# Check uv
+echo "📋 Checking uv..."
+if command -v uv &> /dev/null; then
+    UV_VERSION=$(uv --version 2>/dev/null || echo "unknown")
+    echo "✅ uv version: $UV_VERSION"
+else
+    echo "⚠️  uv not found. Install: https://docs.astral.sh/uv/"
+fi
+
 # Check required files
 echo "📋 Checking required files..."
 REQUIRED_FILES=(
