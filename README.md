@@ -1,5 +1,7 @@
 # 🤖 AI Assistant App
 
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/54b643c276114ed89b3dd9b3f2d4d176)](https://app.codacy.com/gh/Ven0m0/dotfiles/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
 A modern, mobile-first Progressive Web App (PWA) for AI-assisted development with GitHub integration. Built with React, TypeScript, FastAPI, and Google's Gemini AI.
 
 ## ✨ Features
