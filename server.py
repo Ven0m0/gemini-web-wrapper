@@ -10,7 +10,6 @@ import asyncio
 import json
 import mimetypes
 import os
-import re
 import sys
 import time
 from collections.abc import AsyncGenerator, Callable, Sequence
@@ -40,7 +39,7 @@ from openai_transforms import (
     to_chat_completion_response,
 )
 from session_manager import SessionManager
-from utils import handle_generation_errors, run_in_thread
+from utils import handle_generation_errors
 
 
 # ----- Configuration -----
@@ -156,7 +155,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     await state.cookie_manager.init_db()
     state.gemini_client = GeminiClientWrapper(state.cookie_manager)
     yield
-    # Cleanup if necessary
+    # Cleanup: close async resources
+    if state.gemini_client:
+        await state.gemini_client.close()
 
     state.llm_provider = None
     state.session_manager = None
@@ -590,98 +591,60 @@ async def query_sessions(
 
 
 # ----- OpenAI-Compatible Endpoints -----
-async def generate_sse_response(
-    text: str,
-    model: str,
+async def _stream_gemini_sse(
+    gemini_client: GeminiClientWrapper,
+    prompt: str,
+    model_name: str,
+    request: ChatCompletionRequest,
     request_id: str,
-    include_usage: bool = False,
+    include_usage: bool,
 ) -> AsyncGenerator[str]:
-    """Generate SSE chunks by splitting text into smaller pieces for streaming.
+    """Stream Gemini responses as OpenAI-compatible SSE chunks.
 
-    Since Gemini doesn't provide true token-by-token streaming, we split the
-    complete response into word-based chunks to provide a better UX.
+    Uses gemini-webapi native streaming for true incremental delivery.
     """
     created = int(time.time())
-    # Split text into chunks by sentences or words for better streaming UX
-    # Use sentence boundaries for more natural chunking
-    # Split by sentences (periods, exclamation marks, question marks)
-    sentences = re.split(r"([.!?]+\s+)", text)
-    chunks = []
-    current_chunk = ""
+    effective_model = request.model or model_name
+    first_chunk = True
 
-    # Combine sentence parts back and group into ~50 char chunks
-    for part in sentences:
-        current_chunk += part
-        if (
-            len(current_chunk) >= 50 or part.strip().endswith((".", "!", "?"))
-        ) and current_chunk.strip():
-            chunks.append(current_chunk)
-            current_chunk = ""
+    try:
+        async for output in gemini_client.generate_stream(prompt, model=model_name):
+            delta_text = output.text_delta or ""
+            if not delta_text:
+                continue
 
-    # Add any remaining text
-    if current_chunk.strip():
-        chunks.append(current_chunk)
+            delta: dict[str, Any] = {"content": delta_text}
+            if first_chunk:
+                delta["role"] = "assistant"
+                first_chunk = False
 
-    # If splitting failed, use words as fallback
-    if not chunks or len(chunks) == 1:
-        words = text.split()
-        chunks = []
-        current_chunk = ""
-        for word in words:
-            current_chunk += word + " "
-            if len(current_chunk) >= 50:
-                chunks.append(current_chunk.strip())
-                current_chunk = ""
-        if current_chunk.strip():
-            chunks.append(current_chunk.strip())
-
-    # Send first chunk with role
-    if chunks:
-        first_chunk = {
-            "id": request_id,
-            "object": "chat.completion.chunk",
-            "created": created,
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "delta": {
-                        "role": "assistant",
-                        "content": chunks[0],
-                    },
-                    "finish_reason": None,
-                }
-            ],
-        }
-        yield f"data: {json.dumps(first_chunk)}\n\n"
-
-        # Send remaining chunks
-        for chunk_text in chunks[1:]:
             chunk_data = {
                 "id": request_id,
                 "object": "chat.completion.chunk",
                 "created": created,
-                "model": model,
+                "model": effective_model,
                 "choices": [
                     {
                         "index": 0,
-                        "delta": {
-                            "content": chunk_text,
-                        },
+                        "delta": delta,
                         "finish_reason": None,
                     }
                 ],
             }
             yield f"data: {json.dumps(chunk_data)}\n\n"
-            # Small delay to simulate streaming
-            await asyncio.sleep(0.01)
+    except Exception as e:
+        # Log error but still send the finish marker
+        print(
+            f"Streaming generation error: {e}",
+            file=sys.stderr,
+        )
 
     # Send finish chunk
-    finish_chunk = {
+    finish_chunk: dict[str, Any] = {
         "id": request_id,
         "object": "chat.completion.chunk",
         "created": created,
-        "model": model,
+        "model": effective_model,
         "choices": [
             {
                 "index": 0,
@@ -697,70 +660,45 @@ async def generate_sse_response(
             "total_tokens": 0,
         }
     yield f"data: {json.dumps(finish_chunk)}\n\n"
-    # Send done marker
     yield "data: [DONE]\n\n"
 
 
-async def generate_sse_tool_response(
+def _build_tool_call_response(
     tool_calls: list,
-    model: str,
+    remaining_text: str,
+    request: ChatCompletionRequest,
+    model_name: str,
     request_id: str,
-    include_usage: bool = False,
-) -> AsyncGenerator[str]:
-    """Generate SSE chunks for tool call responses."""
-    created = int(time.time())
-    # Send tool calls
-    for i, tc in enumerate(tool_calls):
-        chunk_data = {
-            "id": request_id,
-            "object": "chat.completion.chunk",
-            "created": created,
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "delta": {
-                        "role": "assistant",
-                        "tool_calls": [
-                            {
-                                "index": i,
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments,
-                                },
-                            }
-                        ],
-                    },
-                    "finish_reason": None,
-                }
-            ],
-        }
-        yield f"data: {json.dumps(chunk_data)}\n\n"
-    # Send finish chunk
-    finish_chunk = {
-        "id": request_id,
-        "object": "chat.completion.chunk",
-        "created": created,
-        "model": model,
-        "choices": [
-            {
-                "index": 0,
-                "delta": {},
-                "finish_reason": "tool_calls",
-            }
-        ],
-    }
-    if include_usage:
-        finish_chunk["usage"] = {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-        }
-    yield f"data: {json.dumps(finish_chunk)}\n\n"
+) -> ChatCompletionResponse:
+    """Build a ChatCompletionResponse containing tool calls."""
+    from openai_schemas import (
+        ChatCompletionMessage as CCMessage,
+    )
+    from openai_schemas import (
+        ChatCompletionResponseChoice as CCChoice,
+    )
+    from openai_schemas import (
+        ChatCompletionResponseUsage as CCUsage,
+    )
 
-    yield "data: [DONE]\n\n"
+    message = CCMessage(
+        role="assistant",
+        content=remaining_text if remaining_text else None,
+        tool_calls=tool_calls,
+    )
+    choice = CCChoice(
+        index=0,
+        message=message,
+        finish_reason="tool_calls",
+    )
+    return ChatCompletionResponse(
+        id=request_id,
+        object="chat.completion",
+        created=int(time.time()),
+        model=request.model or model_name,
+        choices=[choice],
+        usage=CCUsage(),
+    )
 
 
 @app.post("/v1/chat/completions", response_model=None)
@@ -796,7 +734,9 @@ async def openai_chat_completions(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    "Failed to auto-initialize. Please login to gemini.google.com or create a profile."
+                    "Failed to auto-initialize. "
+                    "Please login to gemini.google.com "
+                    "or create a profile."
                 ),
             )
     # Resolve model name (handle aliases)
@@ -805,76 +745,60 @@ async def openai_chat_completions(
     prompt = collapse_messages(request)
     # Generate request ID
     request_id = f"chatcmpl-{uuid4().hex}"
+
+    # Determine streaming options
+    is_streaming = request.stream
+    stream_options = getattr(request, "stream_options", {}) or {}
+    include_usage = stream_options.get("include_usage", False)
+
+    if is_streaming:
+        # Use native gemini-webapi streaming
+        return StreamingResponse(
+            _stream_gemini_sse(
+                gemini_client,
+                prompt,
+                model_name,
+                request,
+                request_id,
+                include_usage,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        )
+
+    # Non-streaming: generate full response
     try:
-        # Use gemini-webapi client to generate content
-        if not gemini_client.client:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Gemini client not ready",
-            )
-        # Generate content using the client with timeout protection
-        try:
-            raw_response = await asyncio.wait_for(
-                run_in_thread(
-                    gemini_client.client.generate_content,
-                    prompt,
-                    model=model_name,
-                ),
-                timeout=30.0,
-            )
-        except TimeoutError as e:
-            raise HTTPException(
-                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                detail="Gemini generation timed out after 30s",
-            ) from e
+        raw_response = await asyncio.wait_for(
+            gemini_client.generate(prompt, model=model_name),
+            timeout=30.0,
+        )
+    except TimeoutError as e:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Gemini generation timed out after 30s",
+        ) from e
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Gemini generation failed: {exc}",
         ) from exc
+
     # Parse for tool calls
     text = raw_response.text or ""
     tool_calls: list = []
     if request.tools and request.tool_choice != "none":
         tool_calls, text = parse_tool_calls(text)
-    # Check if streaming is requested
-    is_streaming = request.stream
-    include_usage = False
-    stream_options = getattr(request, "stream_options", {}) or {}
-    include_usage = stream_options.get("include_usage", False)
-    if is_streaming:
-        # Return SSE streaming response
-        if tool_calls:
-            return StreamingResponse(
-                generate_sse_tool_response(
-                    tool_calls,
-                    request.model or model_name,
-                    request_id,
-                    include_usage,
-                ),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                },
-            )
-        else:
-            return StreamingResponse(
-                generate_sse_response(
-                    text,
-                    request.model or model_name,
-                    request_id,
-                    include_usage,
-                ),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                },
-            )
-    else:
-        # Return regular JSON response
-        return to_chat_completion_response(raw_response, request, model_name)
+
+    if tool_calls:
+        # Build a tool-call response manually
+        return _build_tool_call_response(
+            tool_calls, text, request, model_name, request_id
+        )
+
+    return to_chat_completion_response(raw_response, request, model_name)
 
 
 # ----- Profile Management Endpoints -----
@@ -1106,7 +1030,7 @@ async def gemini_chat(
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to initialize with profile '{r.profile}'",
+                detail=(f"Failed to initialize with profile '{r.profile}'"),
             )
     # Otherwise try auto-init if not already initialized
     elif not await gemini_client.ensure_initialized():
@@ -1115,16 +1039,18 @@ async def gemini_chat(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    "Failed to auto-initialize. Please login to gemini.google.com or create a profile."
+                    "Failed to auto-initialize. "
+                    "Please login to gemini.google.com "
+                    "or create a profile."
                 ),
             )
     try:
-        response_text, conversation_id = await gemini_client.chat(
+        output, conversation_id = await gemini_client.chat(
             r.message,
             r.conversation_id,
         )
         return {
-            "text": response_text,
+            "text": output.text or "",
             "conversation_id": conversation_id,
             "profile": gemini_client.get_current_profile(),
         }
@@ -1132,79 +1058,6 @@ async def gemini_chat(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Chat failed: {e}",
-        ) from e
-
-
-@app.get("/gemini/conversations")
-async def list_gemini_conversations(
-    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
-) -> dict[str, Any]:
-    """List all conversations from gemini-webapi.
-
-    Args:
-        gemini_client: Injected GeminiClientWrapper dependency.
-
-    Returns:
-        Dict with conversations list.
-
-    Raises:
-        HTTPException: 503 if client not initialized.
-    """
-    if not await gemini_client.ensure_initialized():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Client not initialized. Use /gemini/chat to initialize.",
-        )
-    try:
-        conversations = await gemini_client.list_conversations()
-        return {
-            "conversations": conversations,
-            "count": len(conversations),
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list conversations: {e}",
-        ) from e
-
-
-@app.delete("/gemini/conversations/{conversation_id}")
-async def delete_gemini_conversation(
-    conversation_id: str,
-    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
-) -> dict[str, str]:
-    """Delete a conversation from gemini-webapi.
-
-    Args:
-        conversation_id: Conversation ID to delete.
-        gemini_client: Injected GeminiClientWrapper dependency.
-
-    Returns:
-        Dict with status and message.
-
-    Raises:
-        HTTPException: 503 if client not initialized, 500 if deletion fails.
-    """
-    if not await gemini_client.ensure_initialized():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Client not initialized. Use /gemini/chat to initialize.",
-        )
-    try:
-        success = await gemini_client.delete_conversation(conversation_id)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete conversation '{conversation_id}'",
-            )
-        return {
-            "status": "success",
-            "message": f"Conversation '{conversation_id}' deleted",
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Conversation deletion failed: {e}",
         ) from e
 
 
