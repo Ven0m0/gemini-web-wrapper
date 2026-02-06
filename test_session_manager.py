@@ -1,4 +1,5 @@
 """Tests for the SessionManager class."""
+
 import time
 
 from session_manager import SessionManager
