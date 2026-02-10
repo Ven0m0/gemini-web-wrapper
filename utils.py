@@ -6,7 +6,7 @@ the application.
 """
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
@@ -222,3 +222,48 @@ def require_non_empty_list(
             detail=f"{field_name} cannot be empty",
         )
     return value
+
+# ----- String Utilities -----
+
+
+def chunk_sentence_parts(sentences: Iterable[str], chunk_size: int = 50) -> list[str]:
+    """Combine sentence parts back and group into ~50 char chunks.
+
+    Optimized version of iterative string concatenation.
+    Accumulates parts in a list and joins them only when a chunk is ready.
+
+    Args:
+        sentences: Iterable of sentence parts.
+        chunk_size: Target size for chunks (default 50).
+
+    Returns:
+        List of chunked strings.
+    """
+    chunks: list[str] = []
+    current_chunk_parts: list[str] = []
+    current_length = 0
+
+    for part in sentences:
+        current_chunk_parts.append(part)
+        current_length += len(part)
+
+        # Check conditions
+        if (
+            current_length >= chunk_size
+            or part.strip().endswith((".", "!", "?"))
+        ):
+            # Check if accumulated chunk has content
+            # We must join to check properly, as individual parts might be whitespace
+            # but combine to something significant.
+            # But checking "".join() is safest to match original behavior exactly.
+            full_chunk = "".join(current_chunk_parts)
+            if full_chunk.strip():
+                chunks.append(full_chunk)
+                current_chunk_parts = []
+                current_length = 0
+            # If whitespace only, we continue accumulating (do not clear)
+            # This matches original behavior:
+            # if (cond) and current_chunk.strip(): append; clear;
+            # else: continue;
+
+    return chunks
