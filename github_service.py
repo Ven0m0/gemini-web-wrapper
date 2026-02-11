@@ -4,6 +4,7 @@ Provides file operations (read, write, commit) using GitHub REST API.
 """
 
 import base64
+from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
@@ -32,19 +33,34 @@ class GitHubService:
     Handles file operations including reading, writing, listing, and committing.
     """
 
-    def __init__(self, config: GitHubConfig) -> None:
+    def __init__(
+        self,
+        config: GitHubConfig,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
         """Initialize GitHub service with configuration.
 
         Args:
             config: GitHubConfig with token, owner, repo, and branch.
+            client: Optional shared httpx.AsyncClient.
         """
         self.config = config
+        self.client = client
         self.base_url = "https://api.github.com"
         self.headers = {
             "Authorization": f"Bearer {config.token}",
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
+
+    @asynccontextmanager
+    async def _get_client(self):
+        """Yields the shared client or creates a new ephemeral one."""
+        if self.client:
+            yield self.client
+        else:
+            async with httpx.AsyncClient() as client:
+                yield client
 
     async def get_file(self, path: str) -> dict[str, Any]:
         """Get file content from GitHub.
@@ -61,7 +77,7 @@ class GitHubService:
         url = f"{self.base_url}/repos/{self.config.owner}/{self.config.repo}/contents/{path}"
         params = {"ref": self.config.branch}
 
-        async with httpx.AsyncClient() as client:
+        async with self._get_client() as client:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
@@ -88,7 +104,7 @@ class GitHubService:
         url = f"{self.base_url}/repos/{self.config.owner}/{self.config.repo}/contents/{path}"
         params = {"ref": self.config.branch}
 
-        async with httpx.AsyncClient() as client:
+        async with self._get_client() as client:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             return response.json()
@@ -129,7 +145,7 @@ class GitHubService:
         if sha:
             data["sha"] = sha
 
-        async with httpx.AsyncClient() as client:
+        async with self._get_client() as client:
             response = await client.put(url, headers=self.headers, json=data)
             response.raise_for_status()
             return response.json()
@@ -156,7 +172,7 @@ class GitHubService:
             "branch": self.config.branch,
         }
 
-        async with httpx.AsyncClient() as client:
+        async with self._get_client() as client:
             response = await client.delete(url, headers=self.headers, json=data)
             response.raise_for_status()
             return response.json()
@@ -172,7 +188,7 @@ class GitHubService:
         """
         url = f"{self.base_url}/repos/{self.config.owner}/{self.config.repo}/branches"
 
-        async with httpx.AsyncClient() as client:
+        async with self._get_client() as client:
             response = await client.get(url, headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -188,7 +204,7 @@ class GitHubService:
         """
         url = f"{self.base_url}/repos/{self.config.owner}/{self.config.repo}"
 
-        async with httpx.AsyncClient() as client:
+        async with self._get_client() as client:
             response = await client.get(url, headers=self.headers)
             response.raise_for_status()
             return response.json()

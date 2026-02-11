@@ -94,6 +94,7 @@ class AppState:
     # Cookie management for gemini-webapi
     cookie_manager: CookieManager | None = None
     gemini_client: GeminiClientWrapper | None = None
+    github_client: httpx.AsyncClient | None = None
 
 
 state = AppState()
@@ -154,16 +155,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     state.cookie_manager = CookieManager(db_path="gemini_cookies.db")
     await state.cookie_manager.init_db()
     state.gemini_client = GeminiClientWrapper(state.cookie_manager)
+    # Initialize shared GitHub client
+    state.github_client = httpx.AsyncClient()
     yield
     # Cleanup: close async resources
     if state.gemini_client:
         await state.gemini_client.close()
+    if state.github_client:
+        await state.github_client.aclose()
+
 
     state.llm_provider = None
     state.session_manager = None
     state.settings = None
     state.cookie_manager = None
     state.gemini_client = None
+    state.github_client = None
     state.attribution_cache.clear()
 
 
@@ -385,6 +392,24 @@ def get_gemini_client() -> GeminiClientWrapper:
             detail="Gemini client not initialized.",
         )
     return state.gemini_client
+
+
+
+def get_github_client() -> httpx.AsyncClient:
+    """FastAPI dependency to get the initialized GitHub client.
+
+    Returns:
+        Initialized httpx.AsyncClient instance.
+
+    Raises:
+        HTTPException: 503 if client is not initialized.
+    """
+    if state.github_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GitHub client not initialized.",
+        )
+    return state.github_client
 
 
 def get_settings() -> Settings:
@@ -1105,7 +1130,10 @@ class GitHubListReq(BaseModel):
 
 
 @app.post("/github/file/read")
-async def github_read_file(r: GitHubFileReadReq) -> dict[str, Any]:
+async def github_read_file(
+    r: GitHubFileReadReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
     """Read a file from GitHub repository.
 
     Args:
@@ -1118,7 +1146,7 @@ async def github_read_file(r: GitHubFileReadReq) -> dict[str, Any]:
         HTTPException: 404 if file not found, 500 on other errors.
     """
     try:
-        service = GitHubService(r.config)
+        service = GitHubService(r.config, client)
         result = await service.get_file(r.path)
         return result
     except httpx.HTTPStatusError as e:
@@ -1139,7 +1167,10 @@ async def github_read_file(r: GitHubFileReadReq) -> dict[str, Any]:
 
 
 @app.post("/github/file/write")
-async def github_write_file(r: GitHubFileWriteReq) -> dict[str, Any]:
+async def github_write_file(
+    r: GitHubFileWriteReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
     """Create or update a file in GitHub repository.
 
     Args:
@@ -1152,7 +1183,7 @@ async def github_write_file(r: GitHubFileWriteReq) -> dict[str, Any]:
         HTTPException: 409 if SHA mismatch, 500 on other errors.
     """
     try:
-        service = GitHubService(r.config)
+        service = GitHubService(r.config, client)
         result = await service.create_or_update_file(
             r.path, r.content, r.message, r.sha
         )
@@ -1175,7 +1206,10 @@ async def github_write_file(r: GitHubFileWriteReq) -> dict[str, Any]:
 
 
 @app.post("/github/list")
-async def github_list_directory(r: GitHubListReq) -> dict[str, Any]:
+async def github_list_directory(
+    r: GitHubListReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
     """List files in a GitHub repository directory.
 
     Args:
@@ -1188,7 +1222,7 @@ async def github_list_directory(r: GitHubListReq) -> dict[str, Any]:
         HTTPException: 404 if directory not found, 500 on other errors.
     """
     try:
-        service = GitHubService(r.config)
+        service = GitHubService(r.config, client)
         items = await service.list_directory(r.path)
         return {
             "items": items,
@@ -1223,7 +1257,10 @@ class GitHubBranchesReq(BaseModel):
 
 
 @app.post("/github/branches")
-async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
+async def github_list_branches(
+    r: GitHubBranchesReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
     """List all branches in a GitHub repository.
 
     Args:
@@ -1236,7 +1273,7 @@ async def github_list_branches(r: GitHubBranchesReq) -> dict[str, Any]:
         HTTPException: 500 on API errors.
     """
     try:
-        service = GitHubService(r.config)
+        service = GitHubService(r.config, client)
         branches = await service.get_branches()
         return {
             "branches": branches,
