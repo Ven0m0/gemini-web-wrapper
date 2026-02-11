@@ -4,10 +4,11 @@ from typing import Any, Literal
 
 from llm_core.interfaces import LLMProvider
 from llm_core.providers.anthropic import AnthropicProvider
+from llm_core.providers.bifrost import BifrostProvider
 from llm_core.providers.copilot import CopilotProvider
 from llm_core.providers.gemini import GeminiProvider
 
-ProviderType = Literal["gemini", "anthropic", "copilot"]
+ProviderType = Literal["gemini", "anthropic", "copilot", "bifrost"]
 
 
 class ProviderFactory:
@@ -49,5 +50,11 @@ class ProviderFactory:
                 )
             case "copilot":
                 return CopilotProvider(**kwargs)
+            case "bifrost":
+                return BifrostProvider(
+                    api_key=api_key,
+                    model=model_name or "gpt-4o-mini",
+                    **kwargs,
+                )
             case _:
                 raise ValueError(f"Unknown provider: {provider}")

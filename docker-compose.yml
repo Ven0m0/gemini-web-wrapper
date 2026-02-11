@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Bifrost AI Gateway
+  bifrost:
+    image: maximhq/bifrost:latest
+    container_name: bifrost-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      # Configure your LLM provider API keys here
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      # Additional Bifrost configuration
+      - BIFROST_PORT=8080
+      - BIFROST_LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-gateway-network
+
+  # Gemini Web Wrapper (optional - run alongside Bifrost)
+  gemini-wrapper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gemini-web-wrapper
+    ports:
+      - "9000:9000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-bifrost}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - BIFROST_URL=http://bifrost:8080/v1
+      - BIFROST_API_KEY=sk-bifrost-default
+      - PORT=9000
+    depends_on:
+      bifrost:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ai-gateway-network
+    profiles:
+      - full-stack
+
+networks:
+  ai-gateway-network:
+    driver: bridge
