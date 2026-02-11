@@ -98,20 +98,8 @@ function restoreStderrCompat(pyodide: any, ctx: { mode: 'obj' | 'fn', orig: any 
 }
 
 export async function runPythonCode(code: string): Promise<PythonRunResult> {
-  const pyodide = await loadPython()
-  let outBuf = ''
-  let errBuf = ''
-  const outCtx = setStdoutCompat(pyodide, (s: string) => { outBuf += s })
-  const errCtx = setStderrCompat(pyodide, (s: string) => { errBuf += s })
-  try {
-    // runPython is sync; for long tasks you may switch to runPythonAsync
-    const result = pyodide.runPython(code)
-    return { stdout: outBuf, stderr: errBuf, result }
-  } finally {
-    // restore callbacks
-    restoreStdoutCompat(pyodide, outCtx)
-    restoreStderrCompat(pyodide, errCtx)
-  }
+  // Now delegates to the async implementation to support top-level await and cooperative multitasking
+  return await runPythonCodeAsync(code)
 }
 
 export async function runPythonCodeAsync(code: string): Promise<PythonRunResult> {
