@@ -12,6 +12,7 @@ Features:
 - Thread-safe operations
 """
 
+import concurrent.futures
 import asyncio
 import json
 import logging
@@ -242,14 +243,27 @@ class CookieManager:
             }
 
             if browser == "all":
-                # Try all browsers and merge results
+                # Try all browsers in parallel and merge results
                 cookies = []
-                for func in browser_funcs.values():
-                    try:
-                        cookies.extend(func(domain_name=domain))
-                    except Exception:  # nosec B112
-                        # Skip browsers that fail (intentional)
-                        continue
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    # Submit all tasks
+                    future_to_browser = {
+                        executor.submit(func, domain_name=domain): name
+                        for name, func in browser_funcs.items()
+                    }
+
+                    # Collect results as they complete
+                    for future in concurrent.futures.as_completed(future_to_browser):
+                        name = future_to_browser[future]
+                        try:
+                            result = future.result()
+                            if result:
+                                cookies.extend(result)
+                        except Exception:  # nosec B112
+                            # Skip browsers that fail (intentional)
+                            logger.debug(f"Failed to extract cookies from {name}")
+                            continue
+
             elif browser in browser_funcs:
                 cookies = browser_funcs[browser](domain_name=domain)
             else:
