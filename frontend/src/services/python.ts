@@ -127,6 +127,6 @@ export async function installMicropipPackages(packages: string[]): Promise<Pytho
     // continue; import may still work if bundled
   }
   const pkgsLit = JSON.stringify(packages)
-  const code = `import asyncio\nimport micropip\nasync def _install():\n    pkgs = ${pkgsLit}\n    for p in pkgs:\n        await micropip.install(p)\nasyncio.get_event_loop().run_until_complete(_install())`
+  const code = `import asyncio\nimport micropip\nasync def _install():\n    await micropip.install(${pkgsLit})\nasyncio.get_event_loop().run_until_complete(_install())`
   return await runPythonCodeAsync(code)
 }
