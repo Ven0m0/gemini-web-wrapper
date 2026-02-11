@@ -35,7 +35,7 @@
     "ts-mocha": "^9.0.2",
     "tsd": "^0.33.0",
     "typedoc": "^0.28.0",
-    "typescript": "5.7",
+    "typescript": "5.9",
     "wabt": "^1.0.32"
   },
   "main": "pyodide.js",
