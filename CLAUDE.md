@@ -124,7 +124,8 @@ This document contains critical information about working with this codebase. Fo
 │       └── providers/         # Provider implementations
 │           ├── gemini.py
 │           ├── anthropic.py
-│           └── copilot.py
+│           ├── copilot.py
+│           └── bifrost.py
 │
 ├── Frontend
 │   └── frontend/
@@ -145,7 +146,7 @@ This document contains critical information about working with this codebase. Fo
 This is a **high-performance multi-provider LLM gateway** with:
 - **FastAPI Backend**: Async/await with uvloop, orjson, strict typing
 - **React PWA Frontend**: TypeScript, Vite, CodeMirror, Zustand
-- **Multi-Provider Support**: Gemini, Anthropic Claude, GitHub Copilot
+- **Multi-Provider Support**: Gemini, Anthropic Claude, GitHub Copilot, Bifrost AI Gateway
 - **OpenAI Compatibility**: Drop-in replacement for OpenAI API
 - **GitHub Integration**: File editing and PR management
 - **Cookie Management**: Multi-profile support with SQLite
@@ -157,7 +158,7 @@ This is a **high-performance multi-provider LLM gateway** with:
 - `llm_core/` - Provider abstraction layer
   - `interfaces.py` - LLMProvider Protocol definition
   - `factory.py` - Factory pattern for provider instantiation
-  - `providers/` - Gemini, Anthropic, Copilot implementations
+  - `providers/` - Gemini, Anthropic, Copilot, Bifrost implementations
 - `cookie_manager.py` - Multi-profile cookie persistence (aiosqlite)
 - `session_manager.py` - Conversation history management
 - `gemini_client.py` - Wrapper for gemini-webapi
@@ -188,7 +189,7 @@ This is a **high-performance multi-provider LLM gateway** with:
 
 **Backend:**
 - Data validation: Pydantic 2.7+
-- LLM Providers: google-genai (via genkit), anthropic, github-copilot-sdk, gemini-webapi
+- LLM Providers: google-genai (via genkit), anthropic, github-copilot-sdk, gemini-webapi, openai (for Bifrost)
 - Performance: orjson, uvloop, cachetools
 - Database: aiosqlite, sqlalchemy
 - HTTP: httpx, fastapi, uvicorn
@@ -205,10 +206,12 @@ This is a **high-performance multi-provider LLM gateway** with:
 Required environment variables (set in `.env` or environment):
 ```bash
 GOOGLE_API_KEY=your_key_here           # Required for Gemini
-MODEL_PROVIDER=gemini                   # gemini|anthropic|copilot (default: gemini)
+MODEL_PROVIDER=gemini                   # gemini|anthropic|copilot|bifrost (default: gemini)
 MODEL_NAME=gemini-2.5-flash            # Optional, provider-specific model
 ANTHROPIC_API_KEY=your_key_here        # Required for Anthropic
 GITHUB_TOKEN=your_token_here           # Required for Copilot
+BIFROST_URL=http://localhost:8080/v1   # Required for Bifrost (default: http://localhost:8080/v1)
+BIFROST_API_KEY=sk-bifrost-default     # Required for Bifrost (default: sk-bifrost-default)
 ```
 
 Model aliases for OpenAI compatibility:
@@ -230,6 +233,108 @@ Model aliases for OpenAI compatibility:
 - Use context7 MCP to check details of libraries when needed
 - Use browser DevTools for frontend debugging
 - Use FastAPI's auto-generated docs at `/docs` for API testing
+
+## Bifrost Integration
+
+### What is Bifrost?
+
+Bifrost is a high-performance AI gateway that provides unified access to multiple LLM providers through a single OpenAI-compatible API. Built in Go, it offers:
+
+- **Multi-provider support**: OpenAI, Anthropic, AWS Bedrock, Google Vertex, and 10+ providers
+- **Automatic failover**: Seamless switching between providers
+- **Semantic caching**: Reduces costs and latency
+- **Enterprise features**: Budget management, SSO, monitoring, and tracing
+- **High performance**: Only 11 µs overhead per request
+
+### Why Use Bifrost with This Project?
+
+Integrating Bifrost allows you to:
+
+1. **Access more providers**: Use providers beyond Gemini, Anthropic, and Copilot
+2. **Add enterprise features**: Budget controls, caching, and monitoring
+3. **Improve reliability**: Automatic failover across multiple providers
+4. **Reduce costs**: Semantic caching reduces duplicate API calls
+5. **Centralize configuration**: Manage all provider keys in one place
+
+### Running Bifrost
+
+**Option 1: Docker (Recommended)**
+```bash
+# Run Bifrost standalone
+docker run -p 8080:8080 \
+  -e OPENAI_API_KEY=your_key \
+  -e ANTHROPIC_API_KEY=your_key \
+  maximhq/bifrost:latest
+```
+
+**Option 2: Docker Compose (Full Stack)**
+```bash
+# Run only Bifrost
+docker-compose up bifrost
+
+# Run both Bifrost and this application
+docker-compose --profile full-stack up
+```
+
+**Option 3: NPX (Quick Start)**
+```bash
+npx -y @maximhq/bifrost
+```
+
+### Configuring This Application to Use Bifrost
+
+1. **Set environment variables**:
+```bash
+export MODEL_PROVIDER=bifrost
+export BIFROST_URL=http://localhost:8080/v1
+export BIFROST_API_KEY=sk-bifrost-default
+```
+
+2. **Start the application**:
+```bash
+uv run uvicorn server:app --reload --host 0.0.0.0 --port 9000
+```
+
+3. **Test the integration**:
+```bash
+curl http://localhost:9000/health
+```
+
+### Architecture with Bifrost
+
+When using Bifrost, the request flow is:
+
+```
+Client → Gemini Web Wrapper → Bifrost Gateway → LLM Providers
+         (Port 9000)          (Port 8080)        (OpenAI, Anthropic, etc.)
+```
+
+The BifrostProvider in `llm_core/providers/bifrost.py` uses the OpenAI SDK to communicate with Bifrost's OpenAI-compatible API.
+
+### Advanced Configuration
+
+**Custom Bifrost Configuration:**
+You can pass additional parameters to the BifrostProvider:
+
+```python
+from llm_core.factory import ProviderFactory
+
+provider = ProviderFactory.create(
+    provider="bifrost",
+    model_name="gpt-4o",  # or any model supported by Bifrost
+    base_url="http://custom-bifrost:8080/v1",
+    api_key="your-custom-key",
+)
+```
+
+**Bifrost Features:**
+- Budget management: Set spending limits per user/team
+- SSO integration: Google/GitHub authentication
+- Metrics: Prometheus metrics on port 2112
+- Tracing: Distributed tracing support
+- Vault integration: Secure key management with HashiCorp Vault
+
+For more details, see the [Bifrost documentation](https://github.com/maximhq/bifrost).
 
 ## Code Formatting
 
