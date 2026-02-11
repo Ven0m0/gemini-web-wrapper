@@ -163,7 +163,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         await state.gemini_client.close()
     if state.github_client:
         await state.github_client.aclose()
-        await state.gemini_client.close()
+
 
     state.llm_provider = None
     state.session_manager = None
