@@ -9,6 +9,7 @@ import re
 import time
 from uuid import uuid4
 
+import json_repair
 from gemini_webapi import ModelOutput
 
 from openai_schemas import (
@@ -113,7 +114,10 @@ def _extract_json_with_tool_calls(text: str) -> str | None:
             if "tool_calls" in obj:
                 return text[start_pos : start_pos + end_idx]
         except json.JSONDecodeError:
-            pass
+            # Try repairing the malformed JSON fragment
+            repaired = _repair_json_fragment(text[start_pos:])
+            if repaired is not None:
+                return repaired
 
     # Fallback: try limited braces if backward search fails (rare edge case)
     # Limit attempts to prevent O(n²) behavior on pathological inputs
@@ -132,9 +136,39 @@ def _extract_json_with_tool_calls(text: str) -> str | None:
             start = brace_idx + 1
             attempts += 1
         except json.JSONDecodeError:
+            # Try repairing the malformed JSON fragment
+            repaired = _repair_json_fragment(text[brace_idx:])
+            if repaired is not None:
+                return repaired
             start = brace_idx + 1
             attempts += 1
 
+    return None
+
+
+def _repair_json_fragment(fragment: str) -> str | None:
+    """Attempt to repair a malformed JSON fragment containing tool_calls.
+
+    Uses json_repair to fix common LLM JSON errors (missing quotes,
+    trailing commas, unescaped characters, etc.).
+
+    Args:
+        fragment: A text fragment starting at a ``{`` that may contain
+            malformed JSON with ``tool_calls``.
+
+    Returns:
+        The repaired JSON string if successful and it contains
+        ``tool_calls``, otherwise None.
+    """
+    try:
+        repaired = json_repair.repair_json(fragment, return_objects=False)
+        if not isinstance(repaired, str):
+            return None
+        obj = json.loads(repaired)
+        if isinstance(obj, dict) and "tool_calls" in obj:
+            return repaired
+    except (json.JSONDecodeError, ValueError, TypeError):
+        pass
     return None
 
 
@@ -175,9 +209,12 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
         return [], text
 
     try:
-        data = json.loads(json_str)
+        # Use json_repair.loads as a drop-in replacement for json.loads
+        # to handle malformed JSON from LLM output (missing quotes,
+        # trailing commas, unescaped characters, etc.)
+        data = json_repair.loads(json_str)
 
-        if "tool_calls" not in data:
+        if not isinstance(data, dict) or "tool_calls" not in data:
             return [], text
 
         tool_calls = _parse_tool_calls_data(data)
@@ -197,9 +234,8 @@ def parse_tool_calls(text: str) -> tuple[list[ToolCall], str]:
 
         return [], text
 
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
-        # Log for debugging
-        logger.debug(f"Failed to parse tool calls: {e}")
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+        logger.debug("Failed to parse tool calls: %s", e)
         return [], text
 
 

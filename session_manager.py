@@ -7,7 +7,10 @@ a minimal implementation using cachetools.
 
 from __future__ import annotations
 
+import contextvars
+import threading
 import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import ClassVar
 from uuid import uuid4
@@ -60,9 +63,19 @@ class SessionManager:
             max_sessions: Maximum number of sessions to cache.
         """
         self._sessions: TTLCache[str, Session] = TTLCache(maxsize=max_sessions, ttl=ttl)
-        self._current_user_id: str | None = None
-        self._current_session_id: str | None = None
-        self._current_process_id: str = "gemini-chatbot"
+        self._user_sessions: dict[str, set[str]] = defaultdict(set)
+        self._lock = threading.Lock()
+
+        # Use contextvars for thread/task-local storage
+        self._current_user_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+            "current_user_id", default=None
+        )
+        self._current_session_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+            "current_session_id", default=None
+        )
+        self._current_process_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+            "current_process_id", default="gemini-chatbot"
+        )
 
     def attribution(self, entity_id: str, process_id: str = "gemini-chatbot") -> None:
         """Set the current user attribution.
@@ -71,8 +84,8 @@ class SessionManager:
             entity_id: User identifier.
             process_id: Process/application identifier.
         """
-        self._current_user_id = entity_id
-        self._current_process_id = process_id
+        self._current_user_id_var.set(entity_id)
+        self._current_process_id_var.set(process_id)
 
     def new_session(self) -> str:
         """Create a new session for the current user.
@@ -83,17 +96,22 @@ class SessionManager:
         Raises:
             ValueError: If attribution not set (no current user).
         """
-        if not self._current_user_id:
+        current_user = self.current_user_id
+        if not current_user:
             raise ValueError("Must call attribution() before creating a session")
 
         session_id = str(uuid4())
         session = Session(
             session_id=session_id,
-            user_id=self._current_user_id,
-            process_id=self._current_process_id,
+            user_id=current_user,
+            process_id=self._current_process_id_var.get(),
         )
-        self._sessions[session_id] = session
-        self._current_session_id = session_id
+
+        with self._lock:
+            self._sessions[session_id] = session
+            self._user_sessions[current_user].add(session_id)
+
+        self._current_session_id_var.set(session_id)
         return session_id
 
     def set_session(self, session_id: str) -> None:
@@ -102,10 +120,11 @@ class SessionManager:
         Args:
             session_id: Session identifier to set as current.
         """
-        self._current_session_id = session_id
+        self._current_session_id_var.set(session_id)
         # Touch the session to update last accessed time
-        if session_id in self._sessions:
-            self._sessions[session_id].touch()
+        with self._lock:
+            if session_id in self._sessions:
+                self._sessions[session_id].touch()
 
     def get_session(self, session_id: str) -> Session | None:
         """Get a session by ID.
@@ -116,20 +135,21 @@ class SessionManager:
         Returns:
             Session object if found and not expired, None otherwise.
         """
-        session: Session | None = self._sessions.get(session_id)  # type: ignore[assignment]
-        if session:
-            session.touch()
-        return session
+        with self._lock:
+            session: Session | None = self._sessions.get(session_id)
+            if session:
+                session.touch()
+            return session
 
     @property
     def current_session_id(self) -> str | None:
         """Get the current session ID."""
-        return self._current_session_id
+        return self._current_session_id_var.get()
 
     @property
     def current_user_id(self) -> str | None:
         """Get the current user ID."""
-        return self._current_user_id
+        return self._current_user_id_var.get()
 
     def get_user_sessions(self, user_id: str) -> list[Session]:
         """Get all active sessions for a user.
@@ -140,7 +160,28 @@ class SessionManager:
         Returns:
             List of active sessions for the user.
         """
-        return [s for s in self._sessions.values() if s.user_id == user_id]
+        with self._lock:
+            if user_id not in self._user_sessions:
+                return []
+
+            active_sessions = []
+            valid_ids = set()
+
+            # Iterate over the user's known session IDs
+            for sid in self._user_sessions[user_id]:
+                # Check if the session is still active (not expired/evicted)
+                session = self._sessions.get(sid)
+                if session:
+                    active_sessions.append(session)
+                    valid_ids.add(sid)
+
+            # Lazy cleanup: update the index if sessions have expired/evicted
+            if not valid_ids:
+                del self._user_sessions[user_id]
+            elif len(valid_ids) < len(self._user_sessions[user_id]):
+                self._user_sessions[user_id] = valid_ids
+
+            return active_sessions
 
     def clear_user_sessions(self, user_id: str) -> int:
         """Clear all sessions for a user.
@@ -151,15 +192,25 @@ class SessionManager:
         Returns:
             Number of sessions cleared.
         """
-        sessions_to_clear = [
-            sid for sid, s in self._sessions.items() if s.user_id == user_id
-        ]
-        for sid in sessions_to_clear:
-            del self._sessions[sid]
-        return len(sessions_to_clear)
+        with self._lock:
+            if user_id not in self._user_sessions:
+                return 0
+
+            count = 0
+            for sid in self._user_sessions[user_id]:
+                if sid in self._sessions:
+                    del self._sessions[sid]
+                    count += 1
+
+            del self._user_sessions[user_id]
+            return count
 
     def clear_all(self) -> None:
         """Clear all sessions."""
-        self._sessions.clear()
-        self._current_user_id = None
-        self._current_session_id = None
+        with self._lock:
+            self._sessions.clear()
+            self._user_sessions.clear()
+
+        # Only clear context for current thread/task
+        self._current_user_id_var.set(None)
+        self._current_session_id_var.set(None)

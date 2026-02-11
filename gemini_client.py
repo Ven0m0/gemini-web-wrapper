@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Gemini WebAPI client integration with cookie management.
 
-This module provides a wrapper around gemini-webapi that integrates with
-our cookie manager for seamless authentication and multi-profile support.
+This module provides an async wrapper around gemini-webapi that integrates
+with our cookie manager for seamless authentication, multi-profile support,
+streaming, and ChatSession-based multi-turn conversations.
 """
 
-import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
-from gemini_webapi import GeminiClient as BaseGeminiClient
+from gemini_webapi import ChatSession, GeminiClient
+from gemini_webapi.types import ModelOutput
 
 from cookie_manager import CookieManager
 
@@ -17,13 +19,15 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiClientWrapper:
-    """Wrapper for gemini-webapi with cookie management integration.
+    """Async wrapper for gemini-webapi with cookie management integration.
 
     This class handles:
     - Automatic cookie loading from profiles
     - Fallback to browser-cookie3 auto-import
     - Cookie refresh on authentication failures
-    - Thread-safe client initialization
+    - Proper async client lifecycle (init/close)
+    - Streaming via generate_content_stream
+    - Multi-turn conversations via ChatSession
 
     Attributes:
         cookie_manager: CookieManager instance for profile management.
@@ -39,11 +43,11 @@ class GeminiClientWrapper:
         """
         self.cookie_manager = cookie_manager
         self.profile_name: str | None = None
-        self.client: BaseGeminiClient | None = None
-        self._lock = asyncio.Lock()
+        self.client: GeminiClient | None = None
+        self._chat_sessions: dict[str, ChatSession] = {}
 
     async def init_with_profile(self, profile_name: str) -> bool:
-        """Initialize client with a specific profile.
+        """Initialize client with a specific cookie profile.
 
         Args:
             profile_name: Name of the profile to use.
@@ -51,215 +55,204 @@ class GeminiClientWrapper:
         Returns:
             True if initialization succeeded, False otherwise.
         """
-        async with self._lock:
-            # Get cookies from profile
-            cookies = await self.cookie_manager.get_gemini_cookies(profile_name)
+        cookies = await self.cookie_manager.get_gemini_cookies(profile_name)
+        if not cookies:
+            logger.error(
+                "Failed to load valid cookies from profile '%s'",
+                profile_name,
+            )
+            return False
 
-            if not cookies:
-                logger.error(
-                    f"Failed to load valid cookies from profile '{profile_name}'"
-                )
-                return False
+        secure_1psid = cookies.get("__Secure-1PSID")
+        secure_1psidts = cookies.get("__Secure-1PSIDTS")
 
-            # Extract required cookie values
-            secure_1psid = cookies.get("__Secure-1PSID")
-            secure_1psidts = cookies.get("__Secure-1PSIDTS")
+        if not secure_1psid or not secure_1psidts:
+            logger.error("Missing required cookies in profile '%s'", profile_name)
+            return False
 
-            if not secure_1psid or not secure_1psidts:
-                logger.error(f"Missing required cookies in profile '{profile_name}'")
-                return False
+        try:
+            # Close existing client if any
+            await self.close()
 
-            try:
-                # Initialize client with cookies in thread pool
-                self.client = await asyncio.to_thread(
-                    BaseGeminiClient,
-                    secure_1psid,
-                    secure_1psidts,
-                    proxy=None,
-                )
-                self.profile_name = profile_name
-                logger.info(f"Initialized Gemini client with profile '{profile_name}'")
-                return True
-
-            except Exception as e:
-                logger.error(f"Failed to initialize Gemini client: {e}")
-                return False
+            self.client = GeminiClient(secure_1psid, secure_1psidts)
+            await self.client.init(timeout=30, auto_close=False)
+            self.profile_name = profile_name
+            self._chat_sessions.clear()
+            logger.info(
+                "Initialized Gemini client with profile '%s'",
+                profile_name,
+            )
+            return True
+        except Exception:
+            logger.exception("Failed to initialize Gemini client")
+            self.client = None
+            return False
 
     async def init_auto(self) -> bool:
         """Initialize client with automatic browser cookie import.
 
-        Uses browser-cookie3 to automatically import cookies from the browser.
-        This requires the user to be logged in to gemini.google.com.
+        Uses browser-cookie3 to automatically import cookies from the
+        user's browser. Requires the user to be logged in at
+        gemini.google.com.
 
         Returns:
             True if initialization succeeded, False otherwise.
         """
-        async with self._lock:
-            try:
-                # Let gemini-webapi auto-import cookies via browser-cookie3
-                self.client = await asyncio.to_thread(BaseGeminiClient)
-                self.profile_name = None
-                logger.info("Initialized Gemini client with auto browser cookies")
-                return True
+        try:
+            await self.close()
 
-            except Exception as e:
-                logger.error(f"Failed to auto-initialize Gemini client: {e}")
-                return False
+            self.client = GeminiClient()
+            await self.client.init(timeout=30, auto_close=False)
+            self.profile_name = None
+            self._chat_sessions.clear()
+            logger.info("Initialized Gemini client with auto browser cookies")
+            return True
+        except Exception:
+            logger.exception("Failed to auto-initialize Gemini client")
+            self.client = None
+            return False
+
+    async def close(self) -> None:
+        """Close the underlying client and release resources."""
+        if self.client is not None:
+            try:
+                await self.client.close()
+            except Exception:
+                logger.debug("Error closing Gemini client", exc_info=True)
+            self.client = None
+        self._chat_sessions.clear()
 
     async def ensure_initialized(self) -> bool:
-        """Ensure the client is initialized.
+        """Check whether the client is initialized and ready.
 
         Returns:
-            True if client is ready, False otherwise.
+            True if the client is ready, False otherwise.
         """
         return self.client is not None
 
     async def generate(
         self,
         prompt: str,
-        image: bytes | None = None,
-    ) -> str:
-        """Generate a response from Gemini.
+        *,
+        model: str | None = None,
+    ) -> ModelOutput:
+        """Generate a single-turn response.
 
         Args:
             prompt: Text prompt for generation.
-            image: Optional image bytes for multimodal generation.
+            model: Optional model name override.
 
         Returns:
-            Generated text response.
+            ModelOutput with text, images, and metadata.
 
         Raises:
             RuntimeError: If client is not initialized.
-            Exception: If generation fails.
         """
         if not self.client:
             raise RuntimeError("Gemini client not initialized")
 
         try:
-            # Run generation in thread pool (blocking I/O)
-            if image:
-                response = await asyncio.to_thread(
-                    self.client.generate_content,
-                    prompt,
-                    image=image,
-                )
-            else:
-                response = await asyncio.to_thread(
-                    self.client.generate_content,
-                    prompt,
-                )
-
-            return str(response.text if hasattr(response, "text") else response)
-
+            kwargs: dict[str, Any] = {}
+            if model:
+                kwargs["model"] = model
+            return await self.client.generate_content(prompt, **kwargs)
         except Exception as e:
-            logger.error(f"Generation failed: {e}")
-
-            # Try to refresh cookies if using a profile
-            if self.profile_name:
-                logger.info(f"Attempting to refresh profile '{self.profile_name}'")
-                if await self.cookie_manager.refresh_profile(
-                    self.profile_name
-                ) and await self.init_with_profile(self.profile_name):
-                    # Retry generation once
-                    return await self.generate(prompt, image)
-
+            logger.error("Generation failed: %s", e)
+            if await self._try_refresh():
+                return await self.client.generate_content(prompt, **kwargs)  # type: ignore[union-attr]
             raise
+
+    async def generate_stream(
+        self,
+        prompt: str,
+        *,
+        model: str | None = None,
+    ) -> AsyncGenerator[ModelOutput]:
+        """Stream a single-turn response, yielding partial outputs.
+
+        Each yielded ModelOutput contains incremental ``text_delta``
+        and ``thoughts_delta`` fields for progressive rendering.
+
+        Args:
+            prompt: Text prompt for generation.
+            model: Optional model name override.
+
+        Yields:
+            ModelOutput objects with incremental deltas.
+
+        Raises:
+            RuntimeError: If client is not initialized.
+        """
+        if not self.client:
+            raise RuntimeError("Gemini client not initialized")
+
+        kwargs: dict[str, Any] = {}
+        if model:
+            kwargs["model"] = model
+
+        async for output in self.client.generate_content_stream(prompt, **kwargs):
+            yield output
 
     async def chat(
         self,
         message: str,
         conversation_id: str | None = None,
-    ) -> tuple[str, str]:
-        """Send a chat message and get response.
+        *,
+        model: str | None = None,
+    ) -> tuple[ModelOutput, str]:
+        """Send a chat message in a multi-turn conversation.
+
+        Creates or reuses a ChatSession for the given conversation_id.
 
         Args:
-            message: User message.
-            conversation_id: Optional conversation ID to continue a chat.
+            message: User message text.
+            conversation_id: Optional session key. A new session is
+                created when None or not found.
+            model: Optional model name override.
 
         Returns:
-            Tuple of (response_text, conversation_id).
+            Tuple of (ModelOutput, conversation_id).
 
         Raises:
             RuntimeError: If client is not initialized.
-            Exception: If chat fails.
         """
         if not self.client:
             raise RuntimeError("Gemini client not initialized")
 
+        session = self._get_or_create_session(conversation_id, model=model)
+        conv_id = conversation_id or id(session).__str__()
+
         try:
-            # Run chat in thread pool (blocking I/O)
-            kwargs = {"conversation_id": conversation_id} if conversation_id else {}
-            response = await asyncio.to_thread(
-                self.client.send_message,
-                message,
-                **kwargs,
-            )
-
-            # Extract response text and conversation ID
-            response_text = str(
-                response.text if hasattr(response, "text") else response
-            )
-
-            # Get conversation ID from response or client
-            conv_id = (
-                getattr(response, "conversation_id", None)
-                or getattr(self.client, "conversation_id", None)
-                or conversation_id
-                or "default"
-            )
-
-            return response_text, conv_id
-
+            output = await session.send_message(message)
+            # Store session for reuse
+            self._chat_sessions[conv_id] = session
+            return output, conv_id
         except Exception as e:
-            logger.error(f"Chat failed: {e}")
-
-            # Try to refresh cookies if using a profile
-            if self.profile_name:
-                logger.info(f"Attempting to refresh profile '{self.profile_name}'")
-                if await self.cookie_manager.refresh_profile(
-                    self.profile_name
-                ) and await self.init_with_profile(self.profile_name):
-                    # Retry chat once
-                    return await self.chat(message, conversation_id)
-
+            logger.error("Chat failed: %s", e)
+            if await self._try_refresh():
+                # After refresh we need a new session
+                session = self.client.start_chat()  # type: ignore[union-attr]
+                output = await session.send_message(message)
+                self._chat_sessions[conv_id] = session
+                return output, conv_id
             raise
 
-    async def get_conversation_history(
+    async def chat_stream(
         self,
-        conversation_id: str,
-    ) -> list[dict[str, Any]]:
-        """Get conversation history.
+        message: str,
+        conversation_id: str | None = None,
+        *,
+        model: str | None = None,
+    ) -> AsyncGenerator[tuple[ModelOutput, str]]:
+        """Stream a chat message response with incremental deltas.
 
         Args:
-            conversation_id: Conversation ID to fetch history for.
+            message: User message text.
+            conversation_id: Optional session key.
+            model: Optional model name override.
 
-        Returns:
-            List of message dictionaries.
-
-        Raises:
-            RuntimeError: If client is not initialized.
-        """
-        if not self.client:
-            raise RuntimeError("Gemini client not initialized")
-
-        try:
-            # Run in thread pool (blocking I/O)
-            history = await asyncio.to_thread(
-                self.client.get_conversation,
-                conversation_id,
-            )
-
-            return history if history else []
-
-        except Exception as e:
-            logger.error(f"Failed to get conversation history: {e}")
-            return []
-
-    async def list_conversations(self) -> list[dict[str, Any]]:
-        """List all conversations.
-
-        Returns:
-            List of conversation metadata dictionaries.
+        Yields:
+            Tuple of (ModelOutput with deltas, conversation_id).
 
         Raises:
             RuntimeError: If client is not initialized.
@@ -267,44 +260,14 @@ class GeminiClientWrapper:
         if not self.client:
             raise RuntimeError("Gemini client not initialized")
 
-        try:
-            # Run in thread pool (blocking I/O)
-            conversations = await asyncio.to_thread(
-                self.client.list_conversations,
-            )
+        session = self._get_or_create_session(conversation_id, model=model)
+        conv_id = conversation_id or id(session).__str__()
 
-            return conversations if conversations else []
+        async for output in session.send_message_stream(message):
+            yield output, conv_id
 
-        except Exception as e:
-            logger.error(f"Failed to list conversations: {e}")
-            return []
-
-    async def delete_conversation(self, conversation_id: str) -> bool:
-        """Delete a conversation.
-
-        Args:
-            conversation_id: Conversation ID to delete.
-
-        Returns:
-            True if deletion succeeded, False otherwise.
-
-        Raises:
-            RuntimeError: If client is not initialized.
-        """
-        if not self.client:
-            raise RuntimeError("Gemini client not initialized")
-
-        try:
-            # Run in thread pool (blocking I/O)
-            await asyncio.to_thread(
-                self.client.delete_conversation,
-                conversation_id,
-            )
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to delete conversation: {e}")
-            return False
+        # Store session for reuse after streaming completes
+        self._chat_sessions[conv_id] = session
 
     def get_current_profile(self) -> str | None:
         """Get the currently active profile name.
@@ -324,3 +287,40 @@ class GeminiClientWrapper:
             True if switch succeeded, False otherwise.
         """
         return await self.init_with_profile(profile_name)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _get_or_create_session(
+        self,
+        conversation_id: str | None,
+        *,
+        model: str | None = None,
+    ) -> ChatSession:
+        """Return an existing ChatSession or create a new one."""
+        if conversation_id and conversation_id in self._chat_sessions:
+            return self._chat_sessions[conversation_id]
+
+        if not self.client:
+            raise RuntimeError("Gemini client not initialized")
+
+        kwargs: dict[str, Any] = {}
+        if model:
+            kwargs["model"] = model
+        return self.client.start_chat(**kwargs)
+
+    async def _try_refresh(self) -> bool:
+        """Attempt to refresh cookies and reinitialize the client.
+
+        Returns:
+            True if refresh succeeded and client is ready.
+        """
+        if not self.profile_name:
+            return False
+
+        logger.info("Attempting to refresh profile '%s'", self.profile_name)
+        refreshed = await self.cookie_manager.refresh_profile(self.profile_name)
+        if refreshed:
+            return await self.init_with_profile(self.profile_name)
+        return False

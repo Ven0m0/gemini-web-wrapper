@@ -1,45 +1,35 @@
-#!/usr/bin/env bash
+#!/bin/bash
+set -e
 
-set -euo pipefail
-shopt -s nullglob globstar
-IFS=$'\n\t'
-LC_ALL=C
+echo "🚀 Starting AI Assistant App..."
 
-SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-readonly SCRIPT_DIR
-
-SERVER="${SERVER:-${SCRIPT_DIR}/server.py}"
-readonly SERVER
-
-err() {
-  printf '%s\n' "$*" >&2
-}
-
-die() {
-  err "$@"
-  exit 1
-}
-
-[[ -f "$SERVER" ]] || die "server.py not found: $SERVER"
-command -v python3 >/dev/null 2>&1 || die "python3 not found in PATH"
-
-if [[ "${SKIP_FRONTEND_BUILD:-0}" != "1" ]]; then
-  FRONTEND_DIR="${SCRIPT_DIR}/frontend"
-  FRONTEND_DIST_DIR="${FRONTEND_DIST_DIR:-${FRONTEND_DIR}/dist}"
-
-  if [[ -d "$FRONTEND_DIR" && ! -d "$FRONTEND_DIST_DIR" ]]; then
-    if command -v npm >/dev/null 2>&1; then
-      err "frontend build missing; building PWA assets…"
-
-      if [[ ! -d "${FRONTEND_DIR}/node_modules" ]]; then
-        npm --prefix "$FRONTEND_DIR" ci
-      fi
-
-      npm --prefix "$FRONTEND_DIR" run build
-    else
-      err "npm not found; skipping frontend build (API-only mode)."
-    fi
-  fi
+# Check if .env exists
+if [ ! -f ".env" ]; then
+    echo "⚠️  .env file not found, creating from .env.example"
+    cp .env.example .env
+    echo "📝 Please update .env with your API keys"
+    echo "   Required: GOOGLE_API_KEY"
+    echo "   Optional: ANTHROPIC_API_KEY"
 fi
 
-exec python3 "$SERVER" "$@"
+# Check if frontend is built
+if [ ! -d "frontend/dist" ]; then
+    echo "🔨 Building frontend..."
+    cd frontend
+    npm install
+    npm run build
+    cd ..
+fi
+
+# Install Python dependencies if needed
+if [ ! -d "venv" ]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv venv
+fi
+
+echo "📦 Installing Python dependencies..."
+source venv/bin/activate || . venv/Scripts/activate 2>/dev/null || true
+pip install -r requirements.txt
+
+echo "🌐 Starting server..."
+python server.py

@@ -1,28 +1,109 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Offline • Chat GitHub</title>
-    <meta name="color-scheme" content="dark light" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - Offline</title>
     <style>
-      html,body{height:100%;margin:0}
-      body{display:flex;align-items:center;justify-content:center;background:#0d1117;color:#f0f6fc;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-      .card{max-width:520px;border:1px solid #30363d;background:#161b22;border-radius:12px;padding:20px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
-      h1{margin:0 0 8px 0;font-size:18px}
-      p{margin:6px 0;color:#9aa4af}
-      .btn{display:inline-block;margin-top:12px;background:#238636;border:1px solid #238636;color:#fff;padding:8px 12px;border-radius:6px;text-decoration:none}
-      .hint{font-size:12px;color:#8b949e;margin-top:10px}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .offline-container {
+            max-width: 400px;
+        }
+        
+        .offline-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.7;
+        }
+        
+        .offline-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        .offline-message {
+            color: #888;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+        
+        .retry-button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .retry-button:hover {
+            background: #005a9e;
+        }
+        
+        .retry-button:disabled {
+            background: #333;
+            cursor: not-allowed;
+        }
     </style>
-  </head>
-  <body>
-    <div class="card">
-      <h1>You're offline</h1>
-      <p>No internet connection detected. Some features may be unavailable.</p>
-      <p>When back online, the app will reconnect and load normally.</p>
-      <a class="btn" href="/">Reload App</a>
-      <div class="hint">Tip: You can still open previously cached pages and assets.</div>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">📡</div>
+        <h1 class="offline-title">You're Offline</h1>
+        <p class="offline-message">
+            It looks like you've lost your internet connection. 
+            Some features may not be available until you're back online.
+        </p>
+        <button class="retry-button" onclick="checkConnection()">
+            Try Again
+        </button>
     </div>
-  </body>
-  </html>
-
+    
+    <script>
+        function checkConnection() {
+            const button = document.querySelector('.retry-button');
+            button.disabled = true;
+            button.textContent = 'Checking...';
+            
+            // Try to fetch a small resource to test connection
+            fetch('/favicon.ico', { method: 'HEAD' })
+                .then(() => {
+                    // Connection restored, reload the page
+                    window.location.reload();
+                })
+                .catch(() => {
+                    // Still offline
+                    button.disabled = false;
+                    button.textContent = 'Try Again';
+                });
+        }
+        
+        // Check connection periodically
+        setInterval(() => {
+            if (navigator.onLine) {
+                window.location.reload();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
