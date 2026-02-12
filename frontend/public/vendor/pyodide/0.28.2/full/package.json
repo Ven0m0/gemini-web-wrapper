@@ -19,7 +19,7 @@
     "@types/assert": "^1.5.6",
     "@types/expect": "^24.3.0",
     "@types/mocha": "^10.0.0",
-    "@types/node": "^20.8.4",
+    "@types/node": "^25.0.0",
     "@types/ws": "^8.5.3",
     "chai": "^6.0.0",
     "chai-as-promised": "^7.1.1",
