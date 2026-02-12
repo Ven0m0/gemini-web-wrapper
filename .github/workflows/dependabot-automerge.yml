@@ -4,16 +4,100 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
+
+concurrency:
+  group: dependency-rollup
+  cancel-in-progress: true
 
 jobs:
   automerge:
+    if: github.event_name != 'pull_request' || github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v6.0.2
-      - uses: fastify/github-action-merge-dependabot@v3
+      - uses: actions/checkout@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Build combined dependency branch
+        id: rollup
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          prs="$(gh api "repos/${{ github.repository }}/pulls?state=open&per_page=100" --jq '.[] | select(.user.login=="dependabot[bot]" or .user.login=="renovate[bot]") | "\(.number):\(.head.ref)"')"
+          if [ -z "$prs" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          rollup_branch="deps/rollup"
+          git checkout -B "$rollup_branch" "origin/$BASE_BRANCH"
+
+          for pr in $prs; do
+            pr_number="${pr%%:*}"
+            head_ref="${pr#*:}"
+            git fetch origin "$head_ref"
+
+            if git merge --squash --no-commit FETCH_HEAD; then
+              if git diff --cached --quiet; then
+                continue
+              fi
+              git commit -m "chore(deps): include #$pr_number"
+            else
+              git merge --abort || true
+              echo "::warning::Skipping dependency PR #$pr_number due to merge conflicts."
+            fi
+          done
+
+          if git diff --quiet "origin/$BASE_BRANCH...HEAD"; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git push --force-with-lease origin "$rollup_branch"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "rollup_branch=$rollup_branch" >> "$GITHUB_OUTPUT"
+      - name: Create or update rollup PR
+        if: steps.rollup.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          branch="${{ steps.rollup.outputs.rollup_branch }}"
+          pr_number="$(gh pr list --head "$branch" --base "$BASE_BRANCH" --json number --jq '.[0].number // ""')"
+
+          if [ -z "$pr_number" ]; then
+            gh pr create \
+              --base "$BASE_BRANCH" \
+              --head "$branch" \
+              --title "chore(deps): roll up dependabot and renovate updates" \
+              --body "This PR combines all open Dependabot and Renovate updates into one branch for a single squash merge."
+          else
+            gh pr edit "$pr_number" \
+              --title "chore(deps): roll up dependabot and renovate updates" \
+              --body "This PR combines all open Dependabot and Renovate updates into one branch for a single squash merge."
+          fi
+      - name: Enable auto squash merge for rollup PR
+        if: steps.rollup.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          branch="${{ steps.rollup.outputs.rollup_branch }}"
+          pr_number="$(gh pr list --head "$branch" --base "$BASE_BRANCH" --json number --jq '.[0].number // ""')"
+          if [ -n "$pr_number" ]; then
+            gh pr merge "$pr_number" --auto --squash
+          fi
