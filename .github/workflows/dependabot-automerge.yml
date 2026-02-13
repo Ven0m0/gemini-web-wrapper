@@ -7,12 +7,15 @@ permissions:
   contents: write
   pull-requests: write
 concurrency:
-  group: dep-merge-${{ github.event.pull_request.number }}
+  group: >-
+    ${{ github.event_name == 'workflow_dispatch' &&
+    'dep-merge-backfill' || format('dep-merge-{0}', github.event.pull_request.number) }}
   cancel-in-progress: true
 jobs:
   automerge:
     if: >-
-      github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]'
+      github.event_name == 'pull_request_target' &&
+      (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -24,6 +27,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Auto-approve
         run: gh pr review --approve "$PR_URL"
+        continue-on-error: true
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -32,3 +36,29 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+  automerge-open-prs:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Enable auto-merge for all open Dependabot/Renovate PRs
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! readarray -t pr_urls < <(gh pr list --state open --json url,author --jq '.[] | select(.author.login=="dependabot[bot]" or .author.login=="renovate[bot]") | .url'); then
+            echo "::error::Failed to list open Dependabot/Renovate PRs."
+            exit 1
+          fi
+          if [ "${#pr_urls[@]}" -eq 0 ]; then
+            echo "No open Dependabot/Renovate PRs found."
+            exit 0
+          fi
+          for pr_url in "${pr_urls[@]}"; do
+            if ! gh pr review --approve "$pr_url"; then
+              echo "::notice::Skipping approval for $pr_url."
+            fi
+            if ! gh pr merge --auto --squash "$pr_url"; then
+              echo "::warning::Failed to enable auto-merge for $pr_url."
+            fi
+          done
