@@ -1,7 +1,7 @@
 name: Dependency auto-merge
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch: 
 permissions:
   contents: write
@@ -12,8 +12,7 @@ concurrency:
 jobs:
   automerge:
     if: >-
-      github.event_name == 'pull_request' &&
-      (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]')
+      github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
