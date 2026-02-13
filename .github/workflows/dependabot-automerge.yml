@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Dependabot metadata
         if: github.actor == 'dependabot[bot]'
         id: meta
@@ -41,6 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Enable auto-merge for all open Dependabot/Renovate PRs
         env:
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
