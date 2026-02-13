@@ -7,7 +7,9 @@ permissions:
   contents: write
   pull-requests: write
 concurrency:
-  group: dep-merge-${{ github.event.pull_request.number || github.run_id }}
+  group: >-
+    ${{ github.event_name == 'workflow_dispatch' &&
+    'dep-merge-backfill' || format('dep-merge-{0}', github.event.pull_request.number) }}
   cancel-in-progress: true
 jobs:
   automerge:
@@ -44,12 +46,19 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          pr_urls="$(gh pr list --state open --json url,author --jq '.[] | select(.author.login=="dependabot[bot]" or .author.login=="renovate[bot]") | .url')"
-          if [ -z "$pr_urls" ]; then
+          if ! readarray -t pr_urls < <(gh pr list --state open --json url,author --jq '.[] | select(.author.login=="dependabot[bot]" or .author.login=="renovate[bot]") | .url'); then
+            echo "::error::Failed to list open Dependabot/Renovate PRs."
+            exit 1
+          fi
+          if [ "${#pr_urls[@]}" -eq 0 ]; then
             echo "No open Dependabot/Renovate PRs found."
             exit 0
           fi
-          for pr_url in $pr_urls; do
-            gh pr review --approve "$pr_url" || true
-            gh pr merge --auto --squash "$pr_url"
+          for pr_url in "${pr_urls[@]}"; do
+            if ! gh pr review --approve "$pr_url"; then
+              echo "::notice::Skipping approval for $pr_url."
+            fi
+            if ! gh pr merge --auto --squash "$pr_url"; then
+              echo "::warning::Failed to enable auto-merge for $pr_url."
+            fi
           done
