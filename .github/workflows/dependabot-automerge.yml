@@ -1,68 +1,162 @@
 name: Dependency auto-merge
+
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch: 
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 6 AM UTC
+  workflow_dispatch:
+
 permissions:
   contents: write
   pull-requests: write
+
 concurrency:
-  group: >-
-    ${{ github.event_name == 'workflow_dispatch' &&
-    'dep-merge-backfill' || format('dep-merge-{0}', github.event.pull_request.number) }}
+  group: dependency-rollup
   cancel-in-progress: true
+
 jobs:
-  automerge:
+  rollup:
+    # Run on schedule/dispatch, or when a bot opens/updates a PR
     if: >-
-      github.event_name == 'pull_request_target' &&
-      (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]')
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_target' &&
+       (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]'))
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
+    env:
+      ROLLUP_BRANCH: deps/rollup
+      BASE_BRANCH: main
+      # PAT is needed when the repo-level setting
+      # "Allow GitHub Actions to create and approve pull requests" is off.
+      GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Dependabot metadata
-        if: github.actor == 'dependabot[bot]'
-        id: meta
-        uses: dependabot/fetch-metadata@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Auto-approve
-        run: gh pr review --approve "$PR_URL"
-        continue-on-error: true
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Enable auto-merge
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-  automerge-open-prs:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Enable auto-merge for all open Dependabot/Renovate PRs
-        env:
-          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Collect open dependency PRs
+        id: collect
         run: |
           set -euo pipefail
-          if ! readarray -t pr_urls < <(gh pr list --state open --json url,author --jq '.[] | select(.author.login=="dependabot[bot]" or .author.login=="renovate[bot]") | .url'); then
-            echo "::error::Failed to list open Dependabot/Renovate PRs."
-            exit 1
+
+          # Use REST API -- it returns login as "renovate[bot]" / "dependabot[bot]"
+          # (GraphQL via `gh pr list` returns "app/renovate" which is different)
+          prs="$(gh api --paginate \
+            "repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            --jq "[.[] | select(
+              (.user.login==\"dependabot[bot]\" or .user.login==\"renovate[bot]\")
+              and .head.ref != \"$ROLLUP_BRANCH\"
+            ) | {number, branch: .head.ref}]")"
+
+          count="$(echo "$prs" | jq 'length')"
+          echo "Found $count open dependency PR(s)."
+
+          if [ "$count" -eq 0 ]; then
+            echo "has_prs=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_prs=true" >> "$GITHUB_OUTPUT"
+            echo "$prs" | jq -r '.[] | "\(.number):\(.branch)"' > /tmp/dep_prs.txt
           fi
-          if [ "${#pr_urls[@]}" -eq 0 ]; then
-            echo "No open Dependabot/Renovate PRs found."
+
+      - name: Build rollup branch
+        if: steps.collect.outputs.has_prs == 'true'
+        id: rollup
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$ROLLUP_BRANCH" "origin/$BASE_BRANCH"
+
+          merged=0
+          skipped=0
+          while IFS=: read -r pr_number head_ref; do
+            echo "::group::PR #$pr_number ($head_ref)"
+
+            if ! git fetch origin "$head_ref" 2>/dev/null; then
+              echo "::warning::Cannot fetch $head_ref — skipping PR #$pr_number."
+              skipped=$((skipped + 1))
+              echo "::endgroup::"
+              continue
+            fi
+
+            if git merge --squash --no-commit FETCH_HEAD 2>/dev/null; then
+              if git diff --cached --quiet; then
+                echo "PR #$pr_number already included — skipping."
+              else
+                git commit -m "chore(deps): include #$pr_number ($head_ref)"
+                merged=$((merged + 1))
+                echo "Merged PR #$pr_number."
+              fi
+            else
+              git merge --abort 2>/dev/null || git reset --hard HEAD
+              echo "::warning::Merge conflict in PR #$pr_number — skipping."
+              skipped=$((skipped + 1))
+            fi
+            echo "::endgroup::"
+          done < /tmp/dep_prs.txt
+
+          if [ "$merged" -eq 0 ] || git diff --quiet "origin/$BASE_BRANCH" HEAD; then
+            echo "No new changes to roll up."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          for pr_url in "${pr_urls[@]}"; do
-            if ! gh pr review --approve "$pr_url"; then
-              echo "::notice::Skipping approval for $pr_url."
+
+          git push --force-with-lease origin "$ROLLUP_BRANCH"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "merged=$merged" >> "$GITHUB_OUTPUT"
+          echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update rollup PR
+        if: steps.rollup.outputs.has_changes == 'true'
+        id: pr
+        run: |
+          set -euo pipefail
+          merged="${{ steps.rollup.outputs.merged }}"
+          skipped="${{ steps.rollup.outputs.skipped }}"
+
+          pr_number="$(gh pr list \
+            --head "$ROLLUP_BRANCH" --base "$BASE_BRANCH" \
+            --json number --jq '.[0].number // ""')"
+
+          body="Automated roll-up of **${merged}** dependency update(s) from Dependabot / Renovate."
+          if [ "$skipped" -gt 0 ]; then
+            body="${body}"$'\n\n'"> **${skipped}** PR(s) skipped due to merge conflicts or fetch errors."
+          fi
+
+          if [ -z "$pr_number" ]; then
+            pr_url="$(gh pr create \
+              --base "$BASE_BRANCH" \
+              --head "$ROLLUP_BRANCH" \
+              --title "chore(deps): roll up dependency updates" \
+              --body "$body")"
+            pr_number="${pr_url##*/}"
+            echo "Created rollup PR #$pr_number"
+          else
+            gh pr edit "$pr_number" \
+              --title "chore(deps): roll up dependency updates" \
+              --body "$body"
+            echo "Updated rollup PR #$pr_number"
+          fi
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Approve and auto-merge rollup PR
+        if: steps.rollup.outputs.has_changes == 'true'
+        run: |
+          set -euo pipefail
+          pr_number="${{ steps.pr.outputs.pr_number }}"
+
+          # Approve (may fail if the token owner is the PR author — that's OK)
+          gh pr review "$pr_number" --approve 2>/dev/null || true
+
+          # Try auto-merge first (waits for required checks, if any)
+          if ! gh pr merge "$pr_number" --auto --squash 2>/dev/null; then
+            echo "Auto-merge not available — attempting direct squash merge."
+            if ! gh pr merge "$pr_number" --squash --delete-branch 2>/dev/null; then
+              echo "::warning::Could not merge PR #$pr_number automatically. Please merge manually."
             fi
-            if ! gh pr merge --auto --squash "$pr_url"; then
-              echo "::warning::Failed to enable auto-merge for $pr_url."
-            fi
-          done
+          fi
