@@ -46,11 +46,12 @@ jobs:
           # Use REST API -- it returns login as "renovate[bot]" / "dependabot[bot]"
           # (GraphQL via `gh pr list` returns "app/renovate" which is different)
           prs="$(gh api --paginate \
-            "repos/${{ github.repository }}/pulls?state=open&per_page=100" \
-            --jq "[.[] | select(
-              (.user.login==\"dependabot[bot]\" or .user.login==\"renovate[bot]\")
-              and .head.ref != \"$ROLLUP_BRANCH\"
-            ) | {number, branch: .head.ref}]")"
+            \"repos/${{ github.repository }}/pulls?state=open&per_page=100\" \
+            --arg rollup \"$ROLLUP_BRANCH\" \
+            --jq '[.[] | select(
+              (.user.login == \"dependabot[bot]\" or .user.login == \"renovate[bot]\")
+              and .head.ref != $rollup
+            ) | {number, branch: .head.ref}]')"
 
           count="$(echo "$prs" | jq 'length')"
           echo "Found $count open dependency PR(s)."
