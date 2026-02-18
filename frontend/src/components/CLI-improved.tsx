@@ -59,7 +59,7 @@ export const CLIImproved: React.FC = () => {
       
       case '/chat':
         if (args[0] === 'demo') {
-          setMode('chat-demo' as any)
+          (setMode as (mode: 'chat-demo') => void)('chat-demo')
         }
         break
       
