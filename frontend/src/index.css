@@ -47,46 +47,82 @@ h6 {
   isolation: isolate;
 }
 
-/* Custom properties for theming */
+/* Custom properties for theming - OpenCode inspired */
 :root {
+  /* Background colors */
   --color-bg: #000000;
-  --color-text: #ffffff;
-  --color-primary: #007acc;
+  --color-bg-elevated: #0a0a0a;
+  --color-bg-surface: #111111;
+  --color-bg-hover: #1a1a1a;
+  --color-bg-active: #222222;
+  
+  /* Text colors */
+  --color-text: #ededed;
+  --color-text-muted: #a3a3a3;
+  --color-text-subtle: #666666;
+  
+  /* Border colors */
+  --color-border: #2a2a2a;
+  --color-border-hover: #3a3a3a;
+  
+  /* Accent colors */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
   --color-secondary: #6b7280;
-  --color-accent: #f59e0b;
-  --color-success: #10b981;
+  --color-accent: #8b5cf6;
+  --color-success: #22c55e;
   --color-error: #ef4444;
   --color-warning: #f59e0b;
-  --color-info: #3b82f6;
+  --color-info: #06b6d4;
   
-  --font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", 'Segoe UI', 'Roboto', sans-serif;
+  /* Code/editor colors */
+  --color-code-bg: #0a0a0a;
+  --color-code-border: #1f1f1f;
   
-  --border-radius: 4px;
+  /* Typography */
+  --font-family-mono: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+  --font-family-sans: 'Geist', -apple-system, BlinkMacSystemFont, "SF Pro Display", 'Segoe UI', 'Roboto', sans-serif;
+  
+  /* Spacing */
+  --border-radius-sm: 6px;
+  --border-radius: 8px;
+  --border-radius-lg: 12px;
   --border-width: 1px;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   
-  --transition-fast: 150ms ease-in-out;
-  --transition-normal: 250ms ease-in-out;
-  --transition-slow: 350ms ease-in-out;
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 20px -5px rgb(0 0 0 / 0.5), 0 4px 8px -4px rgb(0 0 0 / 0.4);
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark theme */
+/* Dark theme (default) */
 [data-theme="dark"] {
-  --color-bg: #0d1117;
-  --color-text: #f0f6fc;
-  --color-primary: #0969da;
-  --color-secondary: #8b949e;
+  --color-bg: #000000;
+  --color-text: #ededed;
+  --color-primary: #3b82f6;
 }
 
 /* Light theme */
 [data-theme="light"] {
   --color-bg: #ffffff;
-  --color-text: #1f2328;
-  --color-primary: #0969da;
-  --color-secondary: #656d76;
+  --color-bg-elevated: #f9fafb;
+  --color-bg-surface: #f3f4f6;
+  --color-bg-hover: #e5e7eb;
+  --color-bg-active: #d1d5db;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-subtle: #9ca3af;
+  --color-border: #e5e7eb;
+  --color-border-hover: #d1d5db;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-code-bg: #f9fafb;
+  --color-code-border: #e5e7eb;
 }
 
 /* Base styles */
