@@ -1,3 +1,5 @@
+import { healJSON, type HealedResponse } from '../utils/jsonHealer'
+
 export class AIImageError extends Error {
   status: number
   statusText: string
@@ -85,6 +87,63 @@ Note: Preserve proper character encoding and formatting for all text content.`
 
   async estimateTokens(text: string): Promise<number> {
     return Math.ceil(text.length / 4)
+  }
+
+  /**
+   * Transform file with JSON response healing
+   * Automatically heals malformed JSON responses from AI models
+   */
+  async transformFileJSON<T = any>(
+    instruction: string, 
+    currentContent: string,
+    schema?: any
+  ): Promise<HealedResponse<T>> {
+    const response = await this.transformFile(instruction, currentContent)
+    return healJSON<T>(response, schema)
+  }
+
+  /**
+   * Chat completion with JSON response healing
+   */
+  async chatCompletionJSON<T = any>(
+    messages: Array<{ role: string; content: string }>,
+    schema?: any,
+    options?: {
+      temperature?: number
+      maxTokens?: number
+    }
+  ): Promise<HealedResponse<T>> {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages,
+          response_format: schema ? { type: 'json_object' } : undefined,
+          temperature: options?.temperature ?? this.temperature,
+          max_tokens: options?.maxTokens ?? 4000,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.choices || data.choices.length === 0) {
+        throw new Error('No response from AI')
+      }
+
+      const content = data.choices[0].message.content.trim()
+      return healJSON<T>(content, schema)
+    } catch (error) {
+      throw new Error(`Failed to get chat completion: ${error}`)
+    }
   }
 
   async generateImage(prompt: string, size: '256x256' | '512x512' | '1024x1024' = '1024x1024'): Promise<string> {

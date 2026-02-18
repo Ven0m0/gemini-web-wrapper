@@ -10,6 +10,7 @@ import { PythonRunner } from './components/PythonRunner'
 import { PwaDiagnostics } from './components/PwaDiagnostics'
 import { ChatWidget } from './components/ChatWidget'
 import { ChatDemo } from './components/ChatDemo'
+import { OpenRouterChat } from './components/OpenRouterChat'
 import './App.css'
 
 function App() {
@@ -45,8 +46,10 @@ function App() {
         return <PythonRunner />
       case 'chat-demo' as any:
         return <ChatDemo />
+      case 'chat' as any:
+        return <OpenRouterChat />
       default:
-        return <CLI />
+        return <OpenRouterChat />
     }
   }
 
