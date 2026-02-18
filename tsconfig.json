@@ -19,9 +19,9 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["frontend/src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["frontend/src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

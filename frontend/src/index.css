@@ -47,46 +47,89 @@ h6 {
   isolation: isolate;
 }
 
-/* Custom properties for theming */
+/* Custom properties for theming - OpenRouter inspired */
 :root {
-  --color-bg: #000000;
-  --color-text: #ffffff;
-  --color-primary: #007acc;
-  --color-secondary: #6b7280;
-  --color-accent: #f59e0b;
+  /* Background colors - OpenRouter-style gradients and dark theme */
+  --color-bg: #0a0a0f;
+  --color-bg-elevated: #13131a;
+  --color-bg-surface: #1a1a24;
+  --color-bg-hover: #22222e;
+  --color-bg-active: #2a2a38;
+  
+  /* Gradient accents */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --gradient-success: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  
+  /* Text colors */
+  --color-text: #f5f5f7;
+  --color-text-muted: #a1a1aa;
+  --color-text-subtle: #71717a;
+  
+  /* Border colors */
+  --color-border: #27272a;
+  --color-border-hover: #3f3f46;
+  
+  /* Accent colors - vibrant like OpenRouter */
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-secondary: #06b6d4;
+  --color-accent: #ec4899;
   --color-success: #10b981;
   --color-error: #ef4444;
   --color-warning: #f59e0b;
   --color-info: #3b82f6;
   
-  --font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", 'Segoe UI', 'Roboto', sans-serif;
+  /* Code/editor colors */
+  --color-code-bg: #0d0d12;
+  --color-code-border: #1e1e28;
   
-  --border-radius: 4px;
+  /* Typography */
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", 'Segoe UI', 'Roboto', sans-serif;
+  
+  /* Spacing */
+  --border-radius-sm: 8px;
+  --border-radius: 12px;
+  --border-radius-lg: 16px;
   --border-width: 1px;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   
-  --transition-fast: 150ms ease-in-out;
-  --transition-normal: 250ms ease-in-out;
-  --transition-slow: 350ms ease-in-out;
+  /* Shadows - more pronounced */
+  --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.4);
+  --shadow-md: 0 8px 16px -4px rgb(0 0 0 / 0.5), 0 4px 8px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 20px 40px -10px rgb(0 0 0 / 0.6), 0 8px 16px -4px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.7);
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark theme */
+/* Dark theme (default) */
 [data-theme="dark"] {
-  --color-bg: #0d1117;
-  --color-text: #f0f6fc;
-  --color-primary: #0969da;
-  --color-secondary: #8b949e;
+  --color-bg: #000000;
+  --color-text: #ededed;
+  --color-primary: #3b82f6;
 }
 
 /* Light theme */
 [data-theme="light"] {
   --color-bg: #ffffff;
-  --color-text: #1f2328;
-  --color-primary: #0969da;
-  --color-secondary: #656d76;
+  --color-bg-elevated: #f9fafb;
+  --color-bg-surface: #f3f4f6;
+  --color-bg-hover: #e5e7eb;
+  --color-bg-active: #d1d5db;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-subtle: #9ca3af;
+  --color-border: #e5e7eb;
+  --color-border-hover: #d1d5db;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-code-bg: #f9fafb;
+  --color-code-border: #e5e7eb;
 }
 
 /* Base styles */
