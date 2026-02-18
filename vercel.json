@@ -68,10 +68,5 @@
   ],
   "env": {
     "FRONTEND_DIST_DIR": "frontend/dist"
-  },
-  "functions": {
-    "server.py": {
-      "maxDuration": 30
-    }
   }
 }
