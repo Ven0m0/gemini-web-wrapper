@@ -23,7 +23,7 @@ class GeminiClientWrapper:
 
     This class handles:
     - Automatic cookie loading from profiles
-    - Fallback to browser-cookie3 auto-import
+    - Fallback to rookiepy auto-import
     - Cookie refresh on authentication failures
     - Proper async client lifecycle (init/close)
     - Streaming via generate_content_stream
@@ -91,7 +91,7 @@ class GeminiClientWrapper:
     async def init_auto(self) -> bool:
         """Initialize client with automatic browser cookie import.
 
-        Uses browser-cookie3 to automatically import cookies from the
+        Uses rookiepy to automatically import cookies from the
         user's browser. Requires the user to be logged in at
         gemini.google.com.
 

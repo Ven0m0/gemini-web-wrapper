@@ -1,17 +1,17 @@
-import unittest
-from unittest.mock import MagicMock, patch, Mock
 import sys
-import asyncio
+import unittest
+from unittest.mock import MagicMock, Mock, patch
 
 # Mock aiosqlite as it's not installed in this environment
 mock_aiosqlite = MagicMock()
 sys.modules["aiosqlite"] = mock_aiosqlite
 
-# Mock browser_cookie3
-mock_browser_cookie3 = MagicMock()
-sys.modules["browser_cookie3"] = mock_browser_cookie3
+# Mock rookiepy
+mock_rookiepy = MagicMock()
+sys.modules["rookiepy"] = mock_rookiepy
 
-from cookie_manager import CookieManager, CookieData
+from cookie_manager import CookieManager  # noqa: E402
+
 
 class TestCookieManager(unittest.TestCase):
     def setUp(self):
@@ -25,11 +25,11 @@ class TestCookieManager(unittest.TestCase):
         c.path = "/"
         c.expires = None
         c.secure = True
-        c.http_only = True
+        c.has_nonstandard_attr.return_value = True
         return c
 
-    @patch("cookie_manager.browser_cookie3")
-    def test_extract_cookies_all_browsers(self, mock_bc3):
+    @patch("cookie_manager.rookiepy")
+    def test_extract_cookies_all_browsers(self, mock_rp):
         """Test extraction from all browsers sequentially (current behavior) or parallel (future behavior)."""
         # Create mock cookies
         c1 = self.create_mock_cookie("c1")
@@ -41,11 +41,10 @@ class TestCookieManager(unittest.TestCase):
         mock_edge = Mock(side_effect=Exception("Edge failed")) # Simulate failure
 
         # Assign to the mock module
-        mock_bc3.chrome = mock_chrome
-        mock_bc3.firefox = mock_firefox
-        mock_bc3.edge = mock_edge
-        mock_bc3.safari = Mock(return_value=[])
-        mock_bc3.chromium = Mock(return_value=[])
+        mock_rp.chrome = mock_chrome
+        mock_rp.firefox = mock_firefox
+        mock_rp.edge = mock_edge
+        mock_rp.chromium = Mock(return_value=[])
 
         # Test extraction
         cookies = self.manager._extract_cookies_from_browser(browser="all")
@@ -61,12 +60,12 @@ class TestCookieManager(unittest.TestCase):
         mock_firefox.assert_called()
         mock_edge.assert_called()
 
-    @patch("cookie_manager.browser_cookie3")
-    def test_extract_cookies_single_browser(self, mock_bc3):
+    @patch("cookie_manager.rookiepy")
+    def test_extract_cookies_single_browser(self, mock_rp):
         """Test extraction from a single browser."""
         c1 = self.create_mock_cookie("c1")
         mock_chrome = Mock(return_value=[c1])
-        mock_bc3.chrome = mock_chrome
+        mock_rp.chrome = mock_chrome
 
         cookies = self.manager._extract_cookies_from_browser(browser="chrome")
 

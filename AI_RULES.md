@@ -7,7 +7,7 @@
 - **AI Core**: Genkit (Google GenAI SDK) + gemini-webapi for dual API access
 - **Database**: SQLite (aiosqlite) for cookie/profile persistence
 - **Deployment**: Vercel (frontend) + Render/Heroku (backend) or Vercel Serverless Functions
-- **Authentication**: Browser cookies via browser-cookie3 + profile management
+- **Authentication**: Browser cookies via rookiepy + profile management
 - **UI Components**: shadcn/ui + Tailwind CSS for responsive design
 - **WebSockets**: ws library for real-time file transfer
 - **PWA**: Vite PWA plugin for installable mobile experience
@@ -20,7 +20,7 @@
 3. **gemini-webapi** - Cookie-authenticated access to Gemini web features
 4. **Pydantic** - All request/response data validation
 5. **aiosqlite** - Async SQLite for cookie/profile storage
-6. **browser-cookie3** - Automatic cookie extraction from browsers
+6. **rookiepy** - Automatic cookie extraction from browsers
 7. **httpx** - All HTTP client requests (GitHub API, etc.)
 8. **cachetools** - In-memory caching for sessions (TTLCache)
 9. **orjson** - Fast JSON serialization for all responses
