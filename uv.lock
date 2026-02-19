@@ -35,19 +35,19 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.19.0" },
-    { name = "anthropic", specifier = ">=0.7.0" },
+    { name = "anthropic", specifier = ">=0.40.0" },
     { name = "browser-cookie3", specifier = ">=0.19.0" },
     { name = "cachetools", specifier = ">=5.3.0" },
     { name = "fastapi", specifier = ">=0.104.1" },
     { name = "gemini-webapi", specifier = ">=1.10.2" },
-    { name = "google-genai", specifier = ">=0.3.0" },
+    { name = "google-genai", specifier = ">=1.0.0" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "json-repair", specifier = ">=0.56.0" },
     { name = "openai", specifier = ">=2.20.0" },
     { name = "orjson", specifier = ">=3.9.0" },
     { name = "pydantic", specifier = ">=2.5.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "python-multipart", specifier = ">=0.0.6" },
+    { name = "python-multipart", specifier = ">=0.0.16" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
     { name = "websockets", specifier = ">=12.0" },
 ]
