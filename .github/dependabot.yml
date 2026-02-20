@@ -22,19 +22,6 @@ updates:
         update-types:
           - "minor"
           - "patch"
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    ignore:
-      - dependency-name: "pip"
-    groups:
-      pip-all:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
@@ -48,20 +35,8 @@ updates:
         update-types:
           - "minor"
           - "patch"
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    versioning-strategy: "increase-if-necessary"
-    groups:
-      npm-all:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
   - package-ecosystem: "bun"
-    directory: "/"
+    directory: "/frontend"
     schedule:
       interval: "weekly"
     versioning-strategy: "increase-if-necessary"

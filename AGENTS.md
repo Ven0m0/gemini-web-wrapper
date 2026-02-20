@@ -36,7 +36,7 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 | Code editor component | CodeMirror 6 + `@uiw/react-codemirror` |
 | State management | Zustand 5 |
 | Package manager (Python) | `uv` (never pip) |
-| Package manager (JS) | npm |
+| Package manager (JS) | `bun` (never npm or pnpm) |
 | Linter / formatter | Ruff (Python), ESLint (TS/JS) |
 | Type checker | pyrefly (Python), tsc (TypeScript) |
 | Test framework | pytest + anyio |
@@ -137,7 +137,7 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 ### Prerequisites
 
 - Python 3.10+ and [`uv`](https://docs.astral.sh/uv/)
-- Node.js 18+ and npm
+- Node.js 18+ and [`bun`](https://bun.sh)
 - A Google API key (Gemini) or another supported provider key
 
 ### Install
@@ -146,7 +146,7 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 git clone <repo-url> && cd gemini-web-wrapper
 cp .env.example .env   # set at minimum: GOOGLE_API_KEY
 uv sync                # Python deps from uv.lock
-cd frontend && npm install && cd ..
+cd frontend && bun install && cd ..
 ```
 
 </setup>
@@ -160,10 +160,10 @@ cd frontend && npm install && cd ..
 uv run uvicorn server:app --reload --host 0.0.0.0 --port 9000
 
 # Frontend — dev (hot-reload, proxies API to backend)
-cd frontend && npm run dev       # http://localhost:5173
+cd frontend && bun run dev       # http://localhost:5173
 
 # Full stack — production build
-cd frontend && npm run build && cd ..
+cd frontend && bun run build && cd ..
 uv run uvicorn server:app --host 0.0.0.0 --port 9000
 # Frontend served at http://localhost:9000/
 
@@ -190,7 +190,7 @@ uv run pytest                 # 4. Tests
 Frontend:
 
 ```bash
-cd frontend && npm run build  # Catches TypeScript errors
+cd frontend && bun run build  # Catches TypeScript errors
 ```
 
 ### Running tests
@@ -318,13 +318,13 @@ uv add --dev <package>    # Dev/test-only dependency
 1. Create `frontend/src/components/MyComponent.tsx` with a typed props interface.
 2. Keep render logic in the component; move API/business logic to `src/services/`.
 3. Global state → Zustand store.
-4. `cd frontend && npm run build` to verify.
+4. `cd frontend && bun run build` to verify.
 
 ### Run type checking
 
 ```bash
 pyrefly check                    # Python (fix all errors before committing)
-cd frontend && npx tsc --noEmit  # TypeScript
+cd frontend && bunx tsc --noEmit  # TypeScript
 ```
 
 </common-tasks>
