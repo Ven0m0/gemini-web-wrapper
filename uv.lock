@@ -47,7 +47,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "python-multipart", specifier = ">=0.0.19" },
-    { name = "rookiepy", specifier = ">=0.5.0" },
     { name = "rookiepy", specifier = ">=0.5.6" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
 ]
