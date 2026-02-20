@@ -25,7 +25,7 @@ class TestCookieManager(unittest.TestCase):
         c.path = "/"
         c.expires = None
         c.secure = True
-        c.has_nonstandard_attr.return_value = True
+        c.rest = {"HttpOnly": ""}
         return c
 
     @patch("cookie_manager.rookiepy")
