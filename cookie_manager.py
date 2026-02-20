@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Cookie management module for Gemini API with browser-cookie3 and aiosqlite.
+"""Cookie management module for Gemini API with rookiepy and aiosqlite.
 
 This module provides cookie extraction from browsers, persistent storage in SQLite,
 and multi-profile support inspired by Electron-based wrappers.
 
 Features:
-- Automatic cookie extraction from Chrome, Firefox, Edge, Safari
+- Automatic cookie extraction from Chrome, Firefox, Edge, Chromium
 - Async SQLite storage with aiosqlite
 - Multi-profile support for different users/accounts
 - Cookie refresh and validation
 - Thread-safe operations
 """
 
-import concurrent.futures
 import asyncio
+import concurrent.futures
 import json
 import logging
 import time
@@ -25,11 +25,11 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 import aiosqlite
-import browser_cookie3
+import rookiepy
 
 logger = logging.getLogger(__name__)
 
-BrowserType = Literal["chrome", "firefox", "edge", "safari", "chromium", "all"]
+BrowserType = Literal["chrome", "firefox", "edge", "chromium", "all"]
 
 
 @dataclass
@@ -117,7 +117,7 @@ class CookieManager:
     """Manages cookie extraction, storage, and retrieval for Gemini API.
 
     This class handles:
-    - Extracting cookies from various browsers using browser-cookie3
+    - Extracting cookies from various browsers using rookiepy
     - Storing cookies in SQLite database with aiosqlite
     - Managing multiple profiles for different accounts
     - Refreshing and validating cookies
@@ -233,13 +233,12 @@ class CookieManager:
             RuntimeError: If cookie extraction fails.
         """
         try:
-            # Map browser type to browser_cookie3 function
+            # Map browser type to rookiepy function
             browser_funcs = {
-                "chrome": browser_cookie3.chrome,
-                "firefox": browser_cookie3.firefox,
-                "edge": browser_cookie3.edge,
-                "safari": browser_cookie3.safari,
-                "chromium": browser_cookie3.chromium,
+                "chrome": rookiepy.chrome,
+                "firefox": rookiepy.firefox,
+                "edge": rookiepy.edge,
+                "chromium": rookiepy.chromium,
             }
 
             if browser == "all":
@@ -248,7 +247,7 @@ class CookieManager:
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     # Submit all tasks
                     future_to_browser = {
-                        executor.submit(func, domain_name=domain): name
+                        executor.submit(func, domains=[domain]): name
                         for name, func in browser_funcs.items()
                     }
 
@@ -265,11 +264,12 @@ class CookieManager:
                             continue
 
             elif browser in browser_funcs:
-                cookies = browser_funcs[browser](domain_name=domain)
+                cookies = browser_funcs[browser](domains=[domain])
             else:
                 raise ValueError(f"Unsupported browser: {browser}")
 
             # Convert to CookieData objects
+            # rookiepy returns http.cookiejar.Cookie; HttpOnly is a non-standard attr
             return [
                 CookieData(
                     name=c.name,
@@ -278,7 +278,7 @@ class CookieManager:
                     path=c.path,
                     expires=c.expires,
                     secure=c.secure,
-                    http_only=hasattr(c, "http_only") and c.http_only,
+                    http_only="HttpOnly" in c.rest if hasattr(c, "rest") else False,
                 )
                 for c in cookies
             ]
@@ -306,7 +306,7 @@ class CookieManager:
             RuntimeError: If extraction times out or fails.
         """
         try:
-            # Run blocking browser_cookie3 operation in thread pool with timeout
+            # Run blocking rookiepy operation in thread pool with timeout
             return await asyncio.wait_for(
                 asyncio.to_thread(
                     self._extract_cookies_from_browser,

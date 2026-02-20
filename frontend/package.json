@@ -35,7 +35,6 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@types/diff": "^8.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react-swc": "^4.0.0",
@@ -43,5 +42,8 @@
     "vite": "^7.3.0",
     "@vite-pwa/assets-generator": "^1.0.0",
     "vite-plugin-pwa": "^1.2.0"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1"
   }
 }

@@ -1,22 +1,22 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Building AI Assistant App for production..."
+echo "Building Gemini Web Wrapper for production..."
 
 # Install frontend dependencies
-echo "📦 Installing frontend dependencies..."
+echo "Installing frontend dependencies..."
 cd frontend
-npm install
+bun install
 
 # Build frontend
-echo "🔨 Building frontend..."
-npm run build
+echo "Building frontend..."
+bun run build
 
 # Install backend dependencies
-echo "📦 Installing backend dependencies..."
+echo "Installing backend dependencies..."
 cd ..
-pip install -r requirements.txt
+uv sync --frozen
 
-echo "✅ Build completed successfully!"
-echo "📁 Frontend built to: frontend/dist"
-echo "🚀 Ready for deployment!"
+echo "Build completed."
+echo "Frontend built to: frontend/dist"
+echo "Ready for deployment."

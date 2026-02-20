@@ -15,9 +15,14 @@ fi
 # ---- Frontend ----
 if [ -d "frontend" ]; then
     echo "Installing frontend dependencies..."
-    cd frontend
-    npm install
-    cd ..
+    if command -v bun &> /dev/null; then
+        cd frontend
+        bun install
+        cd ..
+    else
+        echo "bun not found. Install it: https://bun.sh"
+        exit 1
+    fi
 fi
 
 # ---- Zagi (agent-optimised git CLI) ----
@@ -39,4 +44,4 @@ fi
 echo ""
 echo "Development environment ready."
 echo "  Backend:  uv run uvicorn server:app --reload"
-echo "  Frontend: cd frontend && npm run dev"
+echo "  Frontend: cd frontend && bun run dev"

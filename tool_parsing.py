@@ -9,18 +9,11 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
 
 import json_repair
-from gemini_webapi import ModelOutput
+import orjson
 
 from openai_schemas import (
-    ChatCompletionMessage,
-    ChatCompletionMessageContent,
-    ChatCompletionRequest,
-    ChatCompletionResponse,
-    ChatCompletionResponseChoice,
-    ChatCompletionResponseUsage,
     FunctionCall,
     ToolCall,
     ToolDefinition,
@@ -60,7 +53,7 @@ def format_tools_for_prompt(tools: list[ToolDefinition]) -> str:
         }
         for tool in tools
     ]
-    return json.dumps(tools_data, indent=2)
+    return orjson.dumps(tools_data, option=orjson.OPT_INDENT_2).decode()
 
 
 def inject_tools_into_prompt(prompt: str, tools: list[ToolDefinition] | None) -> str:
@@ -165,7 +158,7 @@ def _repair_json_fragment(fragment: str) -> str | None:
         repaired = json_repair.repair_json(fragment, return_objects=False)
         if not isinstance(repaired, str):
             return None
-        obj = json.loads(repaired)
+        obj = orjson.loads(repaired)
         if isinstance(obj, dict) and "tool_calls" in obj:
             return repaired
     except (json.JSONDecodeError, ValueError, TypeError):
@@ -250,7 +243,7 @@ def _parse_tool_calls_data(data: dict) -> list[ToolCall]:
         # Handle arguments that might be dict or string
         args = tc.get("function", {}).get("arguments", "{}")
         if isinstance(args, dict):
-            args = json.dumps(args)
+            args = orjson.dumps(args).decode()
 
         call_id = tc.get("id", f"call_{uuid4().hex[:12]}")
 
