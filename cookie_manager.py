@@ -278,7 +278,7 @@ class CookieManager:
                     path=c.path,
                     expires=c.expires,
                     secure=c.secure,
-                    http_only=c.has_nonstandard_attr("HTTPOnly"),
+                    http_only="HttpOnly" in c.rest if hasattr(c, "rest") else False,
                 )
                 for c in cookies
             ]
