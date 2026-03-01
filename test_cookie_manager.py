@@ -1,6 +1,7 @@
 import sys
+import time
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 # Mock aiosqlite as it's not installed in this environment
 mock_aiosqlite = MagicMock()
@@ -11,6 +12,19 @@ mock_rookiepy = MagicMock()
 sys.modules["rookiepy"] = mock_rookiepy
 
 from cookie_manager import CookieManager  # noqa: E402
+
+
+class AsyncContextManagerMock:
+    """Helper to mock async context managers."""
+
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    async def __aenter__(self):
+        return self.return_value
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 
 class TestCookieManager(unittest.TestCase):
@@ -72,6 +86,95 @@ class TestCookieManager(unittest.TestCase):
         self.assertEqual(len(cookies), 1)
         self.assertEqual(cookies[0].name, "c1")
         mock_chrome.assert_called()
+
+
+class TestCookieManagerAsync(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.manager = CookieManager()
+        self.mock_db = MagicMock()
+        self.mock_db.execute = AsyncMock()
+        # Mock _db_connection to return our mock_db via the async context manager helper
+        self.manager._db_connection = MagicMock(
+            return_value=AsyncContextManagerMock(self.mock_db)
+        )
+
+    def _make_row(self, data):
+        row = MagicMock()
+        row.__getitem__.side_effect = data.__getitem__
+        return row
+
+    async def test_get_gemini_cookies_success(self):
+        """Test successful retrieval of valid cookies."""
+        future_time = time.time() + 3600
+        rows = [
+            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": future_time}),
+            self._make_row({"name": "__Secure-1PSIDTS", "value": "val2", "expires": future_time}),
+        ]
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall = AsyncMock(return_value=rows)
+        self.mock_db.execute.return_value = mock_cursor
+
+        result = await self.manager.get_gemini_cookies("test_profile")
+
+        self.assertEqual(result, {"__Secure-1PSID": "val1", "__Secure-1PSIDTS": "val2"})
+        self.mock_db.execute.assert_called()
+
+    async def test_get_gemini_cookies_profile_not_found(self):
+        """Test when profile has no cookies."""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall = AsyncMock(return_value=[])
+        self.mock_db.execute.return_value = mock_cursor
+
+        result = await self.manager.get_gemini_cookies("non_existent")
+
+        self.assertIsNone(result)
+
+    async def test_get_gemini_cookies_missing_required(self):
+        """Test when some required cookies are missing."""
+        rows = [
+            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": None}),
+        ]
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall = AsyncMock(return_value=rows)
+        self.mock_db.execute.return_value = mock_cursor
+
+        result = await self.manager.get_gemini_cookies("partial_profile")
+
+        self.assertIsNone(result)
+
+    async def test_get_gemini_cookies_expired(self):
+        """Test when a required cookie is expired."""
+        past_time = time.time() - 3600
+        future_time = time.time() + 3600
+        rows = [
+            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": future_time}),
+            self._make_row({"name": "__Secure-1PSIDTS", "value": "val2", "expires": past_time}),
+        ]
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall = AsyncMock(return_value=rows)
+        self.mock_db.execute.return_value = mock_cursor
+
+        result = await self.manager.get_gemini_cookies("expired_profile")
+
+        self.assertIsNone(result)
+
+    async def test_get_gemini_cookies_no_expiration(self):
+        """Test retrieval of cookies with no expiration (session cookies)."""
+        rows = [
+            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": None}),
+            self._make_row({"name": "__Secure-1PSIDTS", "value": "val2", "expires": None}),
+        ]
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall = AsyncMock(return_value=rows)
+        self.mock_db.execute.return_value = mock_cursor
+
+        result = await self.manager.get_gemini_cookies("session_profile")
+
+        self.assertEqual(result, {"__Secure-1PSID": "val1", "__Secure-1PSIDTS": "val2"})
 
 if __name__ == "__main__":
     unittest.main()
