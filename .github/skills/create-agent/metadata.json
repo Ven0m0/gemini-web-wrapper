@@ -1,0 +1,13 @@
+{
+  "version": "1.1.0",
+  "organization": "OpenRouter Inc",
+  "date": "January 2026",
+  "abstract": "Complete guide for building modular AI agents with the OpenRouter TypeScript SDK. Features a standalone Agent class with EventEmitter-based hooks for extensibility, items-based streaming model for efficient UI state management, optional Ink TUI for interactive terminal interfaces, and examples for HTTP server and Discord integrations. Includes Zod-based tool definitions, streaming responses with support for reasoning/thinking items, multi-turn conversations, and dynamic model discovery via the OpenRouter Models API.",
+  "references": [
+    "https://openrouter.ai/docs/sdks/typescript",
+    "https://openrouter.ai/docs/sdks/typescript/call-model/working-with-items",
+    "https://openrouter.ai/docs/api-reference",
+    "https://openrouter.ai/api/v1/models",
+    "https://github.com/vadimdemedes/ink"
+  ]
+}
