@@ -61,9 +61,7 @@ def test_bifrost_message_building_no_system():
     """Test message building without system message."""
     provider = BifrostProvider(api_key="test-key")
 
-    messages = provider._build_messages(
-        prompt="Test prompt", system=None, history=None
-    )
+    messages = provider._build_messages(prompt="Test prompt", system=None, history=None)
 
     assert len(messages) == 1
     assert messages[0]["role"] == "user"

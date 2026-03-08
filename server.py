@@ -7,16 +7,13 @@ async/await, orjson, uvloop, and comprehensive validation.
 """
 
 import asyncio
-import json
 import mimetypes
 import os
 import sys
-import time
 from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
-from uuid import uuid4
 
 import httpx
 from cachetools import TTLCache
@@ -28,16 +25,11 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cookie_manager import CookieManager
+from endpoints.openai import router as openai_router
 from gemini_client import GeminiClientWrapper
 from github_service import GitHubConfig, GitHubService
 from llm_core.factory import ProviderFactory, ProviderType
 from llm_core.interfaces import LLMProvider
-from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
-from openai_transforms import (
-    collapse_messages,
-    parse_tool_calls,
-    to_chat_completion_response,
-)
 from session_manager import SessionManager
 from utils import handle_generation_errors
 
@@ -164,7 +156,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     if state.github_client:
         await state.github_client.aclose()
 
-
     state.llm_provider = None
     state.session_manager = None
     state.settings = None
@@ -190,6 +181,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(openai_router)
 
 
 # ----- Models -----
@@ -392,7 +385,6 @@ def get_gemini_client() -> GeminiClientWrapper:
             detail="Gemini client not initialized.",
         )
     return state.gemini_client
-
 
 
 def get_github_client() -> httpx.AsyncClient:
@@ -613,217 +605,6 @@ async def query_sessions(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Session query failed: {e}",
         ) from e
-
-
-# ----- OpenAI-Compatible Endpoints -----
-async def _stream_gemini_sse(
-    gemini_client: GeminiClientWrapper,
-    prompt: str,
-    model_name: str,
-    request: ChatCompletionRequest,
-    request_id: str,
-    include_usage: bool,
-) -> AsyncGenerator[str]:
-    """Stream Gemini responses as OpenAI-compatible SSE chunks.
-
-    Uses gemini-webapi native streaming for true incremental delivery.
-    """
-    created = int(time.time())
-    effective_model = request.model or model_name
-    first_chunk = True
-
-    try:
-        async for output in gemini_client.generate_stream(prompt, model=model_name):
-            delta_text = output.text_delta or ""
-            if not delta_text:
-                continue
-
-            delta: dict[str, Any] = {"content": delta_text}
-            if first_chunk:
-                delta["role"] = "assistant"
-                first_chunk = False
-
-            chunk_data = {
-                "id": request_id,
-                "object": "chat.completion.chunk",
-                "created": created,
-                "model": effective_model,
-                "choices": [
-                    {
-                        "index": 0,
-                        "delta": delta,
-                        "finish_reason": None,
-                    }
-                ],
-            }
-            yield f"data: {json.dumps(chunk_data)}\n\n"
-    except Exception as e:
-        # Log error but still send the finish marker
-        print(
-            f"Streaming generation error: {e}",
-            file=sys.stderr,
-        )
-
-    # Send finish chunk
-    finish_chunk: dict[str, Any] = {
-        "id": request_id,
-        "object": "chat.completion.chunk",
-        "created": created,
-        "model": effective_model,
-        "choices": [
-            {
-                "index": 0,
-                "delta": {},
-                "finish_reason": "stop",
-            }
-        ],
-    }
-    if include_usage:
-        finish_chunk["usage"] = {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-        }
-    yield f"data: {json.dumps(finish_chunk)}\n\n"
-    yield "data: [DONE]\n\n"
-
-
-def _build_tool_call_response(
-    tool_calls: list,
-    remaining_text: str,
-    request: ChatCompletionRequest,
-    model_name: str,
-    request_id: str,
-) -> ChatCompletionResponse:
-    """Build a ChatCompletionResponse containing tool calls."""
-    from openai_schemas import (
-        ChatCompletionMessage as CCMessage,
-    )
-    from openai_schemas import (
-        ChatCompletionResponseChoice as CCChoice,
-    )
-    from openai_schemas import (
-        ChatCompletionResponseUsage as CCUsage,
-    )
-
-    message = CCMessage(
-        role="assistant",
-        content=remaining_text if remaining_text else None,
-        tool_calls=tool_calls,
-    )
-    choice = CCChoice(
-        index=0,
-        message=message,
-        finish_reason="tool_calls",
-    )
-    return ChatCompletionResponse(
-        id=request_id,
-        object="chat.completion",
-        created=int(time.time()),
-        model=request.model or model_name,
-        choices=[choice],
-        usage=CCUsage(),
-    )
-
-
-@app.post("/v1/chat/completions", response_model=None)
-async def openai_chat_completions(
-    request: ChatCompletionRequest,
-    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
-    settings: Settings = Depends(get_settings),
-) -> ChatCompletionResponse | StreamingResponse:
-    """OpenAI-compatible chat completions endpoint.
-
-    This endpoint accepts OpenAI-style chat completion requests and translates them
-    to Gemini API calls. It supports:
-    - Message history with system/user/assistant roles
-    - Tool calling via prompt injection
-    - Streaming responses (SSE format)
-    - Model aliasing (e.g., gpt-4o-mini -> gemini-2.5-flash)
-
-    Args:
-        request: ChatCompletionRequest with messages and optional tools.
-        gemini_client: Injected GeminiClientWrapper dependency.
-        settings: Injected Settings dependency.
-
-    Returns:
-        ChatCompletionResponse or StreamingResponse if streaming is enabled.
-
-    Raises:
-        HTTPException: 503 if client not initialized, 502 if generation fails.
-    """
-    # Initialize client if needed (auto-import cookies)
-    if not await gemini_client.ensure_initialized():
-        success = await gemini_client.init_auto()
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Failed to auto-initialize. "
-                    "Please login to gemini.google.com "
-                    "or create a profile."
-                ),
-            )
-    # Resolve model name (handle aliases)
-    model_name = settings.resolve_model(request.model)
-    # Collapse messages into a single prompt
-    prompt = collapse_messages(request)
-    # Generate request ID
-    request_id = f"chatcmpl-{uuid4().hex}"
-
-    # Determine streaming options
-    is_streaming = request.stream
-    stream_options = getattr(request, "stream_options", {}) or {}
-    include_usage = stream_options.get("include_usage", False)
-
-    if is_streaming:
-        # Use native gemini-webapi streaming
-        return StreamingResponse(
-            _stream_gemini_sse(
-                gemini_client,
-                prompt,
-                model_name,
-                request,
-                request_id,
-                include_usage,
-            ),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            },
-        )
-
-    # Non-streaming: generate full response
-    try:
-        raw_response = await asyncio.wait_for(
-            gemini_client.generate(prompt, model=model_name),
-            timeout=30.0,
-        )
-    except TimeoutError as e:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Gemini generation timed out after 30s",
-        ) from e
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Gemini generation failed: {exc}",
-        ) from exc
-
-    # Parse for tool calls
-    text = raw_response.text or ""
-    tool_calls: list = []
-    if request.tools and request.tool_choice != "none":
-        tool_calls, text = parse_tool_calls(text)
-
-    if tool_calls:
-        # Build a tool-call response manually
-        return _build_tool_call_response(
-            tool_calls, text, request, model_name, request_id
-        )
-
-    return to_chat_completion_response(raw_response, request, model_name)
 
 
 # ----- Profile Management Endpoints -----

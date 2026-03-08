@@ -5,11 +5,10 @@ from Gemini ModelOutput objects.
 """
 
 import time
-from typing import Any
+from uuid import uuid4
 
 from gemini_webapi import ModelOutput
 
-from message_transforms import parse_tool_calls
 from openai_schemas import (
     ChatCompletionMessage,
     ChatCompletionMessageContent,
@@ -19,8 +18,7 @@ from openai_schemas import (
     ChatCompletionResponseUsage,
     ToolCall,
 )
-
-from uuid import uuid4
+from tool_parsing import parse_tool_calls
 
 
 def to_chat_completion_response(

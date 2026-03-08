@@ -4,16 +4,11 @@ This module contains functions for transforming between OpenAI chat
 message formats and internal representations.
 """
 
-import json
-from typing import Any
-
 from openai_schemas import (
     ChatCompletionMessage,
     ChatCompletionMessageContent,
     ChatCompletionRequest,
-    ToolDefinition,
 )
-
 from tool_parsing import inject_tools_into_prompt
 
 

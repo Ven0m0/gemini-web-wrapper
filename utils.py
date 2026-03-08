@@ -223,6 +223,7 @@ def require_non_empty_list(
         )
     return value
 
+
 # ----- String Utilities -----
 
 
@@ -248,10 +249,7 @@ def chunk_sentence_parts(sentences: Iterable[str], chunk_size: int = 50) -> list
         current_length += len(part)
 
         # Check conditions
-        if (
-            current_length >= chunk_size
-            or part.strip().endswith((".", "!", "?"))
-        ):
+        if current_length >= chunk_size or part.strip().endswith((".", "!", "?")):
             # Check if accumulated chunk has content
             # We must join to check properly, as individual parts might be whitespace
             # but combine to something significant.
