@@ -14,6 +14,7 @@ from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
+from uuid import uuid4
 
 import httpx
 from cachetools import TTLCache
@@ -21,13 +22,12 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cookie_manager import CookieManager, CookieData
 from endpoints.openai import router as openai_router
 from gemini_client import GeminiClientWrapper
-from github_service import GitHubConfig, GitHubService
+from github_service import GitHubService
 from llm_core.factory import ProviderFactory, ProviderType
 from llm_core.interfaces import LLMProvider
 from session_manager import SessionManager
@@ -187,70 +187,6 @@ app.include_router(openai_router)
 
 
 # ----- Models -----
-class ChatMessage(BaseModel):
-    """A single message in a chat conversation.
-
-    Attributes:
-        role: Who sent the message (system, user, or model).
-        content: The message text.
-    """
-
-    role: Literal["system", "user", "model"]
-    content: str = Field(..., min_length=1)
-
-
-class ChatReq(BaseModel):
-    """Request model for chat endpoint.
-
-    Attributes:
-        prompt: User message/question (min 1 character, max 50000 chars).
-        system: Optional system message to set context/behavior.
-    """
-
-    prompt: str = Field(..., min_length=1, max_length=50000)
-    system: str | None = Field(default=None, max_length=10000)
-
-
-class ChatbotReq(BaseModel):
-    """Request model for chatbot endpoint with history.
-
-    Attributes:
-        message: User message/question (min 1 character, max 50000 chars).
-        history: Previous conversation messages (max 50 messages).
-        system: Optional system instruction to customize behavior.
-        user_id: Optional user identifier for memory attribution.
-        session_id: Optional session identifier for memory tracking.
-    """
-
-    message: str = Field(..., min_length=1, max_length=50000)
-    history: list[ChatMessage] = Field(default_factory=list, max_length=50)
-    system: str | None = Field(default=None, max_length=10000)
-    user_id: str | None = Field(default=None)
-    session_id: str | None = Field(default=None)
-
-
-class CodeReq(BaseModel):
-    """Request model for code assistance endpoint.
-
-    Attributes:
-        code: Source code to be modified/analyzed (max 100000 chars).
-        instruction: Instruction describing desired changes (max 10000 chars).
-    """
-
-    code: str = Field(..., min_length=1, max_length=100000)
-    instruction: str = Field(..., min_length=1, max_length=10000)
-
-
-class GenResponse(BaseModel):
-    """Response model for generation endpoints.
-
-    Attributes:
-        text: Generated text from the model.
-    """
-
-    text: str
-
-
 # ----- Logic Helpers -----
 async def run_generate(
     prompt: str,
@@ -556,16 +492,6 @@ async def create_new_session(
         ) from e
 
 
-class SessionQueryReq(BaseModel):
-    """Request model for session query endpoint.
-
-    Attributes:
-        user_id: User identifier to query sessions for.
-    """
-
-    user_id: str = Field(..., min_length=1)
-
-
 @app.post("/memory/query")
 async def query_sessions(
     r: SessionQueryReq,
@@ -770,20 +696,6 @@ async def refresh_profile(
 >>>>>>> be634df (🔒 Fix Arbitrary Server-Side Cookie Extraction vulnerability)
 
 # ----- Gemini WebAPI Endpoints -----
-class GeminiChatReq(BaseModel):
-    """Request model for gemini-webapi chat endpoint.
-
-    Attributes:
-        message: User message (max 50000 chars).
-        conversation_id: Optional conversation ID to continue a chat.
-        profile: Optional profile to use (if not already initialized).
-    """
-
-    message: str = Field(..., min_length=1, max_length=50000)
-    conversation_id: str | None = Field(default=None)
-    profile: str | None = Field(default=None)
-
-
 @app.post("/gemini/chat")
 async def gemini_chat(
     r: GeminiChatReq,
@@ -842,48 +754,6 @@ async def gemini_chat(
 
 
 # ----- GitHub Integration Endpoints -----
-class GitHubFileReadReq(BaseModel):
-    """Request model for reading a file from GitHub.
-
-    Attributes:
-        config: GitHub configuration (token, owner, repo, branch).
-        path: File path in repository.
-    """
-
-    config: GitHubConfig
-    path: str = Field(..., min_length=1)
-
-
-class GitHubFileWriteReq(BaseModel):
-    """Request model for writing/updating a file to GitHub.
-
-    Attributes:
-        config: GitHub configuration (token, owner, repo, branch).
-        path: File path in repository.
-        content: File content to write.
-        message: Commit message.
-        sha: File SHA for updates (optional, required for existing files).
-    """
-
-    config: GitHubConfig
-    path: str = Field(..., min_length=1)
-    content: str
-    message: str = Field(..., min_length=1)
-    sha: str | None = None
-
-
-class GitHubListReq(BaseModel):
-    """Request model for listing directory contents.
-
-    Attributes:
-        config: GitHub configuration (token, owner, repo, branch).
-        path: Directory path in repository (empty for root).
-    """
-
-    config: GitHubConfig
-    path: str = ""
-
-
 @app.post("/github/file/read")
 async def github_read_file(
     r: GitHubFileReadReq,
@@ -1001,16 +871,6 @@ async def github_list_directory(
         ) from e
 
 
-class GitHubBranchesReq(BaseModel):
-    """Request model for listing branches.
-
-    Attributes:
-        config: GitHub configuration (token, owner, repo).
-    """
-
-    config: GitHubConfig
-
-
 @app.post("/github/branches")
 async def github_list_branches(
     r: GitHubBranchesReq,
@@ -1124,14 +984,6 @@ async def get_user_info():
     }
 
 
-class ChatHistoryItem(BaseModel):
-    id: str
-    user_id: str
-    session_id: str | None
-    chat: dict
-    timestamp: int
-
-
 @app.post("/api/chat/history")
 async def save_chat_history(chat_data: dict):
     """Save chat history, similar to Open WebUI."""
@@ -1156,12 +1008,6 @@ async def delete_chat_history(chat_id: str):
 
 
 # Documents and RAG features (similar to Open WebUI)
-class DocumentUploadReq(BaseModel):
-    filename: str
-    content: str
-    collection_name: str = "default"
-
-
 @app.post("/api/document/upload")
 async def upload_document(doc_req: DocumentUploadReq):
     """Upload a document for RAG, similar to Open WebUI."""
@@ -1187,14 +1033,6 @@ async def delete_document(doc_id: str):
 
 
 # Tools management (similar to Open WebUI)
-class Tool(BaseModel):
-    id: str
-    name: str
-    description: str
-    json_schema: dict
-    scope: str = "chat"
-
-
 @app.get("/api/tools")
 async def get_tools():
     """Get available tools, similar to Open WebUI."""
