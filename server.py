@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cookie_manager import CookieManager
+from cookie_manager import CookieManager, CookieData
 from endpoints.openai import router as openai_router
 from gemini_client import GeminiClientWrapper
 from github_service import GitHubConfig, GitHubService
@@ -609,16 +609,28 @@ async def query_sessions(
 
 
 # ----- Profile Management Endpoints -----
+class CookieItem(BaseModel):
+    """Model representing a single cookie."""
+
+    name: str = Field(..., min_length=1)
+    value: str = Field(..., min_length=1)
+    domain: str = Field(..., min_length=1)
+    path: str = Field(default="/")
+    expires: float | None = Field(default=None)
+    secure: bool = Field(default=True)
+    http_only: bool = Field(default=True)
+
+
 class ProfileCreateReq(BaseModel):
-    """Request model for creating a profile from browser cookies.
+    """Request model for creating a profile from provided cookies.
 
     Attributes:
         name: Profile name/identifier.
-        browser: Browser to extract cookies from.
+        cookies: List of cookies to use.
     """
 
     name: str = Field(..., min_length=1)
-    browser: str = Field(default="chrome")
+    cookies: list[CookieItem] = Field(..., min_length=1)
 
 
 class ProfileSwitchReq(BaseModel):
@@ -632,6 +644,130 @@ class ProfileSwitchReq(BaseModel):
 
 # ----- Profiles Endpoints -----
 app.include_router(profiles_router)
+
+
+@app.get("/profiles/list")
+async def list_profiles(
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, Any]:
+    """List all stored profiles.
+
+    Args:
+        cookie_mgr: Injected CookieManager dependency.
+        gemini_client: Injected GeminiClientWrapper dependency.
+
+    Returns:
+        Dict with profiles list and current profile info.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized.
+    """
+    profiles = await cookie_mgr.list_profiles()
+    current_profile = gemini_client.get_current_profile()
+
+    return {
+        "profiles": profiles,
+        "current_profile": current_profile,
+        "count": len(profiles),
+    }
+
+
+@app.post("/profiles/switch")
+async def switch_profile(
+    r: ProfileSwitchReq,
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, str]:
+    """Switch to a different profile.
+
+    Args:
+        r: ProfileSwitchReq with profile name.
+        gemini_client: Injected GeminiClientWrapper dependency.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if services not initialized, 400 if switch fails.
+    """
+    try:
+        success = await gemini_client.switch_profile(r.name)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to switch to profile '{r.name}'",
+            )
+        return {
+            "status": "success",
+            "message": f"Switched to profile '{r.name}'",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile switch failed: {e}",
+        ) from e
+
+
+@app.delete("/profiles/{profile_name}")
+async def delete_profile(
+    profile_name: str,
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+) -> dict[str, str]:
+    """Delete a profile and its cookies.
+
+    Args:
+        profile_name: Name of the profile to delete.
+        cookie_mgr: Injected CookieManager dependency.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized, 404 if not found.
+    """
+    success = await cookie_mgr.delete_profile(profile_name)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Profile '{profile_name}' not found",
+        )
+    return {
+        "status": "success",
+        "message": f"Profile '{profile_name}' deleted",
+    }
+
+
+@app.post("/profiles/{profile_name}/refresh")
+async def refresh_profile(
+    profile_name: str,
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+) -> dict[str, str]:
+    """Refresh cookies for a profile.
+
+    Args:
+        profile_name: Name of the profile to refresh.
+        cookie_mgr: Injected CookieManager dependency.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized, 400 if refresh fails.
+    """
+    success = await cookie_mgr.refresh_profile(profile_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to refresh profile '{profile_name}'",
+        )
+    return {
+        "status": "success",
+        "message": f"Profile '{profile_name}' refreshed",
+    }
+
+>>>>>>> be634df (🔒 Fix Arbitrary Server-Side Cookie Extraction vulnerability)
 
 # ----- Gemini WebAPI Endpoints -----
 class GeminiChatReq(BaseModel):

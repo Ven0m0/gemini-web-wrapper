@@ -8,9 +8,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from cookie_manager import CookieManager
+from cookie_manager import CookieManager, CookieData
 from dependencies import get_cookie_manager, get_gemini_client
-from gemini_client import GeminiClientWrapper
 from models import ProfileCreateReq, ProfileSwitchReq
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
@@ -21,10 +20,10 @@ async def create_profile(
     r: ProfileCreateReq,
     cookie_mgr: CookieManager = Depends(get_cookie_manager),
 ) -> dict[str, Any]:
-    """Create a new profile by extracting cookies from browser.
+    """Create a new profile from provided cookies.
 
     Args:
-        r: ProfileCreateReq with profile name and browser type.
+        r: ProfileCreateReq with profile name and cookies.
         cookie_mgr: Injected CookieManager dependency.
 
     Returns:
@@ -34,18 +33,26 @@ async def create_profile(
         HTTPException: 503 if cookie manager not initialized, 400 if creation fails.
     """
     try:
-        success = await cookie_mgr.create_profile_from_browser(
-            r.name,
-            r.browser,  # type: ignore
-        )
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to create profile '{r.name}' from {r.browser}",
+        cookie_data = [
+            CookieData(
+                name=c.name,
+                value=c.value,
+                domain=c.domain,
+                path=c.path,
+                expires=c.expires,
+                secure=c.secure,
+                http_only=c.http_only,
             )
+            for c in r.cookies
+        ]
+        await cookie_mgr.save_profile(
+            r.name,
+            cookie_data,
+            "manual"
+        )
         return {
             "status": "success",
-            "message": f"Profile '{r.name}' created from {r.browser}",
+            "message": f"Profile '{r.name}' created with provided cookies",
         }
     except ValueError as e:
         raise HTTPException(
