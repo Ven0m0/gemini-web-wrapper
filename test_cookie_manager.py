@@ -52,7 +52,7 @@ class TestCookieManager(unittest.TestCase):
         # Mock browser functions
         mock_chrome = Mock(return_value=[c1])
         mock_firefox = Mock(return_value=[f1])
-        mock_edge = Mock(side_effect=Exception("Edge failed")) # Simulate failure
+        mock_edge = Mock(side_effect=Exception("Edge failed"))  # Simulate failure
 
         # Assign to the mock module
         mock_rp.chrome = mock_chrome
@@ -107,8 +107,12 @@ class TestCookieManagerAsync(unittest.IsolatedAsyncioTestCase):
         """Test successful retrieval of valid cookies."""
         future_time = time.time() + 3600
         rows = [
-            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": future_time}),
-            self._make_row({"name": "__Secure-1PSIDTS", "value": "val2", "expires": future_time}),
+            self._make_row(
+                {"name": "__Secure-1PSID", "value": "val1", "expires": future_time}
+            ),
+            self._make_row(
+                {"name": "__Secure-1PSIDTS", "value": "val2", "expires": future_time}
+            ),
         ]
 
         mock_cursor = MagicMock()
@@ -133,7 +137,9 @@ class TestCookieManagerAsync(unittest.IsolatedAsyncioTestCase):
     async def test_get_gemini_cookies_missing_required(self):
         """Test when some required cookies are missing."""
         rows = [
-            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": None}),
+            self._make_row(
+                {"name": "__Secure-1PSID", "value": "val1", "expires": None}
+            ),
         ]
 
         mock_cursor = MagicMock()
@@ -149,8 +155,12 @@ class TestCookieManagerAsync(unittest.IsolatedAsyncioTestCase):
         past_time = time.time() - 3600
         future_time = time.time() + 3600
         rows = [
-            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": future_time}),
-            self._make_row({"name": "__Secure-1PSIDTS", "value": "val2", "expires": past_time}),
+            self._make_row(
+                {"name": "__Secure-1PSID", "value": "val1", "expires": future_time}
+            ),
+            self._make_row(
+                {"name": "__Secure-1PSIDTS", "value": "val2", "expires": past_time}
+            ),
         ]
 
         mock_cursor = MagicMock()
@@ -164,8 +174,12 @@ class TestCookieManagerAsync(unittest.IsolatedAsyncioTestCase):
     async def test_get_gemini_cookies_no_expiration(self):
         """Test retrieval of cookies with no expiration (session cookies)."""
         rows = [
-            self._make_row({"name": "__Secure-1PSID", "value": "val1", "expires": None}),
-            self._make_row({"name": "__Secure-1PSIDTS", "value": "val2", "expires": None}),
+            self._make_row(
+                {"name": "__Secure-1PSID", "value": "val1", "expires": None}
+            ),
+            self._make_row(
+                {"name": "__Secure-1PSIDTS", "value": "val2", "expires": None}
+            ),
         ]
 
         mock_cursor = MagicMock()
@@ -175,6 +189,7 @@ class TestCookieManagerAsync(unittest.IsolatedAsyncioTestCase):
         result = await self.manager.get_gemini_cookies("session_profile")
 
         self.assertEqual(result, {"__Secure-1PSID": "val1", "__Secure-1PSIDTS": "val2"})
+
 
 if __name__ == "__main__":
     unittest.main()

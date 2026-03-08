@@ -6,10 +6,10 @@ including initialization and cleanup of resources.
 
 import sys
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, cast
 
 import httpx
-from contextlib import asynccontextmanager
 
 from config import Settings
 from cookie_manager import CookieManager

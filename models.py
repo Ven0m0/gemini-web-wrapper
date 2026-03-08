@@ -4,10 +4,9 @@ This module contains all request and response models used across
 the API endpoints for type safety and validation.
 """
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
-
 
 # ----- Request Models -----
 

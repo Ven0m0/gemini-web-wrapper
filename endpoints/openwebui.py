@@ -4,12 +4,11 @@ This module contains endpoints inspired by Open WebUI functionality
 for compatibility and feature parity.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter
 
 from models import (
-    ChatHistoryItem,
     DocumentUploadReq,
     Tool,
 )
@@ -18,7 +17,7 @@ router = APIRouter(prefix="/api", tags=["openwebui"])
 
 
 @router.get("/config")
-async def get_config() -> Dict[str, Any]:
+async def get_config() -> dict[str, Any]:
     """Get Open WebUI-like configuration."""
     return {
         "version": "0.7.2",
@@ -34,7 +33,7 @@ async def get_config() -> Dict[str, Any]:
 
 
 @router.get("/models")
-async def get_models() -> Dict[str, Any]:
+async def get_models() -> dict[str, Any]:
     """Get available models, similar to Open WebUI."""
     return {
         "data": [
@@ -73,13 +72,13 @@ async def get_models() -> Dict[str, Any]:
 
 
 @router.get("/version")
-async def get_version() -> Dict[str, str]:
+async def get_version() -> dict[str, str]:
     """Get version info, similar to Open WebUI."""
     return {"version": "0.7.2"}
 
 
 @router.get("/user")
-async def get_user_info() -> Dict[str, str]:
+async def get_user_info() -> dict[str, str]:
     """Get user info, similar to Open WebUI."""
     return {
         "id": "default-user",
@@ -91,7 +90,7 @@ async def get_user_info() -> Dict[str, str]:
 
 
 @router.post("/chat/history")
-async def save_chat_history(chat_data: Dict[str, Any]) -> Dict[str, bool]:
+async def save_chat_history(chat_data: dict[str, Any]) -> dict[str, bool]:
     """Save chat history, similar to Open WebUI."""
     # In a real implementation, this would save to a database
     # For now, we'll just return success
@@ -99,7 +98,7 @@ async def save_chat_history(chat_data: Dict[str, Any]) -> Dict[str, bool]:
 
 
 @router.get("/chat/history")
-async def get_chat_history() -> Dict[str, Any]:
+async def get_chat_history() -> dict[str, Any]:
     """Get chat history, similar to Open WebUI."""
     # In a real implementation, this would fetch from a database
     # For now, we'll return an empty history
@@ -107,14 +106,14 @@ async def get_chat_history() -> Dict[str, Any]:
 
 
 @router.delete("/chat/history/{chat_id}")
-async def delete_chat_history(chat_id: str) -> Dict[str, bool]:
+async def delete_chat_history(chat_id: str) -> dict[str, bool]:
     """Delete specific chat history, similar to Open WebUI."""
     # In a real implementation, this would delete from a database
     return {"status": True, "message": f"Chat history {chat_id} deleted successfully"}
 
 
 @router.post("/document/upload")
-async def upload_document(doc_req: DocumentUploadReq) -> Dict[str, Any]:
+async def upload_document(doc_req: DocumentUploadReq) -> dict[str, Any]:
     """Upload a document for RAG, similar to Open WebUI."""
     # In a real implementation, this would store the document in a vector DB
     return {
@@ -125,26 +124,26 @@ async def upload_document(doc_req: DocumentUploadReq) -> Dict[str, Any]:
 
 
 @router.get("/documents")
-async def get_documents() -> Dict[str, Any]:
+async def get_documents() -> dict[str, Any]:
     """Get list of documents, similar to Open WebUI."""
     # In a real implementation, this would fetch from a vector DB
     return {"documents": [], "count": 0}
 
 
 @router.delete("/document/{doc_id}")
-async def delete_document(doc_id: str) -> Dict[str, bool]:
+async def delete_document(doc_id: str) -> dict[str, bool]:
     """Delete a document, similar to Open WebUI."""
     return {"status": True, "message": f"Document {doc_id} deleted successfully"}
 
 
 @router.get("/tools")
-async def get_tools() -> Dict[str, Any]:
+async def get_tools() -> dict[str, Any]:
     """Get available tools, similar to Open WebUI."""
     return {"tools": [], "count": 0}
 
 
 @router.post("/tool")
-async def create_tool(tool: Tool) -> Dict[str, bool]:
+async def create_tool(tool: Tool) -> dict[str, bool]:
     """Create a new tool, similar to Open WebUI."""
     return {
         "status": True,

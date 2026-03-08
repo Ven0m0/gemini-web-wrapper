@@ -67,14 +67,14 @@ class SessionManager:
         self._lock = threading.Lock()
 
         # Use contextvars for thread/task-local storage
-        self._current_user_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-            "current_user_id", default=None
+        self._current_user_id_var: contextvars.ContextVar[str | None] = (
+            contextvars.ContextVar("current_user_id", default=None)
         )
-        self._current_session_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-            "current_session_id", default=None
+        self._current_session_id_var: contextvars.ContextVar[str | None] = (
+            contextvars.ContextVar("current_session_id", default=None)
         )
-        self._current_process_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
-            "current_process_id", default="gemini-chatbot"
+        self._current_process_id_var: contextvars.ContextVar[str] = (
+            contextvars.ContextVar("current_process_id", default="gemini-chatbot")
         )
 
     def attribution(self, entity_id: str, process_id: str = "gemini-chatbot") -> None:
