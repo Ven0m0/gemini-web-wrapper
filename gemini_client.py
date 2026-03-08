@@ -55,6 +55,9 @@ class GeminiClientWrapper:
         Returns:
             True if initialization succeeded, False otherwise.
         """
+        if self.client and self.profile_name == profile_name:
+            return True
+
         cookies = await self.cookie_manager.get_gemini_cookies(profile_name)
         if not cookies:
             logger.error(
