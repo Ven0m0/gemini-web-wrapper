@@ -1,0 +1,9 @@
+🧹 [Code Health] Remove duplicate session management logic
+
+🎯 **What:** Removed duplicate `create_new_session` and `query_sessions` endpoints along with `SessionQueryReq` class from `server.py`, replacing them with an import of `sessions_router` from `endpoints/sessions.py`.
+
+💡 **Why:** This improves maintainability by centralizing session logic into a modular router rather than duplicating it in the main application file, which reduces code duplication and keeps `server.py` cleaner.
+
+✅ **Verification:** Verified by checking if the router was successfully mounted and running backend test suite using `python -m pytest test_server.py test_session_manager.py` ensuring that `server.py` starts properly without missing logic and all 23 tests passed.
+
+✨ **Result:** Improved modularization of FastAPI endpoints while retaining full functionality.
