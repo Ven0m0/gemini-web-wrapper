@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from cookie_manager import CookieManager, CookieData
 from dependencies import get_cookie_manager, get_gemini_client
+from gemini_client import GeminiClientWrapper
 from models import ProfileCreateReq, ProfileSwitchReq
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])

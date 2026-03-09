@@ -12,12 +12,10 @@ import os
 import sys
 from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 from uuid import uuid4
 
 import httpx
-from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
@@ -31,6 +29,7 @@ from github_service import GitHubService
 from llm_core.factory import ProviderFactory, ProviderType
 from llm_core.interfaces import LLMProvider
 from session_manager import SessionManager
+from state import state
 from utils import handle_generation_errors
 from endpoints.profiles import router as profiles_router
 
@@ -66,34 +65,6 @@ class Settings(BaseSettings):
         return requested
 
 
-# ----- State Management -----
-@dataclass
-class AppState:
-    """Global application state for Genkit and session management resources.
-
-    Uses dataclass to ensure proper instance attribute initialization
-    and avoid mutable class attribute anti-pattern.
-    """
-
-    llm_provider: LLMProvider | None = None
-    session_manager: SessionManager | None = None
-    chatbot_flow: Callable[..., Any] | None = None
-    settings: Settings | None = None
-    # Cache for session setup with TTL to prevent unbounded growth
-    # maxsize=10000 entries, ttl=3600 seconds (1 hour)
-    attribution_cache: TTLCache = field(
-        default_factory=lambda: TTLCache(maxsize=10000, ttl=3600)
-    )
-    # Cookie management for gemini-webapi
-    cookie_manager: CookieManager | None = None
-    gemini_client: GeminiClientWrapper | None = None
-    github_client: httpx.AsyncClient | None = None
-
-
-state = AppState()
-
-
-# ----- Lifespan -----
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Initialize and cleanup Genkit resources on app startup/shutdown.
