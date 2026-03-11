@@ -7,7 +7,8 @@
     "abandonments:recommended",
     "group:all",
     "packages:linters",
-    "schedule:weekly"
+    "schedule:weekly",
+    "customManagers:biomeVersions"
   ],
   "enabled": true,
   "automerge": true,
