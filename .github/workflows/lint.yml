@@ -21,7 +21,7 @@ jobs:
           python-version: "3.14"
           activate-environment: true
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync
       - uses: astral-sh/ruff-action@v3
       - run: ruff check --fix
       - run: ruff format
