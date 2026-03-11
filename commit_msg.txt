@@ -1,0 +1,6 @@
+🧹 [Code Health] Remove Duplicate Pydantic Models in server.py
+
+🎯 **What:** Removed duplicate Pydantic models from `server.py` and imported them correctly from `models.py`. Fixed an invalid import in `response_builder.py` that was failing tests (`parse_tool_calls` was imported from `message_transforms` instead of `tool_parsing`).
+💡 **Why:** Having duplicate models creates inconsistency, maintainability issues, and breaks the "single source of truth" principle, as `models.py` was intended to define all Pydantic models.
+✅ **Verification:** Ran backend tests with `uv run pytest`, which completed successfully after fixing the underlying import issue in `response_builder.py`. Sorted and validated imports with `uv run ruff check --fix server.py`.
+✨ **Result:** A cleaner codebase with a reliable single source of truth for Pydantic models, improving maintainability and reducing the likelihood of diverging types.
