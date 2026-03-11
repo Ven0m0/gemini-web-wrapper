@@ -8,9 +8,14 @@
     "group:all",
     "packages:linters",
     "schedule:weekly",
-    "customManagers:biomeVersions"
+    "customManagers:biomeVersions",
+    ":dependencyDashboard"
   ],
   "enabled": true,
+  "dependencyDashboard": true,
+  "platform": "github",
+  "forkProcessing": "enabled",
+  "onboarding": true,
   "automerge": true,
   "automergeType": "branch",
   "ignoreTests": true,
@@ -33,6 +38,12 @@
     "enabled": true
   },
   "npm": {
+    "enabled": true
+  },
+  "docker-compose": {
+    "enabled": true
+  },
+  "dockerfile": {
     "enabled": true
   },
   "packageRules": [
