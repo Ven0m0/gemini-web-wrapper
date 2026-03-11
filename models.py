@@ -48,11 +48,23 @@ class SessionQueryReq(BaseModel):
     user_id: str = Field(..., min_length=1)
 
 
-class ProfileCreateReq(BaseModel):
-    """Request model for creating a profile from browser cookies."""
+class CookieItem(BaseModel):
+    """Model representing a single cookie."""
 
     name: str = Field(..., min_length=1)
-    browser: str = Field(default="chrome")
+    value: str = Field(..., min_length=1)
+    domain: str = Field(..., min_length=1)
+    path: str = Field(default="/")
+    expires: float | None = Field(default=None)
+    secure: bool = Field(default=True)
+    http_only: bool = Field(default=True)
+
+
+class ProfileCreateReq(BaseModel):
+    """Request model for creating a profile from provided cookies."""
+
+    name: str = Field(..., min_length=1)
+    cookies: list[CookieItem] = Field(..., min_length=1)
 
 
 class ProfileSwitchReq(BaseModel):
