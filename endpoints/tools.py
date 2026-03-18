@@ -29,7 +29,7 @@ def get_composio_service() -> ComposioService:
     """FastAPI dependency to get the initialized ComposioService."""
     if not hasattr(state, "composio_service") or state.composio_service is None:
         # Lazy initialization
-        api_key = os.environ.get("COMPOSIO_API_KEY")
+        api_key = state.settings.composio_api_key if state.settings else None
         state.composio_service = ComposioService(api_key=api_key)
 
     if state.composio_service is None or not state.composio_service.api_key:
