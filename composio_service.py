@@ -19,7 +19,7 @@ class ComposioService:
         else:
             self.composio = Composio(api_key=self.api_key)
 
-    def get_tools(self, user_id: str = "default_user") -> list[Any]:
+    async def get_tools(self, user_id: str = "default_user") -> list[Any]:
         """Get available tools for a user session.
 
         Args:
@@ -32,7 +32,7 @@ class ComposioService:
             return []
 
         session = self.composio.create(user_id=user_id)
-        return session.tools()
+        return await asyncio.to_thread(session.tools)
 
     async def execute_tool(self, tool_name: str, arguments: dict[str, Any], user_id: str = "default_user") -> Any:
         """Execute a Composio tool.
