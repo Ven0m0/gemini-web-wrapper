@@ -47,7 +47,7 @@ async def list_tools(
 ) -> dict[str, Any]:
     """List available Composio tools for a user."""
     try:
-        tools = service.get_tools(r.user_id)
+        tools = await service.get_tools(r.user_id)
         # Return simplified tool info
         return {
             "tools": [
