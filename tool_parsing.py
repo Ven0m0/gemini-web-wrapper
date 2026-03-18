@@ -13,6 +13,7 @@ import re
 import json_repair
 import orjson
 
+from toon_utils import to_toon
 from openai_schemas import (
     FunctionCall,
     ToolCall,
@@ -40,8 +41,16 @@ Available tools:
 """
 
 
-def format_tools_for_prompt(tools: list[ToolDefinition]) -> str:
-    """Format tool definitions as JSON for prompt injection."""
+def format_tools_for_prompt(tools: list[ToolDefinition], format: str = "json") -> str:
+    """Format tool definitions for prompt injection.
+
+    Args:
+        tools: List of tool definitions.
+        format: Format to use ('json' or 'toon').
+
+    Returns:
+        Formatted tool definitions.
+    """
     tools_data = [
         {
             "type": tool.type,
@@ -53,16 +62,23 @@ def format_tools_for_prompt(tools: list[ToolDefinition]) -> str:
         }
         for tool in tools
     ]
+
+    if format == "toon":
+        return to_toon(tools_data, key_folding=True)
+
     return orjson.dumps(tools_data, option=orjson.OPT_INDENT_2).decode()
 
 
-def inject_tools_into_prompt(prompt: str, tools: list[ToolDefinition] | None) -> str:
-    """Prepend tool instructions to the prompt if tools are provided."""
+def inject_tools_into_prompt(prompt: str, tools: list[ToolDefinition] | None, format: str = "toon") -> str:
+    """Prepend tool instructions to the prompt if tools are provided.
+
+    Uses TOON format by default to save tokens.
+    """
     if not tools:
         return prompt
 
-    tools_json = format_tools_for_prompt(tools)
-    tool_instructions = TOOL_SYSTEM_PROMPT.format(tools_json=tools_json)
+    formatted_tools = format_tools_for_prompt(tools, format=format)
+    tool_instructions = TOOL_SYSTEM_PROMPT.format(tools_json=formatted_tools)
     return f"{tool_instructions}\n\n{prompt}"
 
 

@@ -13,6 +13,7 @@ import sys
 from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import asynccontextmanager
 from typing import Any, Literal, cast
+from pydantic import BaseModel, Field
 from uuid import uuid4
 
 import httpx
@@ -28,10 +29,25 @@ from gemini_client import GeminiClientWrapper
 from github_service import GitHubService
 from llm_core.factory import ProviderFactory, ProviderType
 from llm_core.interfaces import LLMProvider
+from models import (
+    ChatbotReq,
+    ChatReq,
+    CodeReq,
+    DocumentUploadReq,
+    GeminiChatReq,
+    GenResponse,
+    GitHubBranchesReq,
+    GitHubFileReadReq,
+    GitHubFileWriteReq,
+    GitHubListReq,
+    SessionQueryReq,
+    Tool,
+)
 from session_manager import SessionManager
 from state import state
 from utils import handle_generation_errors
 from endpoints.profiles import router as profiles_router
+from endpoints.tools import router as tools_router
 
 
 # ----- Configuration -----
@@ -44,6 +60,8 @@ class Settings(BaseSettings):
     model_provider: str = "gemini"
     model_name: str | None = None
     anthropic_api_key: str | None = None
+    optillm_url: str | None = None
+    optillm_api_key: str | None = None
 
     # Model aliases for OpenAI compatibility
     model_aliases: dict[str, str] = {
@@ -97,7 +115,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     if provider_type_raw == "google":
         provider_type_raw = "gemini"
 
-    if provider_type_raw not in ("gemini", "anthropic", "copilot"):
+    if provider_type_raw not in ("gemini", "anthropic", "copilot", "bifrost", "optillm"):
         print(f"Unknown provider: {provider_type_raw}", file=sys.stderr)
         sys.exit(1)
 
@@ -155,6 +173,7 @@ app.add_middleware(
 )
 
 app.include_router(openai_router)
+app.include_router(tools_router)
 
 
 # ----- Models -----
@@ -664,7 +683,6 @@ async def refresh_profile(
         "message": f"Profile '{profile_name}' refreshed",
     }
 
->>>>>>> be634df (🔒 Fix Arbitrary Server-Side Cookie Extraction vulnerability)
 
 # ----- Gemini WebAPI Endpoints -----
 @app.post("/gemini/chat")
