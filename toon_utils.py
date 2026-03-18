@@ -26,8 +26,8 @@ def to_toon(obj: Any, indent: int = 0, key_folding: bool = False, prefix: str = 
 
     if isinstance(obj, str):
         # Basic escaping for special characters if needed
-        if any(c in obj for c in ":\n,[]{}"):
-            return f'"{obj}"'
+        if any(c in obj for c in '",:\n[]{}'):
+            return json.dumps(obj)
         return obj
 
     if isinstance(obj, list):
