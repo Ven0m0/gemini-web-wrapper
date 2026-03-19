@@ -1,5 +1,6 @@
 from typing import Any
 
+import logging
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -60,9 +61,10 @@ async def list_tools(
             "count": len(tools),
         }
     except Exception as e:
+        logging.exception("Failed to list Composio tools for user %s", r.user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list tools: {e}",
+            detail="Failed to list tools.",
         ) from e
 
 
@@ -76,7 +78,12 @@ async def execute_tool(
         result = await service.execute_tool(r.tool_name, r.arguments, r.user_id)
         return {"result": result}
     except Exception as e:
+        logging.exception(
+            "Composio tool execution failed for user %s and tool %s",
+            r.user_id,
+            r.tool_name,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Tool execution failed: {e}",
+            detail="Tool execution failed.",
         ) from e
