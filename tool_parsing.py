@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from typing import Literal
 
 import json_repair
 import orjson
@@ -41,12 +42,15 @@ Available tools:
 """
 
 
-def format_tools_for_prompt(tools: list[ToolDefinition], format: str = "json") -> str:
+def format_tools_for_prompt(
+    tools: list[ToolDefinition],
+    tools_format: Literal["json", "toon"] = "json",
+) -> str:
     """Format tool definitions for prompt injection.
 
     Args:
         tools: List of tool definitions.
-        format: Format to use ('json' or 'toon').
+        tools_format: Format to use ('json' or 'toon').
 
     Returns:
         Formatted tool definitions.
@@ -63,13 +67,17 @@ def format_tools_for_prompt(tools: list[ToolDefinition], format: str = "json") -
         for tool in tools
     ]
 
-    if format == "toon":
+    if tools_format == "toon":
         return to_toon(tools_data, key_folding=True)
 
     return orjson.dumps(tools_data, option=orjson.OPT_INDENT_2).decode()
 
 
-def inject_tools_into_prompt(prompt: str, tools: list[ToolDefinition] | None, format: str = "toon") -> str:
+def inject_tools_into_prompt(
+    prompt: str,
+    tools: list[ToolDefinition] | None,
+    tools_format: Literal["json", "toon"] = "toon",
+) -> str:
     """Prepend tool instructions to the prompt if tools are provided.
 
     Uses TOON format by default to save tokens.
@@ -77,7 +85,7 @@ def inject_tools_into_prompt(prompt: str, tools: list[ToolDefinition] | None, fo
     if not tools:
         return prompt
 
-    formatted_tools = format_tools_for_prompt(tools, format=format)
+    formatted_tools = format_tools_for_prompt(tools, tools_format=tools_format)
     tool_instructions = TOOL_SYSTEM_PROMPT.format(tools_json=formatted_tools)
     return f"{tool_instructions}\n\n{prompt}"
 
