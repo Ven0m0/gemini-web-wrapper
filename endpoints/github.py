@@ -158,7 +158,7 @@ async def github_tldr(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get tldr summary: {e}",
+            detail="Failed to get tldr summary",
         ) from e
 
 

@@ -12,6 +12,9 @@ from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubConfig(BaseModel):
@@ -222,7 +225,9 @@ class GitHubService:
             )
             return result.stdout
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            return f"Error generating tldr summary: {e}"
+            # Log detailed error server-side and raise a generic exception
+            logger.exception("Error generating tldr summary using command %s", cmd)
+            raise RuntimeError("Failed to generate tldr summary") from e
 
     async def get_repository_info(self) -> dict[str, Any]:
         """Get repository information.
