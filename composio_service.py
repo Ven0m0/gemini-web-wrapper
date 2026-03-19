@@ -1,5 +1,6 @@
 import os
 from typing import Any
+import asyncio
 
 from composio import Composio
 
@@ -44,6 +45,8 @@ class ComposioService:
             raise ValueError("Composio API key not configured")
 
         session = self.composio.create(user_id=user_id)
-        # This is a simplified direct execution if needed
-        # In practice, we'd use the session to handle tool calls
-        return await session.execute(tool_name, arguments)
+        # This is a simplified direct execution if needed.
+        # Run the potentially synchronous session.execute in a threadpool
+        # to avoid blocking the event loop.
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, session.execute, tool_name, arguments)
