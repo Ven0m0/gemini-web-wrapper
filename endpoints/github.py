@@ -138,6 +138,30 @@ async def github_list_directory(
         ) from e
 
 
+@router.post("/tldr")
+async def github_tldr(
+    r: GitHubListReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
+    """Get a token-efficient summary using llm-tldr.
+
+    Args:
+        r: GitHubListReq (reusing list request for path config).
+
+    Returns:
+        Dict with tldr summary.
+    """
+    try:
+        service = GitHubService(r.config, client)
+        summary = await service.get_tldr_summary(r.path)
+        return {"summary": summary}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get tldr summary",
+        ) from e
+
+
 @router.post("/branches")
 async def github_list_branches(
     r: GitHubBranchesReq,
