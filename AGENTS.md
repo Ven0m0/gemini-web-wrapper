@@ -1,4 +1,5 @@
 # AGENTS.md — Gemini Web Wrapper
+> @AGENT_RULES.md
 
 Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symlinks to this file.
 
