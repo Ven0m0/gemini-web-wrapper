@@ -10,7 +10,8 @@ Multi-provider LLM gateway with an OpenAI-compatible API and a React PWA fronten
 
 - **Backend**: Python 3.10+, FastAPI, Uvicorn (uvloop), Pydantic v2, orjson
 - **Frontend**: TypeScript 5, React 19, Vite 7, Zustand 5, CodeMirror 6
-- **Package managers**: `uv` (Python — never pip), `bun` (JS)
+- **Tool integration**: Composio (optional; server starts without it)
+- **Package managers**: `uv` (Python — never pip), `bun` (JS — never npm or pnpm)
 - **Linting**: Ruff (Python), ESLint (TypeScript)
 - **Type checking**: pyrefly (Python), tsc (TypeScript)
 - **Tests**: pytest + anyio (Python); no automated frontend test suite
@@ -20,8 +21,21 @@ Multi-provider LLM gateway with an OpenAI-compatible API and a React PWA fronten
 - **Stateless server** — client owns conversation history; server is stateless per-request.
 - **Async-first** — `async`/`await` for all I/O; blocking ops go in `asyncio.to_thread`.
 - **Validate at boundaries only** — trust internal code; only validate user input and external API responses.
-- **OpenAI-compatible** — `/v1/chat/completions` is a drop-in for OpenAI clients; model aliases map OpenAI names to provider models.
-- **Provider pattern** — all LLM providers implement the `LLMProvider` Protocol (`llm_core/interfaces.py`) and are registered in `ProviderFactory`.
+- **OpenAI-compatible** — `/v1/chat/completions` is a drop-in for OpenAI clients; model aliases in `config.py` map OpenAI names to provider models.
+- **Provider pattern** — all LLM providers implement the `LLMProvider` Protocol (`llm_core/interfaces.py`) and are registered in `ProviderFactory` (`llm_core/factory.py`).
+- **Config via Settings** — all env vars flow through Pydantic `Settings` in `config.py`; never read `os.environ` in business logic.
+
+## Active Routers
+
+Only three routers are currently mounted in `server.py`:
+
+| Router file | Prefix | Purpose |
+|---|---|---|
+| `endpoints/openai.py` | `/v1` | OpenAI-compatible chat completions |
+| `endpoints/tools.py` | `/tools/composio` | Composio tool listing and execution |
+| `endpoints/profiles.py` | *(root)* | Cookie profile management |
+
+The files `endpoints/chat.py`, `gemini.py`, `github.py`, `openwebui.py`, and `sessions.py` exist but are **not yet mounted**. Mount them with `app.include_router(...)` in `server.py` when activating.
 
 ## Python Conventions
 
@@ -64,6 +78,8 @@ uv run pytest
 cd frontend && bun run build
 ```
 
+> There is no automated lint/test CI — the quality gate must be run locally.
+
 ## Package Management
 
 ```bash
@@ -90,8 +106,14 @@ cd frontend && bun add -d <package>
 
 1. Add handler to the relevant file in `endpoints/` (or create one for a new domain)
 2. Full type annotations + docstring required
-3. Mount router in `server.py` if new
+3. Mount router in `server.py` with `app.include_router(...)`
 4. Add integration tests
+
+### Activate an unmounted endpoint router
+
+1. In `server.py`: `from endpoints.<module> import router as <name>_router`
+2. Add `app.include_router(<name>_router)` below the existing mounts
+3. Verify routes appear in `/docs`
 
 ### Add a frontend component
 
@@ -101,15 +123,18 @@ cd frontend && bun add -d <package>
 
 ## Environment Variables
 
-| Variable | Required | Default |
-|---|---|---|
-| `GOOGLE_API_KEY` | Yes (Gemini) | — |
-| `ANTHROPIC_API_KEY` | Yes (Anthropic) | — |
-| `GITHUB_TOKEN` | Yes (Copilot) | — |
-| `MODEL_PROVIDER` | No | `gemini` |
-| `MODEL_NAME` | No | provider default |
-| `BIFROST_URL` | No | `http://localhost:8080/v1` |
-| `PORT` | No | `9000` |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GOOGLE_API_KEY` | Yes (Gemini) | — | Google AI API key |
+| `ANTHROPIC_API_KEY` | Yes (Anthropic) | — | Anthropic Claude API key |
+| `GITHUB_TOKEN` | Yes (Copilot) | — | GitHub personal access token |
+| `MODEL_PROVIDER` | No | `gemini` | `gemini` \| `anthropic` \| `copilot` \| `bifrost` |
+| `MODEL_NAME` | No | provider default | Override model name |
+| `BIFROST_URL` | No | `http://localhost:8080/v1` | Bifrost gateway base URL |
+| `BIFROST_API_KEY` | No | `sk-bifrost-default` | Bifrost API key |
+| `COMPOSIO_API_KEY` | No | — | Composio key; omit to disable `/tools/composio` endpoints |
+| `PORT` | No | `9000` | Server port |
+| `DEBUG` | No | `false` | Enable debug logging |
 
 ## Key Dependencies
 
@@ -123,3 +148,4 @@ cd frontend && bun add -d <package>
 | `aiosqlite` | Async SQLite (cookies, sessions) |
 | `orjson` | Fast JSON — use in hot paths instead of `json` |
 | `json-repair` | Robust parsing of malformed LLM tool-call JSON |
+| `composio-core` | External tool execution (optional) |
