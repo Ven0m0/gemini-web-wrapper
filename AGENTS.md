@@ -29,6 +29,7 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 | Backend framework | FastAPI + Uvicorn (uvloop) |
 | Serialization | orjson, Pydantic v2 |
 | LLM providers | Google Gemini (`google-genai`, `gemini-webapi`), Anthropic, GitHub Copilot, Bifrost gateway |
+| Tool integration | Composio (external tool execution) |
 | Cookie extraction | rookiepy |
 | Database | aiosqlite (cookie/session storage) |
 | Frontend language | TypeScript 5+ |
@@ -67,16 +68,18 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 ├── session_manager.py           # Conversation history management
 ├── gemini_client.py             # gemini-webapi client wrapper
 ├── github_service.py            # GitHub REST API integration
+├── composio_service.py          # Composio tool integration
 ├── utils.py                     # Shared utilities and error handling
 │
 ├── endpoints/                   # FastAPI router modules (one concern per file)
-│   ├── chat.py                  # /chat and /chatbot routes
-│   ├── openai.py                # /v1/chat/completions (OpenAI-compat, SSE)
-│   ├── gemini.py                # Gemini-specific routes
-│   ├── github.py                # /github/* file/PR management routes
-│   ├── openwebui.py             # Open WebUI integration routes
-│   ├── profiles.py              # Cookie profile management routes
-│   └── sessions.py              # Session management routes
+│   ├── openai.py                # /v1/chat/completions (OpenAI-compat, SSE) [mounted]
+│   ├── tools.py                 # /tools/composio/* (Composio tool execution) [mounted]
+│   ├── profiles.py              # Cookie profile management routes [mounted]
+│   ├── chat.py                  # /chat and /chatbot routes [not yet mounted]
+│   ├── gemini.py                # Gemini-specific routes [not yet mounted]
+│   ├── github.py                # /github/* file/PR management routes [not yet mounted]
+│   ├── openwebui.py             # Open WebUI integration routes [not yet mounted]
+│   └── sessions.py              # Session management routes [not yet mounted]
 │
 ├── llm_core/                    # Provider abstraction layer
 │   ├── interfaces.py            # LLMProvider Protocol definition
@@ -97,6 +100,12 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 │   │   │   ├── Editor.tsx       # CodeMirror file editor
 │   │   │   ├── ChatWidget.tsx   # Embeddable chat widget
 │   │   │   ├── ChatWindow.tsx   # Full chat window
+│   │   │   ├── ChatDemo.tsx     # Chat demo/showcase component
+│   │   │   ├── ChatDesignSystem.tsx # Design system tokens/preview
+│   │   │   ├── ConfigOverlay.tsx    # Settings/config overlay
+│   │   │   ├── InstallPrompt.tsx    # PWA install prompt
+│   │   │   ├── OpenRouterChat.tsx   # OpenRouter-backed chat UI
+│   │   │   ├── PwaDiagnostics.tsx   # PWA diagnostics panel
 │   │   │   ├── Tool.tsx         # Tool-call display
 │   │   │   ├── PythonRunner.tsx # In-browser Python (Pyodide)
 │   │   │   └── WebShell.tsx     # Browser shell component
@@ -108,26 +117,31 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 │   │   │   ├── python.ts        # Pyodide integration
 │   │   │   ├── wasmer.ts        # WASM runtime
 │   │   │   └── version.ts       # Version helpers
+│   │   ├── utils/
+│   │   │   └── jsonHealer.ts    # Robust JSON repair for LLM output
 │   │   └── codemirror/          # CodeMirror extensions/config
 │   ├── public/                  # Static assets, manifest, service worker
 │   ├── vite.config.ts
 │   ├── tsconfig.json
 │   └── package.json
 │
-├── test_server.py               # API endpoint integration tests
-├── test_cookie_manager.py       # Cookie manager unit tests
-├── test_session_manager.py      # Session manager unit tests
 ├── test_bifrost.py              # Bifrost provider tests
+├── test_cookie_manager.py       # Cookie manager unit tests
 ├── test_github_integration.py   # GitHub service tests
+├── test_session_manager.py      # Session manager unit tests
 ├── test_utils.py                # Utility function tests
 │
 ├── pyproject.toml               # Python project metadata, Ruff config
-├── .env.example                 # Required environment variables (template)
 ├── docker-compose.yml           # Full-stack + Bifrost compose
-├── .github/workflows/           # CI/CD (lint, release, dependabot)
+├── renovate.json                # Renovate dependency update config
+├── vercel.json                  # Vercel deployment config
+├── .env.example                 # Required environment variables (template)
+├── .github/workflows/           # CI/CD (release, dependabot rollup)
 ├── CLAUDE.md -> AGENTS.md       # Symlink
 └── GEMINI.md  -> AGENTS.md      # Symlink
 ```
+
+> **Note on endpoints/**: Only `openai.py`, `tools.py`, and `profiles.py` are currently mounted in `server.py`. The remaining router files exist and are complete but are not yet wired up. Mount them in `server.py` via `app.include_router(...)` when activating.
 
 </repo-structure>
 
@@ -199,7 +213,7 @@ cd frontend && bun run build  # Catches TypeScript errors
 ```bash
 uv run pytest                  # All tests
 uv run pytest -v               # Verbose
-uv run pytest test_server.py   # Specific file
+uv run pytest test_bifrost.py  # Specific file
 uv run pytest -k test_health   # Name filter
 ```
 
@@ -267,15 +281,15 @@ Split a file when it significantly exceeds its limit.
 
 ### Endpoint modules
 
-Each domain concern lives in its own router file under `endpoints/`. All routers mounted in `server.py`. New endpoints go in the matching domain file; create a new file only for genuinely new domains.
+Each domain concern lives in its own router file under `endpoints/`. All **active** routers are mounted in `server.py` via `app.include_router(...)`. Currently mounted: `openai`, `tools`, `profiles`. New endpoints go in the matching domain file; create a new file only for genuinely new domains; always mount in `server.py`.
 
 ### Configuration
 
-All env vars flow through Pydantic `Settings` in `config.py`. Never read `os.environ` directly in business logic.
+All env vars flow through Pydantic `Settings` in `config.py`. Never read `os.environ` directly in business logic (exception: `composio_service.py` reads `COMPOSIO_API_KEY` as a fallback because Composio is optional and not surfaced through `Settings`).
 
 ### OpenAI compatibility
 
-Model aliasing in `openai_transforms.py` maps OpenAI model names to provider-specific ones:
+Model aliasing in `config.py` (via `Settings.model_aliases`) maps OpenAI model names to provider-specific ones:
 
 | OpenAI alias | Resolved model |
 |---|---|
@@ -283,6 +297,10 @@ Model aliasing in `openai_transforms.py` maps OpenAI model names to provider-spe
 | `gpt-4o` | `gemini-2.5-pro` |
 | `gpt-4.1-mini` | `gemini-3.0-pro` |
 | `claude-3-5-sonnet` | `claude-3-5-sonnet-20241022` |
+
+### Composio tool integration
+
+`composio_service.py` wraps the Composio SDK. The `endpoints/tools.py` router exposes `/tools/composio/list` and `/tools/composio/execute`. The service initialises lazily — if `COMPOSIO_API_KEY` is absent the server starts normally and tool endpoints return a 503.
 
 </architecture>
 
@@ -302,9 +320,15 @@ Model aliasing in `openai_transforms.py` maps OpenAI model names to provider-spe
 
 1. Find or create the router file in `endpoints/` for the domain.
 2. Implement the handler with full type annotations and a docstring.
-3. Mount the router in `server.py` if it is new.
+3. Mount the router in `server.py` via `app.include_router(...)`.
 4. Add integration tests to the appropriate test file.
 5. Run the full quality gate before committing.
+
+### Activate an existing (unmounted) endpoint router
+
+1. Open `server.py` and add `from endpoints.<module> import router as <name>_router`.
+2. Add `app.include_router(<name>_router)` below the existing `include_router` calls.
+3. Run tests; verify `/docs` shows the new routes.
 
 ### Add a Python package
 
@@ -352,6 +376,7 @@ cd frontend && bunx tsc --noEmit  # TypeScript
 | `cachetools` | TTLCache for in-memory session caching |
 | `json-repair` | Robust JSON parsing for malformed LLM tool-call output |
 | `python-multipart` | Form/multipart handling for FastAPI |
+| `composio-core` | Composio tool integration (optional — no-op if key absent) |
 | `pytest` + `anyio` | Testing — async tests use anyio, not asyncio |
 | `ruff` | Linting and formatting |
 | `pyrefly` | Static type checking |
@@ -384,6 +409,7 @@ cd frontend && bunx tsc --noEmit  # TypeScript
 | `GITHUB_TOKEN` | Yes (Copilot) | — | GitHub personal access token |
 | `BIFROST_URL` | No | `http://localhost:8080/v1` | Bifrost gateway base URL |
 | `BIFROST_API_KEY` | No | `sk-bifrost-default` | Bifrost API key |
+| `COMPOSIO_API_KEY` | No | — | Composio API key; omit to disable tool endpoints |
 | `PORT` | No | `9000` | Server port |
 | `FRONTEND_DIST_DIR` | No | `frontend/dist` | Path to built frontend |
 | `DEBUG` | No | `false` | Enable debug logging |
@@ -397,11 +423,11 @@ cd frontend && bunx tsc --noEmit  # TypeScript
 
 | Workflow | Trigger | Actions |
 |---|---|---|
-| `lint.yml` | Push/PR to `main` | `ruff format --check`, `ruff check` |
-| `release.yml` | Push `v*` tag | `uv build`, create GitHub Release |
-| `dependabot-automerge.yml` | Dependabot PRs | Auto-merge patch/minor updates |
-| `jules-*.yml` | Scheduled | Performance analysis / cleanup agents |
+| `release.yml` | Push `v*` tag | `uv build`, create GitHub Release with generated notes |
+| `dependabot-automerge.yml` | Dependabot/Renovate PRs + weekly schedule | Rolls open dependency PRs into a single `deps/rollup` branch and auto-merges |
 
 To release: `git tag v1.2.3 && git push origin v1.2.3`
+
+> There is no automated lint/test CI workflow. Run the quality gate locally before every push.
 
 </ci-cd>
