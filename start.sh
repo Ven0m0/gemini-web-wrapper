@@ -3,7 +3,6 @@ set -e
 
 echo "Starting Gemini Web Wrapper..."
 
-# Check if .env exists
 if [ ! -f ".env" ]; then
     echo ".env file not found, creating from .env.example"
     cp .env.example .env
@@ -12,18 +11,17 @@ if [ ! -f ".env" ]; then
     echo "  Optional: ANTHROPIC_API_KEY"
 fi
 
-# Build frontend if not already built
-if [ ! -d "frontend/dist" ]; then
+if [ ! -d "apps/web/dist" ]; then
     echo "Building frontend..."
-    cd frontend
+    cd apps/web
     bun install
     bun run build
-    cd ..
+    cd ../..
 fi
 
-# Install Python dependencies
 echo "Installing Python dependencies..."
+cd apps/api
 uv sync --frozen
 
-echo "Starting server..."
-uv run uvicorn server:app --host 0.0.0.0 --port "${PORT:-9000}"
+echo "Starting packaged API server..."
+PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --host 0.0.0.0 --port "${PORT:-9000}"

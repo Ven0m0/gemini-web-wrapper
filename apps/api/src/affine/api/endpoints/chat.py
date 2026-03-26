@@ -11,12 +11,12 @@ from collections.abc import AsyncGenerator, Sequence
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from dependencies import get_llm_provider, get_session_manager
-from llm_core.interfaces import LLMProvider
-from models import ChatbotReq, ChatReq, GenResponse
-from session_manager import SessionManager
-from state import state
-from utils import handle_generation_errors
+from ..dependencies import get_llm_provider, get_session_manager
+from ..llm_core.interfaces import LLMProvider
+from ..models import ChatbotReq, ChatReq, GenResponse
+from ..session_manager import SessionManager
+from ..state import state
+from ..utils import handle_generation_errors
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 

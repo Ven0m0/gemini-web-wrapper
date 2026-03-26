@@ -82,7 +82,7 @@ class GeminiChatReq(BaseModel):
 
 
 # Import GitHubConfig from github_service to avoid circular imports
-from github_service import GitHubConfig  # noqa: E402
+from .github_service import GitHubConfig  # noqa: E402
 
 
 class GitHubFileReadReq(BaseModel):

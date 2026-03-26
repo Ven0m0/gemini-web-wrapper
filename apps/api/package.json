@@ -1,0 +1,15 @@
+{
+  "name": "@affine/api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Affine AI Coding Workstation - API",
+  "scripts": {
+    "dev": "PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload --host 0.0.0.0 --port ${PORT:-9000}",
+    "build": "PYTHONPATH=src:../../packages/config/src uv run python -m compileall src",
+    "format": "PYTHONPATH=src:../../packages/config/src uv run ruff format .",
+    "lint": "PYTHONPATH=src:../../packages/config/src uv run ruff check .",
+    "typecheck": "PYTHONPATH=src:../../packages/config/src uv run pyrefly check",
+    "test": "PYTHONPATH=src:../../packages/config/src uv run pytest"
+  }
+}

@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     composio_api_key: str = ""
 
     # === Server Configuration ===
+    cors_allow_origins: str = "*"
+    cors_allow_credentials: bool = True
+    cors_allow_methods: str = "*"
+    cors_allow_headers: str = "*"
+
     port: int = 9000
     host: str = "0.0.0.0"
     frontend_dist_dir: str = "apps/web/dist"
@@ -70,12 +75,25 @@ class Settings(BaseSettings):
 
     # === Model Aliases ===
     # Maps OpenAI model names to provider-specific models
-    model_aliases: dict[str, str] = Field(default_factory=lambda: {
-        "gpt-4o-mini": "gemini-2.5-flash",
-        "gpt-4o": "gemini-2.5-pro",
-        "gpt-4.1-mini": "gemini-3.0-pro",
-        "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
-    })
+    model_aliases: dict[str, str] = Field(
+        default_factory=lambda: {
+            "gpt-4o-mini": "gemini-2.5-flash",
+            "gpt-4o": "gemini-2.5-pro",
+            "gpt-4.1-mini": "gemini-3.0-pro",
+            "gemini-flash": "gemini-2.5-flash",
+            "gemini-pro": "gemini-2.5-pro",
+            "gemini-3-pro": "gemini-3.0-pro",
+            "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
+        }
+    )
+
+
+    def resolve_model(self, requested: str | None) -> str:
+        """Resolve an OpenAI-style model alias to a provider model name."""
+
+        if not requested:
+            return self.model_name or "gemini-2.5-flash"
+        return self.model_aliases.get(requested, requested)
 
 
 @lru_cache

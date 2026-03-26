@@ -6,7 +6,7 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
-from llm_core.interfaces import LLMProvider
+from ..interfaces import LLMProvider
 
 
 class BifrostProvider(LLMProvider):

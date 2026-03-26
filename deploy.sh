@@ -3,27 +3,23 @@ set -e
 
 echo "Deploying Gemini Web Wrapper to production..."
 
-# Check required files
-if [ ! -f "frontend/package.json" ]; then
-    echo "frontend/package.json not found"
+if [ ! -f "apps/web/package.json" ]; then
+    echo "apps/web/package.json not found"
     exit 1
 fi
 
-if [ ! -f "server.py" ]; then
-    echo "server.py not found"
+if [ ! -f "apps/api/src/affine/api/server.py" ]; then
+    echo "apps/api server entrypoint not found"
     exit 1
 fi
 
-# Install frontend dependencies
 echo "Installing frontend dependencies..."
-cd frontend
+cd apps/web
 bun install
 
-# Build frontend
 echo "Building frontend..."
 bun run build
 
-# Check if build was successful
 if [ ! -d "dist" ]; then
     echo "Frontend build failed - dist directory not found"
     exit 1
@@ -31,23 +27,19 @@ fi
 
 echo "Frontend built successfully"
 
-# Go back to root
-cd ..
+cd ../api
 
-# Install Python dependencies
 echo "Installing Python dependencies..."
 uv sync --frozen
 
-# Run type checks
 echo "Running TypeScript type check..."
-cd frontend && bun run typecheck 2>/dev/null || echo "Type check warnings found"
-cd ..
+cd ../web && bun run typecheck 2>/dev/null || echo "Type check warnings found"
+cd ../api
 
-# Run linting
 echo "Running linter..."
 uv run ruff check . || echo "Lint warnings found"
 
-# Create environment file if it doesn't exist
+cd ../..
 if [ ! -f ".env" ]; then
     echo ".env file not found, creating from .env.example"
     cp .env.example .env
@@ -56,9 +48,9 @@ fi
 
 echo ""
 echo "Deployment preparation complete."
-echo "Frontend built to: frontend/dist"
-echo "Backend ready: server.py"
+echo "Frontend built to: apps/web/dist"
+echo "API ready: apps/api/src/affine/api/server.py"
 echo ""
 echo "To run locally:"
 echo "  1. Update .env with your API keys"
-echo "  2. Run: uv run uvicorn server:app --host 0.0.0.0 --port 9000"
+echo "  2. Run: cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --host 0.0.0.0 --port 9000"

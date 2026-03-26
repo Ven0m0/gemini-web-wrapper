@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from models import (
+from ..models import (
     DocumentUploadReq,
     Tool,
 )

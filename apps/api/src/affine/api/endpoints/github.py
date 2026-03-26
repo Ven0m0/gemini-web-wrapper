@@ -9,9 +9,9 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from dependencies import get_github_client
-from github_service import GitHubService
-from models import (
+from ..dependencies import get_github_client
+from ..github_service import GitHubService
+from ..models import (
     GitHubBranchesReq,
     GitHubFileReadReq,
     GitHubFileWriteReq,

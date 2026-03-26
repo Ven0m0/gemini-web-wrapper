@@ -6,7 +6,7 @@ from typing import Any
 
 from anthropic import AsyncAnthropic
 
-from llm_core.interfaces import LLMProvider
+from ..interfaces import LLMProvider
 
 
 class AnthropicProvider(LLMProvider):

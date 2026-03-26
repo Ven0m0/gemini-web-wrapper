@@ -13,7 +13,7 @@ from typing import Any
 from gemini_webapi import ChatSession, GeminiClient
 from gemini_webapi.types import ModelOutput
 
-from cookie_manager import CookieManager
+from .cookie_manager import CookieManager
 
 logger = logging.getLogger(__name__)
 

@@ -3,38 +3,28 @@ set -e
 
 echo "Setting up development environment..."
 
-# ---- Python backend ----
 echo "Installing Python dependencies..."
 if command -v uv &> /dev/null; then
+    cd apps/api
     uv sync
+    cd ../..
 else
     echo "uv not found. Install it: https://docs.astral.sh/uv/"
     exit 1
 fi
 
-# ---- Frontend ----
-if [ -d "frontend" ]; then
+if [ -d "apps/web" ]; then
     echo "Installing frontend dependencies..."
     if command -v bun &> /dev/null; then
-        cd frontend
+        cd apps/web
         bun install
-        cd ..
+        cd ../..
     else
         echo "bun not found. Install it: https://bun.sh"
         exit 1
     fi
 fi
 
-# ---- Zagi (agent-optimised git CLI) ----
-if command -v zagi &> /dev/null; then
-    echo "zagi already installed: $(zagi --version)"
-else
-    echo "Installing zagi (agent-optimised git)..."
-    curl -fsSL https://zagi.sh/install | sh
-    echo "Restart your shell or run: source ~/.bashrc"
-fi
-
-# ---- Environment file ----
 if [ ! -f ".env" ]; then
     echo "Creating .env from .env.example..."
     cp .env.example .env
@@ -43,5 +33,5 @@ fi
 
 echo ""
 echo "Development environment ready."
-echo "  Backend:  uv run uvicorn server:app --reload"
-echo "  Frontend: cd frontend && bun run dev"
+echo "  Backend:  cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload"
+echo "  Frontend: cd apps/web && bun run dev"

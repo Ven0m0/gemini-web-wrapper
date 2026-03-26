@@ -7,12 +7,12 @@ initialized application services like LLM providers, session managers, etc.
 import httpx
 from fastapi import HTTPException, status
 
-from config import Settings
-from cookie_manager import CookieManager
-from gemini_client import GeminiClientWrapper
-from llm_core.interfaces import LLMProvider
-from session_manager import SessionManager
-from state import AppState, state
+from .config import Settings
+from .cookie_manager import CookieManager
+from .gemini_client import GeminiClientWrapper
+from .llm_core.interfaces import LLMProvider
+from .session_manager import SessionManager
+from .state import AppState, state
 
 # ----- Dependency Functions -----
 

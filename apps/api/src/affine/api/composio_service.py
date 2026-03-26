@@ -2,7 +2,10 @@ import asyncio
 import os
 from typing import Any
 
-from composio import Composio
+try:
+    from composio import Composio
+except ImportError:  # pragma: no cover - optional dependency
+    Composio = None
 
 
 class ComposioService:

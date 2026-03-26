@@ -15,17 +15,17 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from dependencies import get_gemini_client, get_settings
-from gemini_client import GeminiClientWrapper
-from openai_schemas import ChatCompletionRequest, ChatCompletionResponse
-from openai_transforms import (
+from ..dependencies import get_gemini_client, get_settings
+from ..gemini_client import GeminiClientWrapper
+from ..openai_schemas import ChatCompletionRequest, ChatCompletionResponse
+from ..openai_transforms import (
     collapse_messages,
     parse_tool_calls,
     to_chat_completion_response,
 )
 
 if TYPE_CHECKING:
-    from config import Settings
+    from ..config import Settings
 
 
 router = APIRouter(prefix="/v1", tags=["openai"])
@@ -108,16 +108,16 @@ def _build_tool_call_response(
     request_id: str,
 ) -> "ChatCompletionResponse":
     """Build a ChatCompletionResponse containing tool calls."""
-    from openai_schemas import (
+    from ..openai_schemas import (
         ChatCompletionMessage as CCMessage,
     )
-    from openai_schemas import (
+    from ..openai_schemas import (
         ChatCompletionResponse as CCResponse,
     )
-    from openai_schemas import (
+    from ..openai_schemas import (
         ChatCompletionResponseChoice as CCChoice,
     )
-    from openai_schemas import (
+    from ..openai_schemas import (
         ChatCompletionResponseUsage as CCUsage,
     )
 

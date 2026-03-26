@@ -8,9 +8,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from dependencies import get_gemini_client
-from gemini_client import GeminiClientWrapper
-from models import GeminiChatReq
+from ..dependencies import get_gemini_client
+from ..gemini_client import GeminiClientWrapper
+from ..models import GeminiChatReq
 
 router = APIRouter(prefix="/gemini", tags=["gemini"])
 

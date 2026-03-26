@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
-from llm_core.interfaces import LLMProvider
+from ..interfaces import LLMProvider
 
 
 class CopilotProvider(LLMProvider):
