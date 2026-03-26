@@ -2,7 +2,7 @@
 # Install with: pre-commit install
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -12,7 +12,7 @@ repos:
 
   # Python formatting and linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.8
+    rev: v0.15.7
     hooks:
       - id: ruff
         args: [--fix]
@@ -20,7 +20,7 @@ repos:
 
   # TypeScript/JavaScript
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.0.0
+    rev: v10.1.0
     hooks:
       - id: eslint
         name: eslint (web)
