@@ -71,6 +71,8 @@ Allowed status values:
 
 ## Monorepo Layout
 
+Target end-state layout:
+
 ```text
 .
 ├── apps/
@@ -91,6 +93,18 @@ Allowed status values:
 ├── docs/
 └── tests/
 ```
+
+## Current-State Snapshot
+
+This repo is mid-migration. The strategic target above still stands, but the checked-in code currently looks like this:
+
+- `apps/web` exists and is the active React/Vite frontend shell with chat, tool, editor, PWA, and service modules already present.
+- `apps/api` exists as a packaged FastAPI app under `apps/api/src/affine/api`, but legacy Python entrypoints and tests still also exist at the repository root.
+- Root-level `server.py`, `config.py`, `llm_core/`, and related tests still overlap with packaged API responsibilities, so ownership is duplicated between the root app and `apps/api`; until that is cleaned up, treat `apps/*` and `packages/*` as the intended long-term source of truth.
+- `packages/config`, `packages/shared`, and `packages/llm-core` exist with initial extracted code; planned packages such as `agent-runtime`, `mcp`, `workspace`, `github-integration`, `ui`, and `observability` are not present yet.
+- The packaged API currently disables FastAPI docs/OpenAPI output (`docs_url=None`, `redoc_url=None`, `openapi_url=None` in the packaged server), so typed-client generation cannot proceed until schema emission is restored there.
+- `docs/architecture.md`, `docs/migration-matrix.md`, and `docs/runtime-modes.md` exist, so the architecture/migration baseline is documented even though implementation has not caught up everywhere.
+- Root workspace/tooling scaffolding is present (`package.json` Bun workspaces, Python `pyproject.toml`, GitHub Actions workflows), but package boundaries and generated-contract workflows are still incomplete.
 
 ## Package Ownership
 
@@ -140,14 +154,16 @@ When stopped:
 
 ## Milestones
 
+Status reflects the repository's current observable state, even where implementation started ahead of an earlier gate.
+
 | ID | Milestone | Status | Priority | Depends On |
 |---|---|---|---|---|
-| M0 | Architecture freeze and migration matrix | todo | p0 | - |
-| M1 | Monorepo bootstrap and tooling | todo | p0 | M0 |
-| M2 | Shared contracts and generated clients | todo | p0 | M1 |
-| M3 | Provider layer and model routing | todo | p0 | M2 |
-| M4 | Foundation API | todo | p0 | M3 |
-| M5 | Frontend shell foundation | todo | p0 | M4 |
+| M0 | Architecture freeze and migration matrix | done | p0 | - |
+| M1 | Monorepo bootstrap and tooling | in_progress | p0 | M0 |
+| M2 | Shared contracts and generated clients | in_progress | p0 | M1 |
+| M3 | Provider layer and model routing | in_progress | p0 | M2 |
+| M4 | Foundation API | in_progress | p0 | M3 |
+| M5 | Frontend shell foundation | in_progress | p0 | M4 |
 | M6 | Workspace abstraction and GitHub mode | todo | p0 | M5 |
 | M7 | Local workspace mode | todo | p0 | M6 |
 | M8 | Chat-editor coding workflows | todo | p0 | M6, M7 |
@@ -164,45 +180,45 @@ When stopped:
 
 | ID | Task | Area | Status | Priority | Depends On | Required Output | Acceptance Criteria | Notes |
 |---|---|---|---|---|---|---|---|---|
-| T001 | Write merged product scope and architecture doc | docs | todo | p0 | - | `docs/architecture.md` | product scope, package boundaries, API ownership, runtime modes, trust model, and non-goals documented | |
-| T002 | Produce migration matrix for all three repos | docs | todo | p0 | T001 | `docs/migration-matrix.md` | major legacy features mapped to keep/rewrite/postpone/drop with destination packages | |
-| T003 | Define runtime modes, trust tiers, and feature flags | architecture | todo | p0 | T001 | `docs/runtime-modes.md` | flags and modes named, scoped, and ready for implementation | |
-| T004 | Initialize monorepo with Bun workspaces and uv API app | repo | todo | p0 | T001 | scaffolded repo structure | `bun run dev` starts web and api; workspace layout matches plan | |
-| T005 | Configure linting, formatting, typecheck, pre-commit | tooling | todo | p0 | T004 | root configs and scripts | lint and typecheck pass on scaffold | |
-| T006 | Add CI for web, api, and shared packages | ci | todo | p0 | T004,T005 | `.github/workflows/*` | CI passes on scaffold and caches dependencies | |
-| T007 | Add typed env/config loading | config | todo | p0 | T004 | `packages/config` | missing env fails fast; config is typed | |
+| T001 | Write merged product scope and architecture doc | docs | done | p0 | - | `docs/architecture.md` | product scope, package boundaries, API ownership, runtime modes, trust model, and non-goals documented | done: architecture baseline captured; paths: docs/architecture.md. |
+| T002 | Produce migration matrix for all three repos | docs | done | p0 | T001 | `docs/migration-matrix.md` | major legacy features mapped to keep/rewrite/postpone/drop with destination packages | done: legacy-to-target mapping documented; paths: docs/migration-matrix.md. |
+| T003 | Define runtime modes, trust tiers, and feature flags | architecture | done | p0 | T001 | `docs/runtime-modes.md` | flags and modes named, scoped, and ready for implementation | done: runtime/trust/flag baseline documented; paths: docs/runtime-modes.md. |
+| T004 | Initialize monorepo with Bun workspaces and uv API app | repo | in_progress | p0 | T001 | scaffolded repo structure | `bun run dev` starts web and api; workspace layout matches plan | Bun workspaces plus `apps/web`, `apps/api`, and initial packages exist, but the planned package set is only partially extracted. |
+| T005 | Configure linting, formatting, typecheck, pre-commit | tooling | in_progress | p0 | T004 | root configs and scripts | lint and typecheck pass on scaffold | Root scripts and per-app lint/typecheck configs exist; pre-commit/hook enforcement is not yet evident in repo state. |
+| T006 | Add CI for web, api, and shared packages | ci | in_progress | p0 | T004,T005 | `.github/workflows/*` | CI passes on scaffold and caches dependencies | `.github/workflows/ci.yml` exists, but coverage should be revisited as more planned packages are added. |
+| T007 | Add typed env/config loading | config | in_progress | p0 | T004 | `packages/config` | missing env fails fast; config is typed | `packages/config/src/affine/config/settings.py` exists; adoption and fail-fast behavior are not yet uniform across apps. |
 | T008 | Add local Docker/compose stack | infra | todo | p1 | T004,T007 | Dockerfiles and compose | local stack boots successfully | |
-| T009 | Define chat/model/profile/stream schemas | shared | todo | p0 | T004 | schema files in `packages/shared` | frontend and backend consume same contracts | |
+| T009 | Define chat/model/profile/stream schemas | shared | in_progress | p0 | T004 | schema files in `packages/shared` | frontend and backend consume same contracts | `packages/shared` contains initial shared models/provider config, but schema coverage and imports are not complete yet. |
 | T010 | Define workspace/file/repo schemas | shared | todo | p0 | T009 | schema files in `packages/shared` | neutral across GitHub and local adapters | |
-| T011 | Define tools/commands/skills/agents/permissions schemas | shared | todo | p0 | T009 | schema files in `packages/shared` | runtime contracts stable enough for later milestones | |
+| T011 | Define tools/commands/skills/agents/permissions schemas | shared | in_progress | p0 | T009 | schema files in `packages/shared` | runtime contracts stable enough for later milestones | `packages/shared/src/affine/shared/tools.py` exists, but commands/skills/agents/permissions coverage is still incomplete. |
 | T012 | Define plugin and MCP schemas | shared | todo | p1 | T011 | schema files in `packages/shared` | plugin and MCP contracts unblock later runtime work | |
 | T013 | Implement schema export/codegen strategy | shared | todo | p0 | T009,T010,T011 | generated/shared types | one source of truth; no duplicated DTO maintenance | |
-| T014 | Create `packages/llm-core` and normalized provider interface | llm-core | todo | p0 | T013 | llm-core package | API can depend on llm-core without app-specific imports | |
-| T015 | Port Gemini provider | llm-core | todo | p0 | T014 | Gemini adapter | generate/stream tests pass; model metadata exposed | |
-| T016 | Port Anthropic provider | llm-core | todo | p0 | T014 | Anthropic adapter | generate/stream tests pass; model metadata exposed | |
+| T014 | Create `packages/llm-core` and normalized provider interface | llm-core | in_progress | p0 | T013 | llm-core package | API can depend on llm-core without app-specific imports | `packages/llm-core` exists with interfaces/factory/providers, but API code still carries duplicate provider logic locally. |
+| T015 | Port Gemini provider | llm-core | in_progress | p0 | T014 | Gemini adapter | generate/stream tests pass; model metadata exposed | Gemini provider code exists in `packages/llm-core`, but plan-level acceptance still depends on shared tests and package adoption. |
+| T016 | Port Anthropic provider | llm-core | in_progress | p0 | T014 | Anthropic adapter | generate/stream tests pass; model metadata exposed | Anthropic provider code exists in `packages/llm-core`, but plan-level acceptance still depends on shared tests and package adoption. |
 | T017 | Implement generic OpenAI-compatible provider | llm-core | todo | p1 | T014 | OpenAI-compatible adapter | contract tests pass | |
 | T018 | Implement OpenRouter adapter | llm-core | todo | p1 | T017 | OpenRouter adapter | contract tests pass | |
-| T019 | Build provider registry and model catalog | llm-core | todo | p0 | T015,T016 | registry service | providers/models discoverable; enable/disable via config | |
+| T019 | Build provider registry and model catalog | llm-core | in_progress | p0 | T015,T016 | registry service | providers/models discoverable; enable/disable via config | Factory/registry code exists; a full model catalog and config-driven discovery are still incomplete. |
 | T020 | Implement mode routing policies | llm-core | todo | p0 | T019 | mode resolver | standard/fast/thinking/search/edit/agent resolve deterministically | |
 | T021 | Normalize provider stream events | llm-core | todo | p0 | T015,T016,T019 | stream normalizer | one canonical stream event shape for frontend/API | |
 | T022 | Add prompt policy modules | llm-core | todo | p1 | T020 | prompt policy module | policies are backend-owned and testable | |
 | T023 | Add llm-core unit and contract tests | test | todo | p0 | T015,T016,T019,T020,T021 | llm-core test suite | provider/routing regressions covered in CI | |
-| T024 | Create foundation FastAPI structure | api | todo | p0 | T014,T007 | API app skeleton | route layer cleanly structured with injected services | |
+| T024 | Create foundation FastAPI structure | api | in_progress | p0 | T014,T007 | API app skeleton | route layer cleanly structured with injected services | `apps/api/src/affine/api` exists with routers and services, but root/runtime duplication still blurs ownership. |
 | T025 | Implement `/v1/models` and `/v1/providers` | api | todo | p0 | T019,T024 | discovery endpoints | models/providers visible through API | |
-| T026 | Implement `/v1/chat/completions` | api | todo | p0 | T015,T016,T019,T020,T024 | chat endpoint | Gemini and Anthropic work through one route | |
-| T027 | Implement streaming chat endpoint with SSE | api | todo | p0 | T021,T024,T026 | stream endpoint | canonical provider-agnostic stream works | |
-| T028 | Implement profile CRUD and activation | api | todo | p0 | T009,T024 | profile endpoints | profiles selectable without secret leakage | |
+| T026 | Implement `/v1/chat/completions` | api | in_progress | p0 | T015,T016,T019,T020,T024 | chat endpoint | Gemini and Anthropic work through one route | An OpenAI-compatible router exists in the API app; shared-contract alignment and acceptance tests are still pending. |
+| T027 | Implement streaming chat endpoint with SSE | api | in_progress | p0 | T021,T024,T026 | stream endpoint | canonical provider-agnostic stream works | Current API/server code includes streaming behavior, but canonical cross-provider event normalization is not done yet. |
+| T028 | Implement profile CRUD and activation | api | in_progress | p0 | T009,T024 | profile endpoints | profiles selectable without secret leakage | Profile router/modules exist, but secret-reference handling and end-to-end verification are still pending. |
 | T029 | Implement secret reference plumbing | api | todo | p0 | T028,T007 | secret handling | credentials resolved without exposing raw secrets in profile payloads | |
 | T030 | Add structured logs, request IDs, diagnostics | observability | todo | p0 | T024,T026,T027 | log/trace integration | requests and provider calls are traceable without secret leakage | |
 | T031 | Add API rate limits and payload caps | security | todo | p1 | T024 | middleware | oversized/abusive requests are constrained | |
-| T032 | Add OpenAPI and typed client generation | api/shared | todo | p0 | T025,T026,T027,T028 | API spec and generated client | frontend uses generated API types | |
-| T033 | Create initial frontend shell and API wiring | web | todo | p0 | T032 | `apps/web` shell | app can call health/models/profiles successfully | |
-| T034 | Implement streaming chat panel | web | todo | p0 | T027,T033 | chat UI | user can stream replies in UI with provider-agnostic logic | |
-| T035 | Implement profile selector and settings panel | web | todo | p0 | T028,T033 | profile/settings UI | profile selection works end-to-end | |
-| T036 | Add frontend activity log and diagnostics UI | web | todo | p1 | T030,T034 | diagnostics UI | request/provider status visible in UI | |
+| T032 | Add OpenAPI and typed client generation | api/shared | todo | p0 | T025,T026,T027,T028 | API spec and generated client | frontend uses generated API types | current packaged API state disables OpenAPI/docs, so schema generation work must start by restoring schema output there. |
+| T033 | Create initial frontend shell and API wiring | web | in_progress | p0 | T032 | `apps/web` shell | app can call health/models/profiles successfully | `apps/web` is present with store/services/components, but generated-client wiring is not in place yet. |
+| T034 | Implement streaming chat panel | web | in_progress | p0 | T027,T033 | chat UI | user can stream replies in UI with provider-agnostic logic | Chat components already exist in `apps/web/src/components`, but they are not yet anchored to the planned provider-agnostic contract layer. |
+| T035 | Implement profile selector and settings panel | web | in_progress | p0 | T028,T033 | profile/settings UI | profile selection works end-to-end | Settings/config UI exists; profile-selection flow still needs confirmation against the packaged API contracts. |
+| T036 | Add frontend activity log and diagnostics UI | web | in_progress | p1 | T030,T034 | diagnostics UI | request/provider status visible in UI | PWA diagnostics UI exists, but unified request/provider diagnostics are not complete. |
 | T037 | Add API integration tests for foundation routes | test | todo | p0 | T025,T026,T027,T028 | API integration test suite | foundation API covered in CI | |
 | T038 | Add frontend integration tests for chat/profile flow | test | todo | p1 | T034,T035 | frontend integration tests | critical chat UI flow covered in CI | |
-| T039 | Document foundation API and developer startup flow | docs | todo | p0 | T032,T034,T035 | root README and docs | new contributor can boot stack and test foundation flows | |
+| T039 | Document foundation API and developer startup flow | docs | in_progress | p0 | T032,T034,T035 | root README and docs | new contributor can boot stack and test foundation flows | Multiple docs exist already, but startup/API guidance is still partly stale relative to the current monorepo state. |
 | T040 | Freeze legacy repos and add migration pointers | migration | todo | p1 | T002 | legacy repo notices | contributors redirected to merged repo | |
 
 ## Task Gates
@@ -362,25 +378,19 @@ Drop:
 
 ## Immediate Next Tasks
 
-1. Set `T001` to `in_progress`
-2. Complete `T001`, `T002`, `T003`
-3. Complete `T004`, `T005`, `T006`, `T007`
-4. Complete `T009`, `T010`, `T011`, `T013`
-5. Complete `T014`, `T015`, `T016`, `T019`, `T020`, `T021`, `T023`
-6. Complete `T024`, `T025`, `T026`, `T027`, `T028`, `T029`, `T030`, `T032`, `T037`
-7. Complete `T033`, `T034`, `T035`, `T039`
+1. Finish M1 by making `apps/*` and `packages/*` authoritative: remove duplicate root-level runtime code once imports are migrated, and otherwise mark remaining root copies deprecated/read-only with explicit pointers to `apps/api` and `packages/*`.
+2. Prioritize `T032` next (OpenAPI + typed client generation): restore a stable OpenAPI surface in the packaged API so generated clients and contract-driven frontend wiring can proceed.
+3. Complete the missing shared schema/codegen work (`T010`-`T013`: workspace/repo schemas, tool/runtime schemas, plugin/MCP schemas, and export/codegen) before taking on more workspace, MCP, plugin, or local-mode feature work.
+4. After contracts are stable, finish the already-started foundation path: package-backed provider adoption (`T014`-`T021`), foundation API completion (`T024`-`T030`), and frontend API alignment (`T033`-`T039`).
 
-Do not start workspace, MCP, plugin, or local-mode implementation until all Gate G1-G6 tasks are `done`.
+Do not start new workspace, MCP, plugin, or local-mode feature expansion until the blockers above are resolved and the active Gate G1-G6 dependencies are satisfied again.
 
-## Discovered Repository Todo Backlog
+## Consolidated Observed Backlog
 
-These tasks were derived from placeholder comments, stale documentation markers, and unimplemented adapters currently present in the repository.
+Only high-signal follow-ups that still matter after the current foundation work are kept here.
 
 | ID | Task | Area | Status | Priority | Depends On | Required Output | Acceptance Criteria | Notes |
 |---|---|---|---|---|---|---|---|---|
-| T041 | Wire WebSocket transport into the Tool UI | web | todo | p1 | T033 | connected Tool WebSocket lifecycle | Tool owns a single WebSocket service; connection state is synced into Zustand; incoming messages are recorded; disconnect cleanup is automatic | derived from `apps/web/src/components/Tool.tsx:202` |
-| T042 | Implement WebSocket upload and download actions | web | todo | p1 | T041 | working WebSocket file transfer flow | uploads call the WebSocket file upload path; downloads wait for `file_data`; placeholder logs are removed; success and failure states are surfaced in the Tool UI | derived from `apps/web/src/components/Tool.tsx:235` |
-| T043 | Add real command-history navigation to the CLI | web | todo | p2 | T033 | command history state in CLI | ArrowUp recalls prior commands; ArrowDown restores newer commands or draft input; command history is stored separately from rendered terminal output | derived from `apps/web/src/components/CLI.tsx:116` |
-| T044 | Fail fast for unsupported Copilot provider selection | llm-core/api | todo | p1 | T019,T024 | explicit unsupported-provider failure path | `copilot` selection is rejected at startup or provider creation; placeholder Copilot responses are not returned to end users; tests cover the failure mode | derived from `llm_core/providers/copilot.py:13` |
-| T045 | Replace shared-package provider stubs with working adapters | llm-core | todo | p1 | T014,T015,T016,T017,T019 | completed shared provider implementations | shared Gemini, Anthropic, and Bifrost adapters no longer raise `NotImplementedError`; unsupported shared Copilot paths fail fast; provider creation and first-call behavior are tested | derived from `packages/llm-core/src/affine/llm_core/providers/*.py` |
-| T046 | Correct stale router-mount documentation | docs | todo | p2 | T001 | updated contributor and architecture docs | docs reflect that `openwebui` is mounted; router status notes match `server.py`; no instruction claims `openwebui` is unmounted | derived from `AGENTS.md:78`, `docs/architecture.md:170`, `.github/copilot-instructions.md:38` |
+| T041 | Finish Tool/CLI transport polish if Tool mode remains in scope | web | todo | p2 | T033,T034 | stable Tool/CLI transport behavior | WebSocket/file transfer placeholders are either completed or removed; CLI history behavior is predictable and tested | addresses Tool WebSocket transport, file transfer, and CLI history follow-up work |
+| T042 | Remove or hard-fail incomplete provider paths | llm-core/api | todo | p1 | T014,T015,T016,T017,T019,T024 | explicit supported-provider matrix | unsupported providers never fall through to placeholder or `NotImplementedError` behavior at runtime; support matrix is documented and tested | covers unsupported Copilot selection and shared-provider stub cleanup |
+| T043 | Align contributor docs with the packaged API and mounted routes | docs | todo | p2 | T024,T032,T039 | updated contributor docs | router status, startup instructions, and package ownership notes match the actual packaged API and frontend entrypoints | covers stale routing, startup, and ownership documentation follow-ups |
