@@ -18,7 +18,7 @@ class ComposioService:
             api_key: Optional Composio API key.
         """
         self.api_key = api_key or os.environ.get("COMPOSIO_API_KEY")
-        if not self.api_key:
+        if not self.api_key or Composio is None:
             # We don't raise here to allow the app to start without Composio
             self.composio = None
         else:

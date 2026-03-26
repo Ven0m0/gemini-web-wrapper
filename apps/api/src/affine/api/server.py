@@ -468,7 +468,6 @@ class ProfileSwitchReq(BaseModel):
 
 
 # ----- Profiles Endpoints -----
-app.include_router(profiles_router)
 
 
 @app.get("/profiles/list")

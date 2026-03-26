@@ -65,6 +65,8 @@ async def lifespan(app: "FastAPI") -> AsyncGenerator[None]:
         api_key = settings.google_api_key
     elif provider_type == "anthropic":
         api_key = settings.anthropic_api_key
+    elif provider_type == "copilot":
+        api_key = settings.github_token or None
     elif provider_type == "bifrost":
         api_key = settings.bifrost_api_key
         provider_kwargs["base_url"] = settings.bifrost_url
