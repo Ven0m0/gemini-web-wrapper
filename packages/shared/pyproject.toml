@@ -8,9 +8,18 @@ dependencies = [
     "orjson",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.3.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/affine/shared"]
