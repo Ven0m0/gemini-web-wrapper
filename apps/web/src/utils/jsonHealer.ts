@@ -180,7 +180,7 @@ export class JSONHealer {
 
   /**
    * Remove JavaScript-style comments
-   * Input: {"name": "Test" /* comment */}
+   * Input: {"name": "Test"}
    * Output: {"name": "Test"}
    */
   private static removeComments(input: string): string {
@@ -201,7 +201,7 @@ export class JSONHealer {
   private static fixQuotes(input: string): string {
     // This is tricky as we need to avoid replacing single quotes inside double-quoted strings
     // Simple approach: replace single quotes with double quotes for keys and string values
-    let result = input
+    const result = input
     let inString = false
     let quoteChar = ''
     let fixed = ''

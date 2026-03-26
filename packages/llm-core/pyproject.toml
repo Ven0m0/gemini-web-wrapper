@@ -1,5 +1,5 @@
 [project]
-name = "@affine/llm-core"
+name = "affine-llm-core"
 version = "0.1.0"
 description = "Affine LLM core provider abstraction layer"
 readme = "README.md"

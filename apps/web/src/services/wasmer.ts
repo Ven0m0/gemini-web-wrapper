@@ -23,7 +23,7 @@ export async function compileCWithWasmer(
   // Avoid bundler resolution by computing module specifier at runtime
   async function dynImport(spec: string) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval
+       
       return await (new Function('m', 'return import(m)'))(spec)
     } catch {
       return null

@@ -1,5 +1,5 @@
 [project]
-name = "@affine/config"
+name = "affine-config"
 version = "1.0.0"
 description = "Affine AI Coding Workstation - Config"
 requires-python = ">=3.10"

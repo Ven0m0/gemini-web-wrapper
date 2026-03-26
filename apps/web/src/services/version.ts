@@ -4,7 +4,7 @@ export class VersionService {
   static getCurrentVersion(): string {
     // Build timestamp injected by Vite define in vite.config.ts
     // Example: 2025-08-19 22:43 UTC
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     declare const __BUILD_TIME__: string
     try {
       // @ts-ignore - defined at build time

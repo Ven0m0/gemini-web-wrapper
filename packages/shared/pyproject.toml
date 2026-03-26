@@ -1,5 +1,5 @@
 [project]
-name = "@affine/shared"
+name = "affine-shared"
 version = "1.0.0"
 description = "Affine AI Coding Workstation - Shared types and utilities"
 requires-python = ">=3.10"
