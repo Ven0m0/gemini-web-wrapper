@@ -1,0 +1,59 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build artifacts (not needed - Vercel builds from source)
+dist
+build
+.cache
+
+# Environment files (if any)
+.env
+.env.local
+.env.production
+.env.development
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git and development files
+.git
+.gitignore
+.github
+
+# Documentation (reduces deployment size)
+*.md
+!README.md
+DOCS
+
+# Test files
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+test
+tests
+coverage
+
+# Scripts (not needed in production)
+scripts
+
+# Local development
+.env.local
+.vercel
+
+# Lock files (Vercel uses package-lock.json automatically)
+yarn.lock
+pnpm-lock.yaml
+
+# Misc
+renovate.json
+.spark-*
+spark.meta.json
