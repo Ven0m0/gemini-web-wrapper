@@ -4,15 +4,13 @@ Provides file operations (read, write, commit) using GitHub REST API.
 """
 
 import base64
-import os
+import logging
 import subprocess
-import tempfile
 from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
-import logging
 
 logger = logging.getLogger(__name__)
 

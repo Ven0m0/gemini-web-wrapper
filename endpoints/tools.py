@@ -1,7 +1,5 @@
-from typing import Any
-
 import logging
-import os
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field

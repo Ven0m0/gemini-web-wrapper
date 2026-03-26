@@ -1,8 +1,9 @@
+import asyncio
 import os
 from typing import Any
-import asyncio
 
 from composio import Composio
+
 
 class ComposioService:
     """Service for managing Composio tools and sessions."""

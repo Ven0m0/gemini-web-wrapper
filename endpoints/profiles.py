@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from cookie_manager import CookieManager, CookieData
+from cookie_manager import CookieData, CookieManager
 from dependencies import get_cookie_manager, get_gemini_client
 from gemini_client import GeminiClientWrapper
 from models import ProfileCreateReq, ProfileSwitchReq
