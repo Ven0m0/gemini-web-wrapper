@@ -1,0 +1,40 @@
+[project]
+name = "@affine/api"
+version = "1.0.0"
+description = "Affine AI Coding Workstation - API"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2.0",
+    "orjson",
+    "httpx",
+    "google-genai",
+    "gemini-webapi",
+    "rookiepy",
+    "anthropic",
+    "openai",
+    "aiosqlite",
+    "cachetools",
+    "json-repair",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pyrefly",
+    "pytest",
+    "anyio",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.pyrefly]
+ignore_missing_imports = true
+
+[tool.pytest]
+asyncio_mode = "auto"
+testpaths = ["tests"]
