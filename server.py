@@ -10,21 +10,22 @@ import asyncio
 import mimetypes
 import os
 import sys
-from collections.abc import AsyncGenerator, Callable, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
-from typing import Any, Literal, cast
-from pydantic import BaseModel, Field
-from uuid import uuid4
+from typing import Any, cast
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cookie_manager import CookieManager, CookieData
+from cookie_manager import CookieManager
 from endpoints.openai import router as openai_router
+from endpoints.profiles import router as profiles_router
+from endpoints.tools import router as tools_router
 from gemini_client import GeminiClientWrapper
 from github_service import GitHubService
 from llm_core.factory import ProviderFactory, ProviderType
@@ -46,8 +47,6 @@ from models import (
 from session_manager import SessionManager
 from state import state
 from utils import handle_generation_errors
-from endpoints.profiles import router as profiles_router
-from endpoints.tools import router as tools_router
 
 
 # ----- Configuration -----
@@ -62,6 +61,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     optillm_url: str | None = None
     optillm_api_key: str | None = None
+
+    # CORS Configuration
+    cors_allow_origins: str = "*"
+    cors_allow_credentials: bool = True
+    cors_allow_methods: str = "*"
+    cors_allow_headers: str = "*"
 
     # Model aliases for OpenAI compatibility
     model_aliases: dict[str, str] = {
@@ -115,7 +120,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     if provider_type_raw == "google":
         provider_type_raw = "gemini"
 
-    if provider_type_raw not in ("gemini", "anthropic", "copilot", "bifrost", "optillm"):
+    if provider_type_raw not in (
+        "gemini",
+        "anthropic",
+        "copilot",
+        "bifrost",
+        "optillm",
+    ):
         print(f"Unknown provider: {provider_type_raw}", file=sys.stderr)
         sys.exit(1)
 
@@ -155,6 +166,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     state.attribution_cache.clear()
 
 
+# ----- App Settings -----
+try:
+    settings = Settings()
+except ValueError:
+    # Provide dummy values for testing if env vars are missing
+    os.environ["GOOGLE_API_KEY"] = "dummy"
+    settings = Settings()
+
 # ----- App Initialization -----
 app = FastAPI(
     lifespan=lifespan,
@@ -166,10 +185,16 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For production, replace "*" with your Vercel URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[origin.strip() for origin in settings.cors_allow_origins.split(",")]
+    if settings.cors_allow_origins
+    else [],
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=[method.strip() for method in settings.cors_allow_methods.split(",")]
+    if settings.cors_allow_methods
+    else [],
+    allow_headers=[header.strip() for header in settings.cors_allow_headers.split(",")]
+    if settings.cors_allow_headers
+    else [],
 )
 
 app.include_router(openai_router)
@@ -557,6 +582,7 @@ class ProfileSwitchReq(BaseModel):
     """
 
     name: str = Field(..., min_length=1)
+
 
 # ----- Profiles Endpoints -----
 app.include_router(profiles_router)
