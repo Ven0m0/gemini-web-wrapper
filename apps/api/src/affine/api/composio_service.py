@@ -36,7 +36,9 @@ class ComposioService:
         session = self.composio.create(user_id=user_id)
         return await asyncio.to_thread(session.tools)
 
-    async def execute_tool(self, tool_name: str, arguments: dict[str, Any], user_id: str = "default_user") -> Any:
+    async def execute_tool(
+        self, tool_name: str, arguments: dict[str, Any], user_id: str = "default_user"
+    ) -> Any:
         """Execute a Composio tool.
 
         Note: In native tool integration, the LLM usually handles tool calls.

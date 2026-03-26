@@ -46,11 +46,7 @@ async def create_profile(
             )
             for c in r.cookies
         ]
-        await cookie_mgr.save_profile(
-            r.name,
-            cookie_data,
-            "manual"
-        )
+        await cookie_mgr.save_profile(r.name, cookie_data, "manual")
         return {
             "status": "success",
             "message": f"Profile '{r.name}' created with provided cookies",
