@@ -1,0 +1,947 @@
+#!/usr/bin/env python3
+"""FastAPI server for Gemini API with strict typing and performance.
+
+High-performance HTTP API for chat and code assistance using Google's
+Gemini model via the Genkit framework. Features: strict typing,
+async/await, orjson, uvloop, and comprehensive validation.
+"""
+
+import asyncio
+import mimetypes
+import os
+import sys
+from collections.abc import AsyncGenerator, Sequence
+from contextlib import asynccontextmanager
+from typing import Any, cast
+
+import httpx
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from cookie_manager import CookieManager
+from endpoints.openai import router as openai_router
+from endpoints.profiles import router as profiles_router
+from endpoints.tools import router as tools_router
+from gemini_client import GeminiClientWrapper
+from github_service import GitHubService
+from llm_core.factory import ProviderFactory, ProviderType
+from llm_core.interfaces import LLMProvider
+from models import (
+    ChatbotReq,
+    ChatReq,
+    CodeReq,
+    GeminiChatReq,
+    GenResponse,
+    GitHubBranchesReq,
+    GitHubFileReadReq,
+    GitHubFileWriteReq,
+    GitHubListReq,
+    SessionQueryReq,
+)
+from session_manager import SessionManager
+from state import state
+from utils import handle_generation_errors
+
+
+# ----- Configuration -----
+class Settings(BaseSettings):
+    """Application settings loaded from environment or .env file."""
+
+    model_config = SettingsConfigDict(env_file=".env")
+
+    google_api_key: str
+    model_provider: str = "gemini"
+    model_name: str | None = None
+    anthropic_api_key: str | None = None
+    optillm_url: str | None = None
+    optillm_api_key: str | None = None
+
+    # CORS Configuration
+    cors_allow_origins: str = "*"
+    cors_allow_credentials: bool = True
+    cors_allow_methods: str = "*"
+    cors_allow_headers: str = "*"
+
+    # Model aliases for OpenAI compatibility
+    model_aliases: dict[str, str] = {
+        "gpt-4o-mini": "gemini-2.5-flash",
+        "gpt-4o": "gemini-2.5-pro",
+        "gpt-4.1-mini": "gemini-3.0-pro",
+        "gemini-flash": "gemini-2.5-flash",
+        "gemini-pro": "gemini-2.5-pro",
+        "gemini-3-pro": "gemini-3.0-pro",
+        "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
+    }
+
+    def resolve_model(self, requested: str | None) -> str:
+        """Return a Gemini model name for a requested OpenAI-style name."""
+        if not requested:
+            return self.model_name
+        if requested in self.model_aliases:
+            return self.model_aliases[requested]
+        return requested
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+    """Initialize and cleanup Genkit resources on app startup/shutdown.
+
+    This context manager handles:
+    - Loading configuration from environment/settings
+    - Initializing the Genkit client with Google GenAI plugin
+    - Setting up the model for generation
+    - Cleaning up resources on shutdown
+
+    Args:
+        app: FastAPI application instance.
+
+    Yields:
+        None: Control flow during application lifetime.
+
+    Raises:
+        SystemExit: If configuration loading fails.
+    """
+    try:
+        state.settings = Settings()
+    except (ValueError, KeyError, TypeError) as e:
+        print(f"Configuration error: {e}", file=sys.stderr)
+        sys.exit(1)
+    settings = state.settings
+
+    # Initialize LLM Provider using Factory
+    # Default to gemini if not specified or "google" (legacy)
+    provider_type_raw = settings.model_provider
+    if provider_type_raw == "google":
+        provider_type_raw = "gemini"
+
+    if provider_type_raw not in (
+        "gemini",
+        "anthropic",
+        "copilot",
+        "bifrost",
+        "optillm",
+    ):
+        print(f"Unknown provider: {provider_type_raw}", file=sys.stderr)
+        sys.exit(1)
+
+    provider_type = cast(ProviderType, provider_type_raw)
+    api_key = (
+        settings.google_api_key
+        if provider_type == "gemini"
+        else settings.anthropic_api_key
+    )
+    state.llm_provider = ProviderFactory.create(
+        provider_type,
+        api_key=api_key,
+        model_name=settings.model_name,
+    )
+
+    # Initialize lightweight session manager for user/session tracking
+    state.session_manager = SessionManager()
+    # Initialize cookie manager and gemini-webapi client
+    state.cookie_manager = CookieManager(db_path="gemini_cookies.db")
+    await state.cookie_manager.init_db()
+    state.gemini_client = GeminiClientWrapper(state.cookie_manager)
+    # Initialize shared GitHub client
+    state.github_client = httpx.AsyncClient()
+    yield
+    # Cleanup: close async resources
+    if state.gemini_client:
+        await state.gemini_client.close()
+    if state.github_client:
+        await state.github_client.aclose()
+
+    state.llm_provider = None
+    state.session_manager = None
+    state.settings = None
+    state.cookie_manager = None
+    state.gemini_client = None
+    state.github_client = None
+    state.attribution_cache.clear()
+
+
+# ----- App Settings -----
+try:
+    settings = Settings()
+except ValueError:
+    # Provide dummy values for testing if env vars are missing
+    os.environ["GOOGLE_API_KEY"] = "dummy"
+    settings = Settings()
+
+# ----- App Initialization -----
+app = FastAPI(
+    lifespan=lifespan,
+    default_response_class=ORJSONResponse,
+    title="Genkit Gemini Server",
+    docs_url=None,  # Disable documentation to avoid schema generation issues
+    redoc_url=None,  # Disable redoc to avoid schema generation issues
+    openapi_url=None,  # Disable OpenAPI schema to avoid httpx.Client schema issues
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in settings.cors_allow_origins.split(",")]
+    if settings.cors_allow_origins
+    else [],
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=[method.strip() for method in settings.cors_allow_methods.split(",")]
+    if settings.cors_allow_methods
+    else [],
+    allow_headers=[header.strip() for header in settings.cors_allow_headers.split(",")]
+    if settings.cors_allow_headers
+    else [],
+)
+
+app.include_router(openai_router)
+app.include_router(tools_router)
+app.include_router(openwebui_router)
+
+
+# ----- Models -----
+# ----- Logic Helpers -----
+async def run_generate(
+    prompt: str,
+    model: LLMProvider,
+    *,
+    system: str | None = None,
+    history: Sequence[dict[str, str]] | None = None,
+    timeout: float = 30.0,
+) -> str:
+    """Run model generation with a timeout.
+
+    Args:
+        prompt: User prompt.
+        model: Initialized LLMProvider instance.
+        system: Optional system instruction.
+        history: Optional conversation history.
+        timeout: Maximum time to wait for generation (default 30 seconds).
+
+    Returns:
+        Generated text.
+    """
+    try:
+        return await asyncio.wait_for(
+            model.generate(prompt, system=system, history=history),
+            timeout=timeout,
+        )
+    except TimeoutError as e:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=f"Model generation timed out after {timeout}s",
+        ) from e
+
+
+async def _setup_session_attribution(
+    session_mgr: SessionManager,
+    user_id: str | None,
+    session_id: str | None,
+) -> None:
+    """Set up session attribution for conversation tracking.
+
+    Configures session manager with user and session identifiers.
+    Uses TTL cache to avoid redundant attribution calls for same user/session
+    while preventing unbounded memory growth.
+
+    Args:
+        session_mgr: Initialized SessionManager instance.
+        user_id: Optional user identifier (defaults to "default_user").
+        session_id: Optional session identifier for grouping interactions.
+    """
+    if user_id or session_id:
+        # Create cache key from user_id and session_id
+        # Normalize None to sentinel to prevent cache key duplication
+        effective_user_id = user_id or "default_user"
+        effective_session_id = session_id or "__no_session__"
+        cache_key = (effective_user_id, effective_session_id)
+
+        # Only set up attribution if not already cached
+        if cache_key not in state.attribution_cache:
+            session_mgr.attribution(
+                entity_id=effective_user_id,
+                process_id="gemini-chatbot",
+            )
+            if session_id:  # Only set session if explicitly provided
+                session_mgr.set_session(session_id)
+            # Add to cache (TTLCache expires after 1 hour)
+            state.attribution_cache[cache_key] = True
+
+
+# ----- Dependencies -----
+def get_llm_provider() -> LLMProvider:
+    """FastAPI dependency to get the initialized model.
+
+    Returns:
+        Initialized LLMProvider instance.
+
+    Raises:
+        HTTPException: 503 if provider is not initialized.
+    """
+    if state.llm_provider is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM Provider not initialized. Check server logs.",
+        )
+    return state.llm_provider
+
+
+def get_session_manager() -> SessionManager:
+    """FastAPI dependency to get the initialized SessionManager instance.
+
+    Returns:
+        Initialized SessionManager instance.
+
+    Raises:
+        HTTPException: 503 if SessionManager is not initialized.
+    """
+    if state.session_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Session manager not initialized. Check server logs.",
+        )
+    return state.session_manager
+
+
+def get_cookie_manager() -> CookieManager:
+    """FastAPI dependency to get the initialized CookieManager.
+
+    Returns:
+        Initialized CookieManager instance.
+
+    Raises:
+        HTTPException: 503 if CookieManager is not initialized.
+    """
+    if state.cookie_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cookie manager not initialized.",
+        )
+    return state.cookie_manager
+
+
+def get_gemini_client() -> GeminiClientWrapper:
+    """FastAPI dependency to get the initialized GeminiClientWrapper.
+
+    Returns:
+        Initialized GeminiClientWrapper instance.
+
+    Raises:
+        HTTPException: 503 if GeminiClientWrapper is not initialized.
+    """
+    if state.gemini_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini client not initialized.",
+        )
+    return state.gemini_client
+
+
+def get_github_client() -> httpx.AsyncClient:
+    """FastAPI dependency to get the initialized GitHub client.
+
+    Returns:
+        Initialized httpx.AsyncClient instance.
+
+    Raises:
+        HTTPException: 503 if client is not initialized.
+    """
+    if state.github_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GitHub client not initialized.",
+        )
+    return state.github_client
+
+
+def get_settings() -> Settings:
+    """FastAPI dependency to get the cached Settings instance.
+
+    Returns:
+        Cached Settings instance loaded at startup.
+
+    Raises:
+        HTTPException: 503 if Settings is not initialized.
+    """
+    if state.settings is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Settings not initialized.",
+        )
+    return state.settings
+
+
+# ----- Endpoints -----
+@app.post("/chat", response_model=GenResponse)
+@handle_generation_errors
+async def chat(
+    r: ChatReq,
+    model: LLMProvider = Depends(get_llm_provider),
+) -> dict[str, str]:
+    """Handle conversational chat requests."""
+    text = await run_generate(r.prompt, model, system=r.system)
+    return {"text": text}
+
+
+@app.post("/code", response_model=GenResponse)
+@handle_generation_errors
+async def code(
+    r: CodeReq,
+    model: LLMProvider = Depends(get_llm_provider),
+) -> dict[str, str]:
+    """Handle code assistance requests."""
+    prompt = "\n".join(
+        [
+            "You are a coding assistant.",
+            "Apply the following instruction to the code.",
+            "",
+            "Instruction:",
+            r.instruction,
+            "",
+            "Code:",
+            r.code,
+        ]
+    )
+    text = await run_generate(prompt, model)
+    return {"text": text}
+
+
+@app.get("/health")
+async def health() -> dict[str, bool]:
+    """Health check endpoint.
+
+    Returns:
+        Dict with 'ok: True' indicating service is running.
+    """
+    return {"ok": True}
+
+
+@app.post("/chatbot", response_model=GenResponse)
+@handle_generation_errors
+async def chatbot(
+    r: ChatbotReq,
+    model: LLMProvider = Depends(get_llm_provider),
+    session_mgr: SessionManager = Depends(get_session_manager),
+) -> dict[str, str]:
+    """Handle chatbot requests with conversation history."""
+    await _setup_session_attribution(session_mgr, r.user_id, r.session_id)
+    history_dicts = (
+        [{"role": m.role, "content": m.content} for m in r.history]
+        if r.history
+        else None
+    )
+    text = await run_generate(
+        r.message,
+        model,
+        system=r.system,
+        history=history_dicts,
+    )
+    return {"text": text}
+
+
+@app.post("/chatbot/stream")
+async def chatbot_stream(
+    r: ChatbotReq,
+    model: LLMProvider = Depends(get_llm_provider),
+    session_mgr: SessionManager = Depends(get_session_manager),
+) -> StreamingResponse:
+    """Handle chatbot requests with streaming responses."""
+
+    await _setup_session_attribution(session_mgr, r.user_id, r.session_id)
+    history_dicts = (
+        [{"role": m.role, "content": m.content} for m in r.history]
+        if r.history
+        else None
+    )
+
+    async def generate_stream() -> AsyncGenerator[str]:
+        try:
+            async for chunk in model.stream(
+                r.message,
+                system=r.system,
+                history=history_dicts,
+            ):
+                yield chunk
+        except Exception as e:
+            # Log detailed error server-side, but return a generic message to the client
+            print(f"chatbot_stream generation error: {e}", file=sys.stderr)
+            yield "Error: Generation failed"
+
+    return StreamingResponse(generate_stream(), media_type="text/plain")
+
+
+@app.post("/memory/session/new")
+async def create_new_session(
+    user_id: str | None = None,
+    session_mgr: SessionManager = Depends(get_session_manager),
+) -> dict[str, str]:
+    """Create a new session for a user.
+
+    Args:
+        user_id: Optional user identifier for the session.
+        session_mgr: Injected SessionManager dependency.
+
+    Returns:
+        Dict with 'status', 'message', and 'session_id'.
+
+    Raises:
+        HTTPException: 503 if session manager not initialized, 500 on failure.
+    """
+    try:
+        session_mgr.attribution(
+            entity_id=user_id or "default_user",
+            process_id="gemini-chatbot",
+        )
+        session_id = session_mgr.new_session()
+        return {
+            "status": "success",
+            "message": "New session created",
+            "session_id": session_id,
+        }
+    except (RuntimeError, ValueError, AttributeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Session creation failed: {e}",
+        ) from e
+
+
+@app.post("/memory/query")
+async def query_sessions(
+    r: SessionQueryReq,
+    session_mgr: SessionManager = Depends(get_session_manager),
+) -> dict[str, Any]:
+    """Query active sessions for a user.
+
+    Returns all active (non-expired) sessions for a given user.
+
+    Args:
+        r: SessionQueryReq containing user_id.
+        session_mgr: Injected SessionManager dependency.
+
+    Returns:
+        Dict with 'sessions' list containing session details.
+
+    Raises:
+        HTTPException: 503 if session manager not initialized, 500 on failure.
+    """
+    try:
+        sessions = session_mgr.get_user_sessions(r.user_id)
+        session_data = [
+            {
+                "session_id": s.session_id,
+                "user_id": s.user_id,
+                "process_id": s.process_id,
+                "created_at": s.created_at,
+                "last_accessed": s.last_accessed,
+            }
+            for s in sessions
+        ]
+        return {
+            "sessions": session_data,
+            "count": len(session_data),
+        }
+    except (RuntimeError, ValueError, AttributeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Session query failed: {e}",
+        ) from e
+
+
+# ----- Profile Management Endpoints -----
+class CookieItem(BaseModel):
+    """Model representing a single cookie."""
+
+    name: str = Field(..., min_length=1)
+    value: str = Field(..., min_length=1)
+    domain: str = Field(..., min_length=1)
+    path: str = Field(default="/")
+    expires: float | None = Field(default=None)
+    secure: bool = Field(default=True)
+    http_only: bool = Field(default=True)
+
+
+class ProfileCreateReq(BaseModel):
+    """Request model for creating a profile from provided cookies.
+
+    Attributes:
+        name: Profile name/identifier.
+        cookies: List of cookies to use.
+    """
+
+    name: str = Field(..., min_length=1)
+    cookies: list[CookieItem] = Field(..., min_length=1)
+
+
+class ProfileSwitchReq(BaseModel):
+    """Request model for switching to a profile.
+
+    Attributes:
+        name: Profile name to switch to.
+    """
+
+    name: str = Field(..., min_length=1)
+
+
+# ----- Profiles Endpoints -----
+app.include_router(profiles_router)
+
+
+@app.get("/profiles/list")
+async def list_profiles(
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, Any]:
+    """List all stored profiles.
+
+    Args:
+        cookie_mgr: Injected CookieManager dependency.
+        gemini_client: Injected GeminiClientWrapper dependency.
+
+    Returns:
+        Dict with profiles list and current profile info.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized.
+    """
+    profiles = await cookie_mgr.list_profiles()
+    current_profile = gemini_client.get_current_profile()
+
+    return {
+        "profiles": profiles,
+        "current_profile": current_profile,
+        "count": len(profiles),
+    }
+
+
+@app.post("/profiles/switch")
+async def switch_profile(
+    r: ProfileSwitchReq,
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, str]:
+    """Switch to a different profile.
+
+    Args:
+        r: ProfileSwitchReq with profile name.
+        gemini_client: Injected GeminiClientWrapper dependency.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if services not initialized, 400 if switch fails.
+    """
+    try:
+        success = await gemini_client.switch_profile(r.name)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to switch to profile '{r.name}'",
+            )
+        return {
+            "status": "success",
+            "message": f"Switched to profile '{r.name}'",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile switch failed: {e}",
+        ) from e
+
+
+@app.delete("/profiles/{profile_name}")
+async def delete_profile(
+    profile_name: str,
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+) -> dict[str, str]:
+    """Delete a profile and its cookies.
+
+    Args:
+        profile_name: Name of the profile to delete.
+        cookie_mgr: Injected CookieManager dependency.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized, 404 if not found.
+    """
+    success = await cookie_mgr.delete_profile(profile_name)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Profile '{profile_name}' not found",
+        )
+    return {
+        "status": "success",
+        "message": f"Profile '{profile_name}' deleted",
+    }
+
+
+@app.post("/profiles/{profile_name}/refresh")
+async def refresh_profile(
+    profile_name: str,
+    cookie_mgr: CookieManager = Depends(get_cookie_manager),
+) -> dict[str, str]:
+    """Refresh cookies for a profile.
+
+    Args:
+        profile_name: Name of the profile to refresh.
+        cookie_mgr: Injected CookieManager dependency.
+
+    Returns:
+        Dict with status and message.
+
+    Raises:
+        HTTPException: 503 if cookie manager not initialized, 400 if refresh fails.
+    """
+    success = await cookie_mgr.refresh_profile(profile_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to refresh profile '{profile_name}'",
+        )
+    return {
+        "status": "success",
+        "message": f"Profile '{profile_name}' refreshed",
+    }
+
+
+# ----- Gemini WebAPI Endpoints -----
+@app.post("/gemini/chat")
+async def gemini_chat(
+    r: GeminiChatReq,
+    gemini_client: GeminiClientWrapper = Depends(get_gemini_client),
+) -> dict[str, Any]:
+    """Chat using gemini-webapi with cookie authentication.
+
+    This endpoint uses the gemini-webapi library directly instead of Genkit,
+    allowing for cookie-based authentication and access to web features.
+
+    Args:
+        r: GeminiChatReq with message and optional conversation ID.
+        gemini_client: Injected GeminiClientWrapper dependency.
+
+    Returns:
+        Dict with response text and conversation ID.
+
+    Raises:
+        HTTPException: 503 if client not initialized, 400 if profile fails, 500 if chat fails.
+    """
+    # Initialize with profile if specified
+    if r.profile:
+        success = await gemini_client.init_with_profile(r.profile)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(f"Failed to initialize with profile '{r.profile}'"),
+            )
+    # Otherwise try auto-init if not already initialized
+    elif not await gemini_client.ensure_initialized():
+        success = await gemini_client.init_auto()
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Failed to auto-initialize. "
+                    "Please login to gemini.google.com "
+                    "or create a profile."
+                ),
+            )
+    try:
+        output, conversation_id = await gemini_client.chat(
+            r.message,
+            r.conversation_id,
+        )
+        return {
+            "text": output.text or "",
+            "conversation_id": conversation_id,
+            "profile": gemini_client.get_current_profile(),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Chat failed: {e}",
+        ) from e
+
+
+# ----- GitHub Integration Endpoints -----
+@app.post("/github/file/read")
+async def github_read_file(
+    r: GitHubFileReadReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
+    """Read a file from GitHub repository.
+
+    Args:
+        r: GitHubFileReadReq with config and file path.
+
+    Returns:
+        Dict with file content, sha, and metadata.
+
+    Raises:
+        HTTPException: 404 if file not found, 500 on other errors.
+    """
+    try:
+        service = GitHubService(r.config, client)
+        result = await service.get_file(r.path)
+        return result
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found: {r.path}",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read file: {e}",
+        ) from e
+
+
+@app.post("/github/file/write")
+async def github_write_file(
+    r: GitHubFileWriteReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
+    """Create or update a file in GitHub repository.
+
+    Args:
+        r: GitHubFileWriteReq with config, path, content, message, and optional sha.
+
+    Returns:
+        Dict with commit and file metadata.
+
+    Raises:
+        HTTPException: 409 if SHA mismatch, 500 on other errors.
+    """
+    try:
+        service = GitHubService(r.config, client)
+        result = await service.create_or_update_file(
+            r.path, r.content, r.message, r.sha
+        )
+        return result
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 409:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="File SHA mismatch. Fetch file again before updating.",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to write file: {e}",
+        ) from e
+
+
+@app.post("/github/list")
+async def github_list_directory(
+    r: GitHubListReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
+    """List files in a GitHub repository directory.
+
+    Args:
+        r: GitHubListReq with config and directory path.
+
+    Returns:
+        Dict with list of files and directories.
+
+    Raises:
+        HTTPException: 404 if directory not found, 500 on other errors.
+    """
+    try:
+        service = GitHubService(r.config, client)
+        items = await service.list_directory(r.path)
+        return {
+            "items": items,
+            "count": len(items),
+            "path": r.path,
+        }
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Directory not found: {r.path}",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list directory: {e}",
+        ) from e
+
+
+@app.post("/github/branches")
+async def github_list_branches(
+    r: GitHubBranchesReq,
+    client: httpx.AsyncClient = Depends(get_github_client),
+) -> dict[str, Any]:
+    """List all branches in a GitHub repository.
+
+    Args:
+        r: GitHubBranchesReq with config.
+
+    Returns:
+        Dict with list of branches.
+
+    Raises:
+        HTTPException: 500 on API errors.
+    """
+    try:
+        service = GitHubService(r.config, client)
+        branches = await service.get_branches()
+        return {
+            "branches": branches,
+            "count": len(branches),
+        }
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub API error: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list branches: {e}",
+        ) from e
+
+
+# ----- Static File Serving (Frontend / PWA) -----
+# Keep this at the end so API routes take precedence.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+_frontend_dist_dir = os.environ.get("FRONTEND_DIST_DIR", "frontend/dist")
+if os.path.isdir(_frontend_dist_dir):
+    app.mount(
+        "/",
+        StaticFiles(directory=_frontend_dist_dir, html=True),
+        name="frontend",
+    )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # Use uvloop for production performance
+    # Listen on the PORT env var (Render requirement), default to 9000 for local
+    port = int(os.environ.get("PORT", 9000))
+    uvicorn.run(
+        "server:app",
+        host="0.0.0.0",  # nosec B104
+        port=port,
+        loop="uvloop",
+        reload=False,
+    )

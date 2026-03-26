@@ -1,0 +1,35 @@
+{
+  "name": "@affine/workspace",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Affine AI Coding Workstation - Monorepo",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter=web dev",
+    "dev:api": "bun run --filter=api dev",
+    "dev:all": "bun run --filter=web dev & bun run --filter=api dev",
+    "build": "bun run --filter=web build",
+    "build:api": "bun run --filter=api build",
+    "typecheck": "bun run --filter=web typecheck && bun run --filter=api typecheck",
+    "lint": "bun run --filter=web lint && bun run --filter=api lint",
+    "format": "bun run --filter=web format && bun run --filter=api format",
+    "test": "bun run --filter=web test && bun run --filter=api test"
+  },
+  "trustedDependencies": [
+    "@affine/api",
+    "@affine/config",
+    "@affine/shared",
+    "@affine/llm-core",
+    "@affine/agent-runtime",
+    "@affine/observability"
+  ],
+  "devDependencies": {
+    "typescript": "^6.0.0"
+  },
+  "packageManager": "bun@1.2.0"
+}

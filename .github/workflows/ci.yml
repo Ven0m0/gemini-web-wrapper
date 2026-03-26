@@ -1,0 +1,77 @@
+# See https://github.com/astral-sh/uv-action
+name: CI
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Web (lint, typecheck, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+        working-directory: apps/web
+      - run: bun run lint
+        working-directory: apps/web
+      - run: bun run typecheck
+        working-directory: apps/web
+      - run: bun run build
+        working-directory: apps/web
+
+  api:
+    name: API (lint, typecheck, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+        working-directory: apps/api
+      - run: uv run ruff format --check
+        working-directory: apps/api
+      - run: uv run ruff check
+        working-directory: apps/api
+      - run: uv run pyrefly check
+        working-directory: apps/api
+      - run: uv run pytest
+        working-directory: apps/api
+
+  config:
+    name: Config package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - run: uv sync
+        working-directory: packages/config
+      - run: uv run ruff format --check
+        working-directory: packages/config
+      - run: uv run ruff check
+        working-directory: packages/config
+
+  shared:
+    name: Shared package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - run: uv sync
+        working-directory: packages/shared
+      - run: uv run ruff format --check
+        working-directory: packages/shared
+      - run: uv run ruff check
+        working-directory: packages/shared

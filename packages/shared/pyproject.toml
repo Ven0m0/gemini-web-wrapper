@@ -1,0 +1,25 @@
+[project]
+name = "affine-shared"
+version = "1.0.0"
+description = "Affine AI Coding Workstation - Shared types and utilities"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+    "orjson",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/affine/shared"]
