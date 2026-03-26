@@ -371,3 +371,16 @@ Drop:
 7. Complete `T033`, `T034`, `T035`, `T039`
 
 Do not start workspace, MCP, plugin, or local-mode implementation until all Gate G1-G6 tasks are `done`.
+
+## Discovered Repository Todo Backlog
+
+These tasks were derived from placeholder comments, stale documentation markers, and unimplemented adapters currently present in the repository.
+
+| ID | Task | Area | Status | Priority | Depends On | Required Output | Acceptance Criteria | Notes |
+|---|---|---|---|---|---|---|---|---|
+| T041 | Wire WebSocket transport into the Tool UI | web | todo | p1 | T033 | connected Tool WebSocket lifecycle | Tool owns a single WebSocket service; connection state is synced into Zustand; incoming messages are recorded; disconnect cleanup is automatic | derived from `apps/web/src/components/Tool.tsx:202` |
+| T042 | Implement WebSocket upload and download actions | web | todo | p1 | T041 | working WebSocket file transfer flow | uploads call the WebSocket file upload path; downloads wait for `file_data`; placeholder logs are removed; success and failure states are surfaced in the Tool UI | derived from `apps/web/src/components/Tool.tsx:235` |
+| T043 | Add real command-history navigation to the CLI | web | todo | p2 | T033 | command history state in CLI | ArrowUp recalls prior commands; ArrowDown restores newer commands or draft input; command history is stored separately from rendered terminal output | derived from `apps/web/src/components/CLI.tsx:116` |
+| T044 | Fail fast for unsupported Copilot provider selection | llm-core/api | todo | p1 | T019,T024 | explicit unsupported-provider failure path | `copilot` selection is rejected at startup or provider creation; placeholder Copilot responses are not returned to end users; tests cover the failure mode | derived from `llm_core/providers/copilot.py:13` |
+| T045 | Replace shared-package provider stubs with working adapters | llm-core | todo | p1 | T014,T015,T016,T017,T019 | completed shared provider implementations | shared Gemini, Anthropic, and Bifrost adapters no longer raise `NotImplementedError`; unsupported shared Copilot paths fail fast; provider creation and first-call behavior are tested | derived from `packages/llm-core/src/affine/llm_core/providers/*.py` |
+| T046 | Correct stale router-mount documentation | docs | todo | p2 | T001 | updated contributor and architecture docs | docs reflect that `openwebui` is mounted; router status notes match `server.py`; no instruction claims `openwebui` is unmounted | derived from `AGENTS.md:78`, `docs/architecture.md:170`, `.github/copilot-instructions.md:38` |
