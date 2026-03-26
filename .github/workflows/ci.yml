@@ -54,12 +54,9 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-      - run: uv sync
-        working-directory: packages/config
-      - run: uv run ruff format --check
-        working-directory: packages/config
-      - run: uv run ruff check
-        working-directory: packages/config
+      - run: uv sync --project-dir packages/config
+      - run: uv run --project-dir packages/config ruff format --check
+      - run: uv run --project-dir packages/config ruff check
 
   shared:
     name: Shared package
@@ -69,9 +66,6 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-      - run: uv sync
-        working-directory: packages/shared
-      - run: uv run ruff format --check
-        working-directory: packages/shared
-      - run: uv run ruff check
-        working-directory: packages/shared
+      - run: uv sync --project-dir packages/shared
+      - run: uv run --project-dir packages/shared ruff format --check
+      - run: uv run --project-dir packages/shared ruff check
