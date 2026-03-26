@@ -7,6 +7,7 @@ import base64
 import logging
 import subprocess
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -210,10 +211,28 @@ class GitHubService:
         # fetched files. For this implementation, we'll assume a local context
         # or use the tldr command directly if available.
         try:
+            # Normalize and validate the requested path to stay within the project root.
+            base_dir = Path(".").resolve()
+            if not path:
+                safe_path = str(base_dir)
+            else:
+                requested = (base_dir / path).resolve()
+                try:
+                    # Ensure the requested path is within the base directory.
+                    requested.relative_to(base_dir)
+                except ValueError as ve:
+                    logger.warning(
+                        "Rejected unsafe path for tldr summary: %s (base: %s)",
+                        path,
+                        base_dir,
+                    )
+                    raise RuntimeError("Invalid path for tldr summary") from ve
+                safe_path = str(requested)
+
             # We use subprocess to call the tldr CLI
             # In a real environment, we'd need to have the files locally
             # For now, we'll provide the command output if it was run on the current repo
-            cmd = ["tldr", "structure", path or "."]
+            cmd = ["tldr", "structure", safe_path]
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -222,7 +241,7 @@ class GitHubService:
                 timeout=30,
             )
             return result.stdout
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        except (subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as e:
             # Log detailed error server-side and raise a generic exception
             logger.exception("Error generating tldr summary using command %s", cmd)
             raise RuntimeError("Failed to generate tldr summary") from e
