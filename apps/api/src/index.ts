@@ -21,7 +21,7 @@ function getLLMProvider(): LLMProvider {
   if (!llmProvider) {
     llmProvider = ProviderFactory.create({
       provider: settings.modelProvider,
-      apiKey: settings.googleApiKey || settings.anthropicApiKey,
+      apiKey: settings.modelProvider === 'anthropic' ? settings.anthropicApiKey : settings.googleApiKey,
       modelName: settings.modelName || undefined,
     });
   }
