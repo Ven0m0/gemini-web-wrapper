@@ -18,7 +18,7 @@ A modern, mobile-first Progressive Web App (PWA) for AI-assisted development wit
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 18+, Bun, and uv
 - Python 3.10+
 - Git
 
@@ -38,8 +38,8 @@ cp .env.example .env
 
 ### 3. Start Development
 ```bash
-# Start server
-python server.py
+# Start the packaged API
+cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
 
 # Or use the start script
 ./start.sh
@@ -85,7 +85,7 @@ vercel --prod
 ### Render
 - Connect GitHub repo
 - Build: `./build.sh`
-- Start: `python server.py`
+- Start: `cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --host 0.0.0.0 --port 9000`
 
 ### Railway
 - Deploy from GitHub
@@ -124,31 +124,32 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 
 ### Frontend
 ```bash
-cd frontend
-npm run dev        # Development server
-npm run build      # Production build
-npm run lint       # Lint code
-npm run typecheck  # Type checking
+cd apps/web
+bun run dev        # Development server
+bun run build      # Production build
+bun run lint       # Lint code
+bun run typecheck  # Type checking
 ```
 
 ### Backend
 ```bash
-python server.py   # Start server
-python -m pytest   # Run tests
+cd apps/api
+PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
+PYTHONPATH=src:../../packages/config/src uv run pytest
 ```
 
 ### Project Structure
 ```
-├── frontend/          # React TypeScript frontend
+├── apps/web/         # React TypeScript frontend
 │   ├── src/
 │   │   ├── components/ # UI components
 │   │   ├── services/   # API services
 │   │   └── store.ts    # State management
 │   └── dist/          # Built frontend
-├── llm_core/          # LLM provider abstractions
-├── server.py          # FastAPI backend
-├── requirements.txt   # Python dependencies
-└── vercel.json        # Deployment config
+├── apps/api/         # Packaged FastAPI backend
+├── packages/config/  # Shared typed settings
+├── package.json      # Bun workspace scripts
+└── vercel.json       # Deployment config
 ```
 
 ## 🔒 Security

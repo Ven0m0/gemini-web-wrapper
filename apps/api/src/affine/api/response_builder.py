@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from gemini_webapi import ModelOutput
 
-from openai_schemas import (
+from .openai_schemas import (
     ChatCompletionMessage,
     ChatCompletionMessageContent,
     ChatCompletionRequest,
@@ -18,7 +18,7 @@ from openai_schemas import (
     ChatCompletionResponseUsage,
     ToolCall,
 )
-from tool_parsing import parse_tool_calls
+from .tool_parsing import parse_tool_calls
 
 
 def to_chat_completion_response(

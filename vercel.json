@@ -1,72 +1,68 @@
 {
   "builds": [
     {
-      "src": "frontend/package.json",
+      "src": "apps/web/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "frontend/dist"
+        "distDir": "dist"
       }
     },
     {
-      "src": "server.py",
+      "src": "apps/api/src/affine/api/server.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/health",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/chat",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/code",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/chatbot",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/chatbot/stream",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/v1/chat/completions",
-      "dest": "server.py"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/profiles/(.*)",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/gemini/(.*)",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/github/(.*)",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/memory/(.*)",
-      "dest": "server.py"
+      "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/dist/$1"
+      "dest": "/apps/web/dist/$1"
     }
   ],
   "env": {
-    "FRONTEND_DIST_DIR": "frontend/dist"
+    "FRONTEND_DIST_DIR": "apps/web/dist"
   }
 }

@@ -9,13 +9,13 @@ The implementation has been split into focused modules:
 
 from __future__ import annotations
 
-from message_transforms import (
+from .message_transforms import (
     collapse_messages,
     format_tool_result_for_prompt,
     render_message_content,
 )
-from response_builder import to_chat_completion_response
-from tool_parsing import (
+from .response_builder import to_chat_completion_response
+from .tool_parsing import (
     format_tools_for_prompt,
     inject_tools_into_prompt,
     parse_tool_calls,

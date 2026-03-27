@@ -11,12 +11,12 @@ from typing import TYPE_CHECKING, cast
 
 import httpx
 
-from config import Settings
-from cookie_manager import CookieManager
-from gemini_client import GeminiClientWrapper
-from llm_core.factory import ProviderFactory, ProviderType
-from session_manager import SessionManager
-from state import state
+from .config import Settings
+from .cookie_manager import CookieManager
+from .gemini_client import GeminiClientWrapper
+from .llm_core.factory import ProviderFactory, ProviderType
+from .session_manager import SessionManager
+from .state import state
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -54,20 +54,28 @@ async def lifespan(app: "FastAPI") -> AsyncGenerator[None]:
     if provider_type_raw == "google":
         provider_type_raw = "gemini"
 
-    if provider_type_raw not in ("gemini", "anthropic", "copilot"):
+    if provider_type_raw not in ("gemini", "anthropic", "copilot", "bifrost"):
         print(f"Unknown provider: {provider_type_raw}", file=sys.stderr)
         sys.exit(1)
 
     provider_type = cast(ProviderType, provider_type_raw)
-    api_key = (
-        settings.google_api_key
-        if provider_type == "gemini"
-        else settings.anthropic_api_key
-    )
+    api_key = None
+    provider_kwargs: dict[str, str] = {}
+    if provider_type == "gemini":
+        api_key = settings.google_api_key
+    elif provider_type == "anthropic":
+        api_key = settings.anthropic_api_key
+    elif provider_type == "copilot":
+        api_key = settings.github_token or None
+    elif provider_type == "bifrost":
+        api_key = settings.bifrost_api_key
+        provider_kwargs["base_url"] = settings.bifrost_url
+
     state.llm_provider = ProviderFactory.create(
         provider_type,
         api_key=api_key,
         model_name=settings.model_name,
+        **provider_kwargs,
     )
 
     # Initialize lightweight session manager for user/session tracking

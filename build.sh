@@ -3,20 +3,17 @@ set -e
 
 echo "Building Gemini Web Wrapper for production..."
 
-# Install frontend dependencies
 echo "Installing frontend dependencies..."
-cd frontend
+cd apps/web
 bun install
 
-# Build frontend
 echo "Building frontend..."
 bun run build
 
-# Install backend dependencies
 echo "Installing backend dependencies..."
-cd ..
+cd ../api
 uv sync --frozen
 
 echo "Build completed."
-echo "Frontend built to: frontend/dist"
-echo "Ready for deployment."
+echo "Frontend built to: apps/web/dist"
+echo "API ready: apps/api/src/affine/api/server.py"

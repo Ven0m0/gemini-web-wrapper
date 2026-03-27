@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from llm_core.interfaces import LLMProvider
-from llm_core.providers.anthropic import AnthropicProvider
-from llm_core.providers.bifrost import BifrostProvider
-from llm_core.providers.copilot import CopilotProvider
-from llm_core.providers.gemini import GeminiProvider
+from .interfaces import LLMProvider
+from .providers.anthropic import AnthropicProvider
+from .providers.bifrost import BifrostProvider
+from .providers.copilot import CopilotProvider
+from .providers.gemini import GeminiProvider
 
 ProviderType = Literal["gemini", "anthropic", "copilot", "bifrost"]
 

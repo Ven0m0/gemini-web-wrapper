@@ -18,6 +18,7 @@ dependencies = [
     "cachetools",
     "json-repair",
     "python-multipart",
+    "affine-config",
 ]
 
 [project.optional-dependencies]
@@ -38,3 +39,7 @@ ignore_missing_imports = true
 [tool.pytest]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+
+[tool.uv.sources]
+affine-config = { path = "../../packages/config", editable = true }

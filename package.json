@@ -10,15 +10,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter=web dev",
-    "dev:api": "bun run --filter=api dev",
-    "dev:all": "bun run --filter=web dev & bun run --filter=api dev",
-    "build": "bun run --filter=web build",
-    "build:api": "bun run --filter=api build",
-    "typecheck": "bun run --filter=web typecheck && bun run --filter=api typecheck",
-    "lint": "bun run --filter=web lint && bun run --filter=api lint",
-    "format": "bun run --filter=web format && bun run --filter=api format",
-    "test": "bun run --filter=web test && bun run --filter=api test"
+    "dev": "bun run --filter=@affine/web dev & bun run --filter=@affine/api dev",
+    "dev:web": "bun run --filter=@affine/web dev",
+    "dev:api": "bun run --filter=@affine/api dev",
+    "dev:all": "bun run dev",
+    "build": "bun run --filter=@affine/web build",
+    "build:api": "bun run --filter=@affine/api build",
+    "typecheck": "bun run --filter=@affine/web typecheck && bun run --filter=@affine/api typecheck",
+    "lint": "bun run --filter=@affine/web lint && bun run --filter=@affine/api lint",
+    "format": "bun run --filter=@affine/web format && bun run --filter=@affine/api format",
+    "test": "bun run --filter=@affine/web test && bun run --filter=@affine/api test"
   },
   "trustedDependencies": [
     "@affine/api",

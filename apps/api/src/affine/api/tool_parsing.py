@@ -14,12 +14,12 @@ from typing import Literal
 import json_repair
 import orjson
 
-from openai_schemas import (
+from .openai_schemas import (
     FunctionCall,
     ToolCall,
     ToolDefinition,
 )
-from toon_utils import to_toon
+from .toon_utils import to_toon
 
 logger = logging.getLogger(__name__)
 

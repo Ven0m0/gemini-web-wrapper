@@ -4,8 +4,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from composio_service import ComposioService
-from state import state
+from ..composio_service import ComposioService
+from ..state import state
 
 router = APIRouter(prefix="/tools/composio", tags=["tools", "composio"])
 

@@ -11,8 +11,7 @@ import mimetypes
 import os
 import sys
 from collections.abc import AsyncGenerator, Sequence
-from contextlib import asynccontextmanager
-from typing import Any, cast
+from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -20,17 +19,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cookie_manager import CookieManager
-from endpoints.openai import router as openai_router
-from endpoints.profiles import router as profiles_router
-from endpoints.tools import router as tools_router
-from gemini_client import GeminiClientWrapper
-from github_service import GitHubService
-from llm_core.factory import ProviderFactory, ProviderType
-from llm_core.interfaces import LLMProvider
-from models import (
+from .config import Settings
+from .cookie_manager import CookieManager
+from .endpoints.openai import router as openai_router
+from .endpoints.openwebui import router as openwebui_router
+from .endpoints.profiles import router as profiles_router
+from .endpoints.tools import router as tools_router
+from .gemini_client import GeminiClientWrapper
+from .github_service import GitHubService
+from .lifespan import lifespan
+from .llm_core.interfaces import LLMProvider
+from .session_manager import SessionManager
+from .models import (
     ChatbotReq,
     ChatReq,
     CodeReq,
@@ -42,126 +43,8 @@ from models import (
     GitHubListReq,
     SessionQueryReq,
 )
-from session_manager import SessionManager
-from state import state
-from utils import handle_generation_errors
-
-
-# ----- Configuration -----
-class Settings(BaseSettings):
-    """Application settings loaded from environment or .env file."""
-
-    model_config = SettingsConfigDict(env_file=".env")
-
-    google_api_key: str
-    model_provider: str = "gemini"
-    model_name: str | None = None
-    anthropic_api_key: str | None = None
-    optillm_url: str | None = None
-    optillm_api_key: str | None = None
-
-    # CORS Configuration
-    cors_allow_origins: str = "*"
-    cors_allow_credentials: bool = True
-    cors_allow_methods: str = "*"
-    cors_allow_headers: str = "*"
-
-    # Model aliases for OpenAI compatibility
-    model_aliases: dict[str, str] = {
-        "gpt-4o-mini": "gemini-2.5-flash",
-        "gpt-4o": "gemini-2.5-pro",
-        "gpt-4.1-mini": "gemini-3.0-pro",
-        "gemini-flash": "gemini-2.5-flash",
-        "gemini-pro": "gemini-2.5-pro",
-        "gemini-3-pro": "gemini-3.0-pro",
-        "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
-    }
-
-    def resolve_model(self, requested: str | None) -> str:
-        """Return a Gemini model name for a requested OpenAI-style name."""
-        if not requested:
-            return self.model_name
-        if requested in self.model_aliases:
-            return self.model_aliases[requested]
-        return requested
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    """Initialize and cleanup Genkit resources on app startup/shutdown.
-
-    This context manager handles:
-    - Loading configuration from environment/settings
-    - Initializing the Genkit client with Google GenAI plugin
-    - Setting up the model for generation
-    - Cleaning up resources on shutdown
-
-    Args:
-        app: FastAPI application instance.
-
-    Yields:
-        None: Control flow during application lifetime.
-
-    Raises:
-        SystemExit: If configuration loading fails.
-    """
-    try:
-        state.settings = Settings()
-    except (ValueError, KeyError, TypeError) as e:
-        print(f"Configuration error: {e}", file=sys.stderr)
-        sys.exit(1)
-    settings = state.settings
-
-    # Initialize LLM Provider using Factory
-    # Default to gemini if not specified or "google" (legacy)
-    provider_type_raw = settings.model_provider
-    if provider_type_raw == "google":
-        provider_type_raw = "gemini"
-
-    if provider_type_raw not in (
-        "gemini",
-        "anthropic",
-        "copilot",
-        "bifrost",
-        "optillm",
-    ):
-        print(f"Unknown provider: {provider_type_raw}", file=sys.stderr)
-        sys.exit(1)
-
-    provider_type = cast(ProviderType, provider_type_raw)
-    api_key = (
-        settings.google_api_key
-        if provider_type == "gemini"
-        else settings.anthropic_api_key
-    )
-    state.llm_provider = ProviderFactory.create(
-        provider_type,
-        api_key=api_key,
-        model_name=settings.model_name,
-    )
-
-    # Initialize lightweight session manager for user/session tracking
-    state.session_manager = SessionManager()
-    # Initialize cookie manager and gemini-webapi client
-    state.cookie_manager = CookieManager(db_path="gemini_cookies.db")
-    await state.cookie_manager.init_db()
-    state.gemini_client = GeminiClientWrapper(state.cookie_manager)
-    # Initialize shared GitHub client
-    state.github_client = httpx.AsyncClient()
-    yield
-    # Cleanup: close async resources
-    if state.gemini_client:
-        await state.gemini_client.close()
-    if state.github_client:
-        await state.github_client.aclose()
-
-    state.llm_provider = None
-    state.session_manager = None
-    state.settings = None
-    state.cookie_manager = None
-    state.gemini_client = None
-    state.github_client = None
-    state.attribution_cache.clear()
+from .state import state
+from .utils import handle_generation_errors
 
 
 # ----- App Settings -----
@@ -196,6 +79,7 @@ app.add_middleware(
 )
 
 app.include_router(openai_router)
+app.include_router(profiles_router)
 app.include_router(tools_router)
 app.include_router(openwebui_router)
 
@@ -584,7 +468,6 @@ class ProfileSwitchReq(BaseModel):
 
 
 # ----- Profiles Endpoints -----
-app.include_router(profiles_router)
 
 
 @app.get("/profiles/list")
@@ -923,7 +806,7 @@ async def github_list_branches(
 # ----- Static File Serving (Frontend / PWA) -----
 # Keep this at the end so API routes take precedence.
 mimetypes.add_type("application/manifest+json", ".webmanifest")
-_frontend_dist_dir = os.environ.get("FRONTEND_DIST_DIR", "frontend/dist")
+_frontend_dist_dir = os.environ.get("FRONTEND_DIST_DIR", "apps/web/dist")
 if os.path.isdir(_frontend_dist_dir):
     app.mount(
         "/",
@@ -939,7 +822,7 @@ if __name__ == "__main__":
     # Listen on the PORT env var (Render requirement), default to 9000 for local
     port = int(os.environ.get("PORT", 9000))
     uvicorn.run(
-        "server:app",
+        "affine.api.server:app",
         host="0.0.0.0",  # nosec B104
         port=port,
         loop="uvloop",

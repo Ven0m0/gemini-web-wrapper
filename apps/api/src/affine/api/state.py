@@ -11,11 +11,11 @@ from typing import Any
 import httpx
 from cachetools import TTLCache
 
-from config import Settings
-from cookie_manager import CookieManager
-from gemini_client import GeminiClientWrapper
-from llm_core.interfaces import LLMProvider
-from session_manager import SessionManager
+from .config import Settings
+from .cookie_manager import CookieManager
+from .gemini_client import GeminiClientWrapper
+from .llm_core.interfaces import LLMProvider
+from .session_manager import SessionManager
 
 
 @dataclass

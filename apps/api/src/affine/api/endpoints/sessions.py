@@ -7,9 +7,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from dependencies import get_session_manager
-from models import SessionQueryReq
-from session_manager import SessionManager
+from ..dependencies import get_session_manager
+from ..models import SessionQueryReq
+from ..session_manager import SessionManager
 
 router = APIRouter(prefix="/memory", tags=["sessions"])
 

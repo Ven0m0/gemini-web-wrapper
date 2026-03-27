@@ -30,6 +30,8 @@ jobs:
   api:
     name: API (lint, typecheck, test)
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src:../../packages/config/src
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
