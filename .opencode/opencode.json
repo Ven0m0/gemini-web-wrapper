@@ -12,6 +12,7 @@
     "doom_loop": "deny"
   },
   "share": "manual",
+  "default_agent": "general",
   "model": "opencode/glm-5",
   "small_model": "opencode/minimax-m2.5-free",
   "disabled_providers": ["openai"],
