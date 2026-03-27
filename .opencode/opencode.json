@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["**/AGENTS.md"],
+  "instructions": ["AGENTS.md", "**/AGENTS.md", "../.github/copilot-instructions.md"],
   "permission": {
     "*": "allow",
     "sudo *": "deny",
