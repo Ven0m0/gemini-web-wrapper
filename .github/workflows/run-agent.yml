@@ -1,0 +1,89 @@
+# ─── CONFIGURE (only these lines change per repo) ──────────────────────────────
+# GIT_AUTHOR_NAME / GIT_AUTHOR_EMAIL  ← line ~60
+# Default models per provider         ← inside each "Run *" step (optional)
+# ────────────────────────────────────────────────────────────────────────────────
+# Composite action lives in Ven0m0/.github → callable from any repo as:
+#   uses: Ven0m0/.github/actions/run-agent-prompt@main
+#
+# Secrets (org-level or repo-level, all optional):
+#   ANTHROPIC_API_KEY, GEMINI_API_KEY, JULES_API_KEY,
+#   OPENCODE_API_KEY, OPENROUTER_API_KEY, KILO_API_KEY, KILO_ORG_ID
+name: Run Agent
+
+on:
+  workflow_call:
+    inputs:
+      provider:
+        description: "claude | gemini | jules | opencode | kilo"
+        required: true
+        type: string
+      prompt:
+        required: true
+        type: string
+      model:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+      GEMINI_API_KEY:
+        required: false
+      JULES_API_KEY:
+        required: false
+      OPENCODE_API_KEY:
+        required: false
+      OPENROUTER_API_KEY:
+        required: false
+      KILO_API_KEY:
+        required: false
+      KILO_ORG_ID:
+        required: false
+
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Agent provider"
+        required: true
+        type: choice
+        options: [claude, gemini, jules, opencode, kilo]
+        default: claude
+      prompt:
+        required: true
+        type: string
+      model:
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: Ven0m0/.github/actions/run-agent-prompt@main
+        with:
+          provider: ${{ inputs.provider }}
+          prompt: ${{ inputs.prompt }}
+          model: ${{ inputs.model }}
+          github-token: ${{ github.token }}
+          # ── CONFIGURE: set to this repo's committer identity ──────────────
+          git-author-name: Ven0m0
+          git-author-email: Ven0m0@users.noreply.github.com
+          # ──────────────────────────────────────────────────────────────────
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          jules-api-key: ${{ secrets.JULES_API_KEY }}
+          opencode-api-key: ${{ secrets.OPENCODE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          kilo-api-key: ${{ secrets.KILO_API_KEY }}
+          kilo-org-id: ${{ secrets.KILO_ORG_ID }}
