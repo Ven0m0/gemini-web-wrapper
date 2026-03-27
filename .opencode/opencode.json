@@ -18,6 +18,7 @@
   "disabled_providers": ["openai"],
   "plugin": [
     "openslimedit@1.0.4",
+    "@nick-vi/opencode-type-inject@1.1.1",
     "opencode-ignore@1.1.0",
     "@gotgenes/opencode-agent-identity@3.0.1",
     "@spoons-and-mirrors/subtask2@0.3.5",
