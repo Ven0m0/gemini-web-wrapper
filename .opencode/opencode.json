@@ -11,7 +11,7 @@
     ":(){:|:&};:": "deny",
     "doom_loop": "deny"
   },
-  "share": "auto",
+  "share": "manual",
   "model": "opencode/glm-5",
   "small_model": "opencode/minimax-m2.5-free",
   "disabled_providers": ["openai"],
