@@ -94,18 +94,6 @@ Target end-state layout:
 └── tests/
 ```
 
-## Current-State Snapshot
-
-This repo is mid-migration. The strategic target above still stands, but the checked-in code currently looks like this:
-
-- `apps/web` exists and is the active React/Vite frontend shell with chat, tool, editor, PWA, and service modules already present.
-- `apps/api` exists as a packaged FastAPI app under `apps/api/src/affine/api`, but legacy Python entrypoints and tests still also exist at the repository root.
-- Root-level `server.py`, `config.py`, `llm_core/`, and related tests still overlap with packaged API responsibilities, so ownership is duplicated between the root app and `apps/api`; until that is cleaned up, treat `apps/*` and `packages/*` as the intended long-term source of truth.
-- `packages/config`, `packages/shared`, and `packages/llm-core` exist with initial extracted code; planned packages such as `agent-runtime`, `mcp`, `workspace`, `github-integration`, `ui`, and `observability` are not present yet.
-- The packaged API currently disables FastAPI docs/OpenAPI output (`docs_url=None`, `redoc_url=None`, `openapi_url=None` in the packaged server), so typed-client generation cannot proceed until schema emission is restored there.
-- `docs/architecture.md`, `docs/migration-matrix.md`, and `docs/runtime-modes.md` exist, so the architecture/migration baseline is documented even though implementation has not caught up everywhere.
-- Root workspace/tooling scaffolding is present (`package.json` Bun workspaces, Python `pyproject.toml`, GitHub Actions workflows), but package boundaries and generated-contract workflows are still incomplete.
-
 ## Package Ownership
 
 | Package | Ownership |
@@ -154,11 +142,10 @@ When stopped:
 
 ## Milestones
 
-Status reflects the repository's current observable state, even where implementation started ahead of an earlier gate.
+Completed milestones are intentionally omitted here so this file stays focused on active and pending work. Dependencies may still point at already-finished milestone IDs.
 
 | ID | Milestone | Status | Priority | Depends On |
 |---|---|---|---|---|
-| M0 | Architecture freeze and migration matrix | done | p0 | - |
 | M1 | Monorepo bootstrap and tooling | in_progress | p0 | M0 |
 | M2 | Shared contracts and generated clients | in_progress | p0 | M1 |
 | M3 | Provider layer and model routing | in_progress | p0 | M2 |
@@ -178,12 +165,10 @@ Status reflects the repository's current observable state, even where implementa
 
 ## Task Execution Table
 
+Completed tasks are intentionally omitted here so the plan tracks only unfinished work. Dependencies may still reference already-finished task IDs.
+
 | ID | Task | Area | Status | Priority | Depends On | Required Output | Acceptance Criteria | Notes |
 |---|---|---|---|---|---|---|---|---|
-| T001 | Write merged product scope and architecture doc | docs | done | p0 | - | `docs/architecture.md` | product scope, package boundaries, API ownership, runtime modes, trust model, and non-goals documented | done: architecture baseline captured; paths: docs/architecture.md. |
-| T002 | Produce migration matrix for all three repos | docs | done | p0 | T001 | `docs/migration-matrix.md` | major legacy features mapped to keep/rewrite/postpone/drop with destination packages | done: legacy-to-target mapping documented; paths: docs/migration-matrix.md. |
-| T003 | Define runtime modes, trust tiers, and feature flags | architecture | done | p0 | T001 | `docs/runtime-modes.md` | flags and modes named, scoped, and ready for implementation | done: runtime/trust/flag baseline documented; paths: docs/runtime-modes.md. |
-| T004 | Initialize monorepo with Bun workspaces and uv API app | repo | done | p0 | T001 | scaffolded repo structure | `bun run dev` starts web and api; workspace layout matches plan | done: added `@affine/api` workspace scripts, migrated packaged API imports, and switched legacy root entrypoints/scripts to `apps/api` + `apps/web`; paths: package.json, apps/api/package.json, apps/api/src/affine/api/server.py, _legacy_api.py, server.py, start.sh, build.sh, deploy.sh, setup_dev.sh, README.md, vercel.json. |
 | T005 | Configure linting, formatting, typecheck, pre-commit | tooling | in_progress | p0 | T004 | root configs and scripts | lint and typecheck pass on scaffold | API Ruff now passes through the workspace script, but repo-wide typecheck/build is still blocked by existing frontend TypeScript errors and existing API pyrefly findings. |
 | T006 | Add CI for web, api, and shared packages | ci | in_progress | p0 | T004,T005 | `.github/workflows/*` | CI passes on scaffold and caches dependencies | `.github/workflows/ci.yml` now exports the packaged API `PYTHONPATH`, but CI acceptance still depends on resolving the remaining web/api typecheck failures. |
 | T007 | Add typed env/config loading | config | in_progress | p0 | T004 | `packages/config` | missing env fails fast; config is typed | Shared settings now carry CORS/model-alias fields and are wired into the packaged API/config module, but fail-fast behavior is still not uniform for all providers and startup paths. |
