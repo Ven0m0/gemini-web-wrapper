@@ -11,10 +11,10 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 
 **Core design decisions:**
 - Cookie authentication — no API key required for the `gemini-webapi` path
-- Dual Gemini backend: `google-genai` (API key) and `gemini-webapi` (browser cookies)
+- Dual Gemini backend: `@google/genai` (API key) and `gemini-webapi` (browser cookies)
 - OpenAI-compatible `/v1/chat/completions` — drop-in replacement for OpenAI clients
 - Stateless server — client maintains conversation history; server is stateless per-request
-- Async-first — `async`/`await` throughout; blocking I/O dispatched to thread pools
+- Async-first — `async`/`await` throughout
 - Validate at system boundaries only; trust internal code
 
 </project-overview>
@@ -25,23 +25,21 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 
 | Layer | Technology |
 |---|---|
-| Backend language | Python 3.10+ |
-| Backend framework | FastAPI + Uvicorn (uvloop) |
-| Serialization | orjson, Pydantic v2 |
-| LLM providers | Google Gemini (`google-genai`, `gemini-webapi`), Anthropic, GitHub Copilot, Bifrost gateway |
+| Backend language | TypeScript 5+ |
+| Backend framework | Hono (edge-ready HTTP framework) |
+| Serialization | native JSON, Zod for validation |
+| LLM providers | Google Gemini (`@google/genai`), Anthropic, GitHub Copilot, Bifrost gateway |
 | Tool integration | Composio (external tool execution) |
-| Cookie extraction | rookiepy |
-| Database | aiosqlite (cookie/session storage) |
+| Database | better-sqlite3 (cookie/session storage) |
 | Frontend language | TypeScript 5+ |
 | Frontend framework | React 19 |
 | Frontend build | Vite 7 + vite-plugin-pwa |
 | Code editor component | CodeMirror 6 + `@uiw/react-codemirror` |
 | State management | Zustand 5 |
-| Package manager (Python) | `uv` (never pip) |
-| Package manager (JS) | `bun` (never npm or pnpm) |
-| Linter / formatter | Ruff (Python), ESLint (TS/JS) |
-| Type checker | pyrefly (Python), tsc (TypeScript) |
-| Test framework | pytest + anyio |
+| Package manager | `bun` (never npm or pnpm) |
+| Linter / formatter | ESLint |
+| Type checker | tsc (TypeScript) |
+| Test framework | Vitest |
 | CI | GitHub Actions |
 | Containerization | Docker / docker-compose |
 
@@ -53,95 +51,61 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 
 ```
 /
-├── server.py                    # Main FastAPI application entry point
-├── config.py                    # Pydantic Settings (env vars)
-├── lifespan.py                  # FastAPI lifespan (startup/shutdown)
-├── dependencies.py              # FastAPI dependency injection
-├── models.py                    # Shared Pydantic models
-├── openai_schemas.py            # OpenAI-compatible Pydantic schemas
-├── openai_transforms.py         # Message format transformations
-├── message_transforms.py        # Additional message helpers
-├── response_builder.py          # SSE / response construction helpers
-├── tool_parsing.py              # Tool-call parsing utilities
-├── state.py                     # Global application state
-├── cookie_manager.py            # Multi-profile cookie persistence (aiosqlite)
-├── session_manager.py           # Conversation history management
-├── gemini_client.py             # gemini-webapi client wrapper
-├── github_service.py            # GitHub REST API integration
-├── composio_service.py          # Composio tool integration
-├── utils.py                     # Shared utilities and error handling
+├── apps/
+│   ├── api/                          # TypeScript backend (Hono)
+│   │   ├── src/
+│   │   │   ├── index.ts              # Main server entry point
+│   │   │   ├── config/
+│   │   │   │   └── settings.ts       # Environment configuration
+│   │   │   ├── models/
+│   │   │   │   ├── index.ts          # Shared type definitions
+│   │   │   │   └── openai-schemas.ts  # OpenAI-compatible schemas
+│   │   │   ├── llm-core/
+│   │   │   │   ├── interfaces.ts     # LLMProvider interface
+│   │   │   │   ├── index.ts          # Provider factory
+│   │   │   │   └── providers/
+│   │   │   │       ├── gemini.ts     # Google Gemini provider
+│   │   │   │       ├── anthropic.ts  # Anthropic Claude provider
+│   │   │   │       ├── copilot.ts    # GitHub Copilot provider
+│   │   │   │       └── bifrost.ts    # Bifrost gateway provider
+│   │   │   ├── services/
+│   │   │   │   ├── cookie-manager.ts # Multi-profile cookie persistence
+│   │   │   │   ├── session-manager.ts# Conversation history management
+│   │   │   │   ├── github.ts         # GitHub REST API integration
+│   │   │   │   ├── composio.ts       # Composio tool integration
+│   │   │   │   └── index.ts          # Service exports
+│   │   │   └── endpoints/
+│   │   │       ├── openai.ts         # /v1/chat/completions (OpenAI-compat, SSE)
+│   │   │       ├── profiles.ts       # Cookie profile management routes
+│   │   │       └── tools.ts          # /tools/composio/* routes
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── web/                          # React PWA frontend
+│       ├── src/
+│       │   ├── App.tsx               # Root component
+│       │   ├── store.ts              # Zustand global state
+│       │   ├── main.tsx              # Entry point
+│       │   ├── components/           # React UI components
+│       │   ├── services/             # Business-logic / API services
+│       │   ├── utils/
+│       │   └── codemirror/           # CodeMirror extensions/config
+│       ├── public/                   # Static assets, manifest, service worker
+│       ├── vite.config.ts
+│       ├── tsconfig.json
+│       └── package.json
 │
-├── endpoints/                   # FastAPI router modules (one concern per file)
-│   ├── openai.py                # /v1/chat/completions (OpenAI-compat, SSE) [mounted]
-│   ├── tools.py                 # /tools/composio/* (Composio tool execution) [mounted]
-│   ├── profiles.py              # Cookie profile management routes [mounted]
-│   ├── chat.py                  # /chat and /chatbot routes [not yet mounted]
-│   ├── gemini.py                # Gemini-specific routes [not yet mounted]
-│   ├── github.py                # /github/* file/PR management routes [not yet mounted]
-│   ├── openwebui.py             # Open WebUI integration routes [not yet mounted]
-│   └── sessions.py              # Session management routes [not yet mounted]
+├── packages/
+│   └── config/                       # Shared configuration
 │
-├── llm_core/                    # Provider abstraction layer
-│   ├── interfaces.py            # LLMProvider Protocol definition
-│   ├── factory.py               # ProviderFactory (pattern-match dispatch)
-│   └── providers/
-│       ├── gemini.py            # Google Gemini (google-genai)
-│       ├── anthropic.py         # Anthropic Claude
-│       ├── copilot.py           # GitHub Copilot
-│       └── bifrost.py           # Bifrost AI gateway (OpenAI-compat)
-│
-├── frontend/                    # React PWA
-│   ├── src/
-│   │   ├── App.tsx              # Root component
-│   │   ├── store.ts             # Zustand global state
-│   │   ├── main.tsx             # Entry point
-│   │   ├── components/          # React UI components
-│   │   │   ├── CLI.tsx          # Terminal-style chat UI
-│   │   │   ├── Editor.tsx       # CodeMirror file editor
-│   │   │   ├── ChatWidget.tsx   # Embeddable chat widget
-│   │   │   ├── ChatWindow.tsx   # Full chat window
-│   │   │   ├── ChatDemo.tsx     # Chat demo/showcase component
-│   │   │   ├── ChatDesignSystem.tsx # Design system tokens/preview
-│   │   │   ├── ConfigOverlay.tsx    # Settings/config overlay
-│   │   │   ├── InstallPrompt.tsx    # PWA install prompt
-│   │   │   ├── OpenRouterChat.tsx   # OpenRouter-backed chat UI
-│   │   │   ├── PwaDiagnostics.tsx   # PWA diagnostics panel
-│   │   │   ├── Tool.tsx         # Tool-call display
-│   │   │   ├── PythonRunner.tsx # In-browser Python (Pyodide)
-│   │   │   └── WebShell.tsx     # Browser shell component
-│   │   ├── services/            # Business-logic / API services
-│   │   │   ├── ai.ts            # LLM API calls
-│   │   │   ├── github.ts        # GitHub REST calls
-│   │   │   ├── websocket.ts     # WebSocket client
-│   │   │   ├── diff.ts          # Diff utilities
-│   │   │   ├── python.ts        # Pyodide integration
-│   │   │   ├── wasmer.ts        # WASM runtime
-│   │   │   └── version.ts       # Version helpers
-│   │   ├── utils/
-│   │   │   └── jsonHealer.ts    # Robust JSON repair for LLM output
-│   │   └── codemirror/          # CodeMirror extensions/config
-│   ├── public/                  # Static assets, manifest, service worker
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── package.json
-│
-├── test_bifrost.py              # Bifrost provider tests
-├── test_cookie_manager.py       # Cookie manager unit tests
-├── test_github_integration.py   # GitHub service tests
-├── test_session_manager.py      # Session manager unit tests
-├── test_utils.py                # Utility function tests
-│
-├── pyproject.toml               # Python project metadata, Ruff config
-├── docker-compose.yml           # Full-stack + Bifrost compose
-├── renovate.json                # Renovate dependency update config
-├── vercel.json                  # Vercel deployment config
-├── .env.example                 # Required environment variables (template)
-├── .github/workflows/           # CI/CD (release, dependabot rollup)
-├── CLAUDE.md -> AGENTS.md       # Symlink
-└── GEMINI.md  -> AGENTS.md      # Symlink
+├── docker-compose.yml                # Full-stack + Bifrost compose
+├── renovate.json                     # Renovate dependency update config
+├── vercel.json                       # Vercel deployment config
+├── .env.example                      # Required environment variables (template)
+├── .github/workflows/                # CI/CD (release, dependabot rollup)
+├── CLAUDE.md -> AGENTS.md            # Symlink
+└── GEMINI.md  -> AGENTS.md           # Symlink
 ```
-
-> **Note on endpoints/**: Only `openai.py`, `tools.py`, and `profiles.py` are currently mounted in `server.py`. The remaining router files exist and are complete but are not yet wired up. Mount them in `server.py` via `app.include_router(...)` when activating.
 
 </repo-structure>
 
@@ -151,7 +115,6 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 
 ### Prerequisites
 
-- Python 3.10+ and [`uv`](https://docs.astral.sh/uv/)
 - Node.js 18+ and [`bun`](https://bun.sh)
 - A Google API key (Gemini) or another supported provider key
 
@@ -160,8 +123,7 @@ Canonical agent and contributor reference. `CLAUDE.md` and `GEMINI.md` are symli
 ```bash
 git clone <repo-url> && cd gemini-web-wrapper
 cp .env.example .env   # set at minimum: GOOGLE_API_KEY
-uv sync                # Python deps from uv.lock
-cd frontend && bun install && cd ..
+bun install            # Install all dependencies
 ```
 
 </setup>
@@ -172,15 +134,17 @@ cd frontend && bun install && cd ..
 
 ```bash
 # Backend — dev (hot-reload)
-uv run uvicorn server:app --reload --host 0.0.0.0 --port 9000
+cd apps/api && bun run dev       # http://localhost:9000
 
-# Frontend — dev (hot-reload, proxies API to backend)
-cd frontend && bun run dev       # http://localhost:5173
+# Frontend — dev (hot-reload)
+cd apps/web && bun run dev       # http://localhost:5173
+
+# Full stack — dev
+bun run dev                      # Runs both concurrently
 
 # Full stack — production build
-cd frontend && bun run build && cd ..
-uv run uvicorn server:app --host 0.0.0.0 --port 9000
-# Frontend served at http://localhost:9000/
+bun run build
+bun run start                    # Frontend served at http://localhost:9000/
 
 # Docker
 docker-compose up bifrost                # Bifrost gateway only
@@ -196,49 +160,24 @@ docker-compose --profile full-stack up  # Bifrost + app
 Run in this order before every commit:
 
 ```bash
-uv run ruff format .          # 1. Format
-pyrefly check                 # 2. Type check
-uv run ruff check . --fix     # 3. Lint (auto-fix)
-uv run pytest                 # 4. Tests
-```
-
-Frontend:
-
-```bash
-cd frontend && bun run build  # Catches TypeScript errors
+bun run typecheck             # TypeScript type check
+bun run lint                  # ESLint
+bun run test                  # Vitest
 ```
 
 ### Running tests
 
 ```bash
-uv run pytest                  # All tests
-uv run pytest -v               # Verbose
-uv run pytest test_bifrost.py  # Specific file
-uv run pytest -k test_health   # Name filter
+bun run test                  # All tests
+bun run test -v               # Verbose
+bun run test src/services     # Specific directory
 ```
-
-- Async tests use **anyio** (not asyncio directly).
-- Frontend has no automated test suite; use browser console and Network tab.
 
 </code-quality>
 
 ---
 
 <conventions>
-
-### Python
-
-| Topic | Rule |
-|---|---|
-| Naming | `snake_case` functions/vars, `PascalCase` classes, `UPPER_SNAKE_CASE` constants |
-| Line length | 88 characters (Ruff enforced) |
-| Type hints | Required on all public and private functions |
-| Docstrings | Required on all public API functions/classes |
-| Strings | f-strings for formatting |
-| Async | `async`/`await` for all I/O; blocking ops in `asyncio.to_thread` or thread pool |
-| Error handling | Validate at system boundaries only; trust internal code |
-| Early returns | Preferred over nested conditionals |
-| DRY | Extract shared logic to `utils.py`; no copy-paste |
 
 ### TypeScript / React
 
@@ -277,19 +216,19 @@ Split a file when it significantly exceeds its limit.
 
 ### Provider pattern
 
-`LLMProvider` Protocol defined in `llm_core/interfaces.py`. Providers registered in `ProviderFactory` (`llm_core/factory.py`) via structural `match` dispatch. To add a provider: implement the Protocol, add a `case` branch in the factory, add required env vars.
+`LLMProvider` interface defined in `llm-core/interfaces.ts`. Providers registered in `ProviderFactory` (`llm-core/index.ts`) via structural `switch` dispatch. To add a provider: implement the interface, add a `case` branch in the factory, add required env vars.
 
 ### Endpoint modules
 
-Each domain concern lives in its own router file under `endpoints/`. All **active** routers are mounted in `server.py` via `app.include_router(...)`. Currently mounted: `openai`, `tools`, `profiles`. New endpoints go in the matching domain file; create a new file only for genuinely new domains; always mount in `server.py`.
+Each domain concern lives in its own router file under `endpoints/`. All **active** routers are mounted in `index.ts` via `app.route(...)`. Currently mounted: `openai`, `tools`, `profiles`. New endpoints go in the matching domain file; create a new file only for genuinely new domains; always mount in `index.ts`.
 
 ### Configuration
 
-All env vars flow through Pydantic `Settings` in `config.py`. Never read `os.environ` directly in business logic (exception: `composio_service.py` reads `COMPOSIO_API_KEY` as a fallback because Composio is optional and not surfaced through `Settings`).
+All env vars flow through `Settings` in `config/settings.ts`. Never read `process.env` directly in business logic.
 
 ### OpenAI compatibility
 
-Model aliasing in `config.py` (via `Settings.model_aliases`) maps OpenAI model names to provider-specific ones:
+Model aliasing in `config/settings.ts` maps OpenAI model names to provider-specific ones:
 
 | OpenAI alias | Resolved model |
 |---|---|
@@ -300,7 +239,7 @@ Model aliasing in `config.py` (via `Settings.model_aliases`) maps OpenAI model n
 
 ### Composio tool integration
 
-`composio_service.py` wraps the Composio SDK. The `endpoints/tools.py` router exposes `/tools/composio/list` and `/tools/composio/execute`. The service initialises lazily — if `COMPOSIO_API_KEY` is absent the server starts normally and tool endpoints return a 503.
+`services/composio.ts` wraps the Composio SDK. The `endpoints/tools.ts` router exposes `/tools/composio/list` and `/tools/composio/execute`. The service initialises lazily — if `COMPOSIO_API_KEY` is absent the server starts normally and tool endpoints return a 503.
 
 </architecture>
 
@@ -310,46 +249,37 @@ Model aliasing in `config.py` (via `Settings.model_aliases`) maps OpenAI model n
 
 ### Add a new LLM provider
 
-1. Create `llm_core/providers/<name>.py` implementing `LLMProvider` Protocol.
-2. Add the provider type literal to `ProviderType` in `llm_core/factory.py`.
+1. Create `llm-core/providers/<name>.ts` implementing `LLMProvider` interface.
+2. Add the provider type literal to `ProviderType` in `llm-core/index.ts`.
 3. Add a `case "<name>":` branch in `ProviderFactory.create`.
-4. Add required env vars to `.env.example` and `config.py`.
-5. Write tests in `test_<name>.py`.
+4. Add required env vars to `.env.example` and `config/settings.ts`.
+5. Write tests in `test_<name>.ts`.
 
 ### Add a new API endpoint
 
 1. Find or create the router file in `endpoints/` for the domain.
 2. Implement the handler with full type annotations and a docstring.
-3. Mount the router in `server.py` via `app.include_router(...)`.
+3. Mount the router in `index.ts` via `app.route(...)`.
 4. Add integration tests to the appropriate test file.
 5. Run the full quality gate before committing.
 
 ### Activate an existing (unmounted) endpoint router
 
-1. Open `server.py` and add `from endpoints.<module> import router as <name>_router`.
-2. Add `app.include_router(<name>_router)` below the existing `include_router` calls.
+1. Open `index.ts` and add `import router as <name>Router from './endpoints/<module>'`.
+2. Add `app.route('/<path>', <name>Router)` below the existing route calls.
 3. Run tests; verify `/docs` shows the new routes.
-
-### Add a Python package
-
-```bash
-uv add <package>          # Runtime dependency
-uv add --dev <package>    # Dev/test-only dependency
-# Never use pip install
-```
 
 ### Add a frontend component
 
-1. Create `frontend/src/components/MyComponent.tsx` with a typed props interface.
+1. Create `apps/web/src/components/MyComponent.tsx` with a typed props interface.
 2. Keep render logic in the component; move API/business logic to `src/services/`.
 3. Global state → Zustand store.
-4. `cd frontend && bun run build` to verify.
+4. `cd apps/web && bun run build` to verify.
 
 ### Run type checking
 
 ```bash
-pyrefly check                    # Python (fix all errors before committing)
-cd frontend && bunx tsc --noEmit  # TypeScript
+bun run typecheck             # TypeScript (fix all errors before committing)
 ```
 
 </common-tasks>
@@ -358,28 +288,16 @@ cd frontend && bunx tsc --noEmit  # TypeScript
 
 <dependencies>
 
-### Python (backend)
+### TypeScript (backend)
 
 | Package | Role |
 |---|---|
-| `fastapi` | HTTP framework and router |
-| `uvicorn[standard]` | ASGI server with uvloop |
-| `pydantic` v2 | Request/response validation and settings |
-| `orjson` | Fast JSON serialization — default response class and hot-path parsing |
-| `httpx` | Async HTTP client (GitHub API, provider calls) |
-| `google-genai` | Google Gemini SDK (API-key path) |
-| `gemini-webapi` | Gemini web interface (cookie-auth path) |
-| `rookiepy` | Browser cookie extraction for gemini-webapi |
-| `anthropic` | Anthropic Claude SDK |
+| `hono` | Edge-ready HTTP framework |
+| `@google/genai` | Google Gemini SDK |
+| `@anthropic-ai/sdk` | Anthropic Claude SDK |
 | `openai` | OpenAI SDK (also used for Bifrost gateway) |
-| `aiosqlite` | Async SQLite for cookie profiles and sessions |
-| `cachetools` | TTLCache for in-memory session caching |
-| `json-repair` | Robust JSON parsing for malformed LLM tool-call output |
-| `python-multipart` | Form/multipart handling for FastAPI |
-| `composio-core` | Composio tool integration (optional — no-op if key absent) |
-| `pytest` + `anyio` | Testing — async tests use anyio, not asyncio |
-| `ruff` | Linting and formatting |
-| `pyrefly` | Static type checking |
+| `better-sqlite3` | SQLite for cookie profiles and sessions |
+| `zod` | Request/response validation |
 
 ### JavaScript (frontend)
 
