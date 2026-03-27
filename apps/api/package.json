@@ -3,13 +3,33 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Affine AI Coding Workstation - API",
+  "description": "Affine AI Coding Workstation - TypeScript API",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "dev": "PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload --host 0.0.0.0 --port ${PORT:-9000}",
-    "build": "PYTHONPATH=src:../../packages/config/src uv run python -m compileall src",
-    "format": "PYTHONPATH=src:../../packages/config/src uv run ruff format .",
-    "lint": "PYTHONPATH=src:../../packages/config/src uv run ruff check .",
-    "typecheck": "PYTHONPATH=src:../../packages/config/src uv run pyrefly check",
-    "test": "PYTHONPATH=src:../../packages/config/src uv run pytest"
+    "dev": "npx tsx watch src/index.ts",
+    "build": "npx esbuild src/index.ts --bundle --platform=node --outfile=dist/index.js --format=esm",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@google/generative-ai": "^0.21.0",
+    "@hono/node-server": "^1.13.0",
+    "better-sqlite3": "^11.0.0",
+    "hono": "^4.6.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.19.15",
+    "@types/uuid": "^10.0.0",
+    "bun-types": "^1.1.0",
+    "esbuild": "^0.27.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.0"
   }
 }
