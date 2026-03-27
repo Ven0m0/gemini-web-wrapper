@@ -159,6 +159,11 @@ export class GitHubService {
 let gitHubService: GitHubService | null = null;
 
 export function getGitHubService(token?: string): GitHubService {
+  if (!gitHubService || token) {
+    gitHubService = new GitHubService({ token });
+  }
+  return gitHubService;
+}
   if (!gitHubService) {
     gitHubService = new GitHubService({ token });
   }
