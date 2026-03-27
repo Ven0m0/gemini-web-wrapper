@@ -119,9 +119,10 @@ export class CookieManager {
     
     if (!hasRequired) return null;
     
-    return profile.cookies.filter(c =>
-      c.domain.includes('google.com') || c.domain.includes('.google.com')
-    );
+    return profile.cookies.filter(c => {
+      const domain = c.domain;
+      return domain === 'google.com' || domain.endsWith('.google.com');
+    });
   }
 }
 
