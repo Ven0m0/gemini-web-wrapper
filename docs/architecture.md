@@ -1,3 +1,5 @@
+> **Note:** This document describes the aspirational/target architecture. The current implementation may differ. See `apps/api/src/affine/api/server.py` and `apps/web/src/` for the actual codebase.
+
 # Architecture — Merged AI Coding Workstation
 
 ## 1. Product Scope

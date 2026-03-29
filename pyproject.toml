@@ -13,6 +13,12 @@ dependencies = [
 [tool.uv.workspace]
 members = ["apps/api", "packages/shared/python", "packages/llm-core", "packages/config"]
 
+[tool.uv.sources]
+affine-api = { workspace = true }
+affine-shared = { workspace = true }
+affine-llm-core = { workspace = true }
+affine-config = { workspace = true }
+
 [tool.pytest.ini_options]
 pythonpath = [
     "apps/api/src",

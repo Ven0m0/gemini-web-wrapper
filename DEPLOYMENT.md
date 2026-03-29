@@ -1,221 +1,139 @@
-# AI Assistant App - Deployment Guide
+# Deployment Guide
 
-## 🚀 Quick Start
+Monorepo structure: `apps/web` (React/Vite), `apps/api` (FastAPI), `packages/*` (shared).
 
-### Prerequisites
-- Node.js 18+ and npm
-- Python 3.10+
-- Git
+## Prerequisites
 
-### 1. Clone and Setup
+- **bun** (v1.1+) - JavaScript runtime
+- **uv** (v0.5+) - Python package manager
+- **git** and **Python 3.10+**
+
+Install:
 ```bash
-git clone <your-repo>
-cd <your-repo>
+curl -fsSL https://bun.sh/install | bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. Environment Configuration
+## Environment Setup
+
 ```bash
-cp .env.example .env
-# Edit .env with your API keys
+cat > apps/api/.env << 'EOF'
+GOOGLE_API_KEY=your_google_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+MODEL_PROVIDER=gemini
+MODEL_NAME=gemini-2.0-flash-exp
+PORT=8000
+EOF
 ```
 
-### 3. Install Dependencies
-```bash
-# Install frontend dependencies
-cd frontend && npm install && cd ..
+## Local Development
 
-# Install Python dependencies
-pip install -r requirements.txt
+Backend:
+```bash
+cd apps/api
+uv sync --all-extras
+export PYTHONPATH=src:../../packages/config/src
+uv run uvicorn affine.api.server:app --reload --port 8000
 ```
 
-### 4. Build Frontend
+Frontend:
 ```bash
-cd frontend && npm run build && cd ..
+cd apps/web
+bun install
+bun run dev
 ```
 
-### 5. Start Server
+## Production Build
+
+Frontend:
 ```bash
-python server.py
+cd apps/web && bun install && bun run build
+```
+Output: `apps/web/dist/`
+
+Backend:
+```bash
+cd apps/api && uv sync --all-extras
+export PYTHONPATH=src:../../packages/config/src
+uv run uvicorn affine.api.server:app --host 0.0.0.0 --port $PORT
 ```
 
-## 📋 Deployment Options
+## Deployment Options
 
-### Option 1: Vercel (Recommended)
+### Frontend - Vercel
 
-1. **Install Vercel CLI**
+Already configured with `vercel.json`. Connect repo or deploy manually:
 ```bash
-npm i -g vercel
+cd apps/web && bun install && bun run build
 ```
 
-2. **Deploy**
+**Settings:**
+- Build Command: `bun run build`
+- Output Directory: `dist`
+- Install Command: `bun install`
+
+### Backend - Render
+
+**Build Command:**
 ```bash
-vercel --prod
+cd apps/api && uv sync --all-extras
 ```
 
-3. **Environment Variables**
-Add these to your Vercel project settings:
-- `GOOGLE_API_KEY`: Your Google AI API key
-- `ANTHROPIC_API_KEY`: Your Anthropic API key (optional)
-- `MODEL_PROVIDER`: `gemini` or `anthropic`
-- `MODEL_NAME`: Model name (e.g., `gemini-2.5-flash`)
-
-### Option 2: Render
-
-1. **Create Web Service**
-- Connect your GitHub repo
-- Build command: `./build.sh`
-- Start command: `python server.py`
-- Environment variables: Add from `.env.example`
-
-2. **Deploy**
-- Automatic deployments on push to main branch
-
-### Option 3: Railway
-
-1. **Create New Project**
-- Deploy from GitHub
-- Build command: `./build.sh`
-- Start command: `python server.py`
-
-### Option 4: Heroku
-
-1. **Create App**
+**Start Command:**
 ```bash
-heroku create your-app-name
+cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --host 0.0.0.0 --port $PORT
 ```
 
-2. **Deploy**
-```bash
-git push heroku main
+### Backend - Railway
+
+```dockerfile
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+WORKDIR /app
+COPY . .
+RUN cd apps/api && uv sync --all-extras
+ENV PYTHONPATH=apps/api/src:packages/config/src
+CMD ["uv", "run", "--directory", "apps/api", "uvicorn", "affine.api.server:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-## 🔧 Configuration
+### Self-Hosted - Docker Compose
 
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GOOGLE_API_KEY` | ✅ | Google AI API key |
-| `ANTHROPIC_API_KEY` | ❌ | Anthropic API key (for Claude models) |
-| `MODEL_PROVIDER` | ❌ | `gemini` (default) or `anthropic` |
-| `MODEL_NAME` | ❌ | Specific model name |
-| `PORT` | ❌ | Server port (default: 9000) |
-| `DEBUG` | ❌ | Debug mode (default: false) |
-
-### Model Aliases
-The app supports OpenAI-compatible model names:
-- `gpt-4o-mini` → `gemini-2.5-flash`
-- `gpt-4o` → `gemini-2.5-pro`
-- `gpt-4.1-mini` → `gemini-3.0-pro`
-- `gemini-flash` → `gemini-2.5-flash`
-- `gemini-pro` → `gemini-2.5-pro`
-- `claude-3-5-sonnet` → `claude-3-5-sonnet-20241022`
-
-## 🌐 API Endpoints
-
-### Core Endpoints
-- `POST /chat` - Simple chat
-- `POST /code` - Code assistance
-- `POST /chatbot` - Chat with history
-- `POST /chatbot/stream` - Streaming chat
-- `GET /health` - Health check
-
-### OpenAI Compatible
-- `POST /v1/chat/completions` - OpenAI API compatible
-
-### Profile Management
-- `GET /profiles/list` - List profiles
-- `POST /profiles/create` - Create profile
-- `POST /profiles/switch` - Switch profile
-- `DELETE /profiles/{name}` - Delete profile
-
-### GitHub Integration
-- `POST /github/file/read` - Read file
-- `POST /github/file/write` - Write file
-- `POST /github/list` - List directory
-- `POST /github/branches` - List branches
-
-### Gemini WebAPI
-- `POST /gemini/chat` - Chat with cookies
-- `GET /gemini/conversations` - List conversations
-
-## 📱 PWA Features
-
-The app is a Progressive Web App with:
-- ✅ Offline support
-- ✅ Installable on mobile/desktop
-- ✅ Push notifications ready
-- ✅ Responsive design
-- ✅ Fast loading
-
-## 🔒 Security
-
-- CORS configured for production
-- Input validation with Pydantic
-- Rate limiting ready
-- Secure cookie handling
-- Environment variable protection
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Build fails**
-```bash
-# Clear cache and rebuild
-rm -rf node_modules package-lock.json
-npm install
-cd frontend && npm install && npm run build
+```yaml
+version: '3.8'
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      MODEL_PROVIDER: ${MODEL_PROVIDER}
+      MODEL_NAME: ${MODEL_NAME}
+      PORT: 8000
+  web:
+    image: nginx:alpine
+    ports: ["80:80"]
+    volumes:
+      - ./apps/web/dist:/usr/share/nginx/html:ro
 ```
 
-2. **Python dependencies fail**
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GOOGLE_API_KEY` | Yes* | - | Google Gemini API key |
+| `ANTHROPIC_API_KEY` | Yes* | - | Anthropic Claude API key |
+| `MODEL_PROVIDER` | Yes | `gemini` | `gemini` or `anthropic` |
+| `MODEL_NAME` | Yes | `gemini-2.0-flash-exp` | Model identifier |
+| `PORT` | No | `8000` | Server port |
+
+*At least one API key required for chosen provider.
+
+## Health Check
+
 ```bash
-# Use virtual environment
-python3 -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
+curl https://your-api-url.com/health
+
+curl -X POST https://your-api-url.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemini-2.0-flash-exp","messages":[{"role":"user","content":"Hello"}]}'
 ```
-
-3. **API key issues**
-- Ensure your API key is valid
-- Check quota limits
-- Verify model availability
-
-4. **CORS errors**
-- Check your deployment URL is in CORS origins
-- Verify environment variables are set
-
-### Logs
-Check deployment logs in:
-- Vercel: Dashboard → Functions → Logs
-- Render: Dashboard → Services → Logs
-- Railway: Dashboard → Deployments → Logs
-
-## 📊 Monitoring
-
-The app includes:
-- Vercel Analytics integration
-- Speed Insights
-- Health check endpoint
-- Error tracking ready
-
-## 🔄 Updates
-
-To update your deployment:
-1. Push changes to your repository
-2. Automatic deployment will trigger
-3. Monitor deployment status
-4. Test the updated application
-
-## 🆘 Support
-
-For issues:
-1. Check the logs
-2. Verify environment variables
-3. Test locally first
-4. Check API quotas
-5. Review configuration
-
-## 📄 License
-
-MIT License - See LICENSE file for details.

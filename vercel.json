@@ -14,47 +14,15 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
       "src": "/health",
       "dest": "apps/api/src/affine/api/server.py"
     },
     {
-      "src": "/chat",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/code",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/chatbot",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/chatbot/stream",
+      "src": "/v1/models",
       "dest": "apps/api/src/affine/api/server.py"
     },
     {
       "src": "/v1/chat/completions",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/profiles/(.*)",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/gemini/(.*)",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/github/(.*)",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/memory/(.*)",
       "dest": "apps/api/src/affine/api/server.py"
     },
     {

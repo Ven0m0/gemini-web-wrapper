@@ -31,18 +31,27 @@ cp .env.example .env
 ```
 
 ### 2. Install & Build
+
+**Frontend:**
 ```bash
-# One-command setup
-./deploy.sh
+cd apps/web
+bun install
+bun run build
+```
+
+**Backend:**
+```bash
+cd apps/api
+uv sync --all-extras
 ```
 
 ### 3. Start Development
 ```bash
-# Start the packaged API
+# Start the API
 cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
 
-# Or use the start script
-./start.sh
+# Start the frontend (in another terminal)
+cd apps/web && bun run dev
 ```
 
 Visit: http://localhost:9000
@@ -84,7 +93,7 @@ vercel --prod
 
 ### Render
 - Connect GitHub repo
-- Build: `./build.sh`
+- Build: `cd apps/api && uv sync --all-extras`
 - Start: `cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --host 0.0.0.0 --port 9000`
 
 ### Railway
@@ -104,21 +113,9 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 ## 🔌 API Endpoints
 
 ### Core APIs
-- `POST /chat` - Simple chat
-- `POST /code` - Code assistance
-- `POST /chatbot` - Chat with history
-- `POST /chatbot/stream` - Streaming responses
-- `POST /v1/chat/completions` - OpenAI compatible
-
-### GitHub Integration
-- `POST /github/file/read` - Read repository files
-- `POST /github/file/write` - Write repository files
-- `POST /github/list` - List directory contents
-
-### Profile Management
-- `GET /profiles/list` - List AI profiles
-- `POST /profiles/create` - Create new profile
-- `POST /profiles/switch` - Switch profiles
+- `GET /health` - Health check
+- `GET /v1/models` - List available models
+- `POST /v1/chat/completions` - OpenAI-compatible chat completions (streaming supported)
 
 ## 🛠️ Development
 
@@ -140,16 +137,21 @@ PYTHONPATH=src:../../packages/config/src uv run pytest
 
 ### Project Structure
 ```
-├── apps/web/         # React TypeScript frontend
-│   ├── src/
-│   │   ├── components/ # UI components
-│   │   ├── services/   # API services
-│   │   └── store.ts    # State management
-│   └── dist/          # Built frontend
-├── apps/api/         # Packaged FastAPI backend
-├── packages/config/  # Shared typed settings
-├── package.json      # Bun workspace scripts
-└── vercel.json       # Deployment config
+├── apps/
+│   ├── web/              # React TypeScript frontend (Vite PWA)
+│   │   ├── src/
+│   │   │   ├── components/  # UI components
+│   │   │   ├── services/    # API services
+│   │   │   └── store.ts     # Zustand state management
+│   │   └── dist/           # Built frontend
+│   └── api/              # FastAPI backend
+│       └── src/affine/api/
+├── packages/
+│   ├── config/           # Typed settings (Pydantic)
+│   ├── llm-core/         # LLM provider interfaces & factory
+│   └── shared/           # Shared Python models & schemas
+├── package.json          # Bun workspace scripts
+└── vercel.json           # Deployment config
 ```
 
 ## 🔒 Security
