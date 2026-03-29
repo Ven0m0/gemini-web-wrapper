@@ -17,8 +17,5 @@ class Settings(BaseSettings):
     frontend_dist_dir: str = "apps/web/dist"
 
 
-import functools
-
-
 def get_settings() -> Settings:
     return Settings()
