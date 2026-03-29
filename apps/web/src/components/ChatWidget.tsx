@@ -13,6 +13,7 @@ interface ChatWidgetProps {
   agentName?: string
   agentAvatar?: string
   welcomeMessage?: string
+  customGreeting?: string
   
   // Styling
   theme?: 'light' | 'dark' | 'auto'

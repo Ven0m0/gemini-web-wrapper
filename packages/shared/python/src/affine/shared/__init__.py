@@ -6,8 +6,13 @@ from affine.shared.openai_schemas import (
     ChatCompletionChunk,
 )
 from affine.shared.models import (
-    Profile,
-    Session,
+    MessageRole,
+    FinishReason,
+    ToolCall,
+    ContentPart,
+    Message,
+    Usage,
+    ChatStreamChunk,
 )
 
 __all__ = [
@@ -16,6 +21,11 @@ __all__ = [
     "ChatChoice",
     "ChatCompletionResponse",
     "ChatCompletionChunk",
-    "Profile",
-    "Session",
+    "MessageRole",
+    "FinishReason",
+    "ToolCall",
+    "ContentPart",
+    "Message",
+    "Usage",
+    "ChatStreamChunk",
 ]
