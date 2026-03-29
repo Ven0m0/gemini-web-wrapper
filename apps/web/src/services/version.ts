@@ -1,11 +1,11 @@
+// Build timestamp injected by Vite define in vite.config.ts
+// Example: 2025-08-19 22:43 UTC
+declare const __BUILD_TIME__: string
+
 export class VersionService {
   // In a real application, this would be injected at build time
   // For now, we'll hardcode it but make it easy to update
   static getCurrentVersion(): string {
-    // Build timestamp injected by Vite define in vite.config.ts
-    // Example: 2025-08-19 22:43 UTC
-     
-    declare const __BUILD_TIME__: string
     try {
       // @ts-ignore - defined at build time
       return __BUILD_TIME__ || 'dev'
