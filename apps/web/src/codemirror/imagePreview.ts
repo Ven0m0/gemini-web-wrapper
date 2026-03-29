@@ -1,4 +1,5 @@
-import { Extension, RangeSetBuilder } from '@codemirror/state'
+import type { Extension } from '@codemirror/state'
+import { RangeSetBuilder } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view'
 
 type ImgRef = { alt: string; src: string }
