@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, AsyncIterator, Optional, Union, List
+from typing import Any, Optional, Union, List
 
 
 class MessageRole(str, Enum):
