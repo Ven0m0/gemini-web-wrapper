@@ -21,10 +21,19 @@ app.add_middleware(
 )
 
 def get_provider():
+    api_key = (
+        settings.anthropic_api_key
+        if settings.model_provider == "anthropic"
+        else settings.google_api_key
+    )
+
+    provider_kwargs = {"api_key": api_key}
+    if settings.model_name is not None:
+        provider_kwargs["model"] = settings.model_name
+
     return ProviderFactory.create(
         settings.model_provider,
-        api_key=settings.anthropic_api_key if settings.model_provider == "anthropic" else settings.google_api_key,
-        model=settings.model_name
+        **provider_kwargs,
     )
 
 @app.get("/health")
