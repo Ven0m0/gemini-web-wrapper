@@ -1,5 +1,5 @@
 from typing import Optional, List, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class ChatMessage(BaseModel):
     role: str
