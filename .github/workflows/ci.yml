@@ -72,8 +72,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync
-        working-directory: packages/shared
+        working-directory: packages/shared/python
       - run: uv run ruff format --check
-        working-directory: packages/shared
+        working-directory: packages/shared/python
       - run: uv run ruff check
-        working-directory: packages/shared
+        working-directory: packages/shared/python

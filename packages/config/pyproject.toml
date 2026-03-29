@@ -7,3 +7,4 @@ dependencies = ["pydantic-settings>=2.0.0"]
 dev = ["ruff>=0.6.0"]
 
 [tool.uv.sources]
+affine-config = { workspace = true }
