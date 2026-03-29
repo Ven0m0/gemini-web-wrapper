@@ -1,0 +1,4 @@
+[project]
+name = "affine-config"
+version = "0.1.0"
+dependencies = ["pydantic-settings>=2.0.0"]

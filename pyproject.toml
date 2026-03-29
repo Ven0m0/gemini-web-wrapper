@@ -1,0 +1,23 @@
+[project]
+name = "affine-workstation"
+version = "0.1.0"
+description = "Affine AI Coding Workstation"
+requires-python = ">=3.10"
+dependencies = [
+    "affine-api",
+    "affine-shared",
+    "affine-llm-core",
+    "affine-config"
+]
+
+[tool.uv.workspace]
+members = ["apps/api", "packages/shared/python", "packages/llm-core", "packages/config"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "apps/api/src",
+    "packages/shared/python/src",
+    "packages/llm-core/src",
+    "packages/config/src"
+]
+asyncio_mode = "auto"
