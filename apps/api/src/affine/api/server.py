@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from affine.config.settings import get_settings
