@@ -1,0 +1,20 @@
+[project]
+name = "affine-api"
+version = "0.1.0"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.24.0",
+    "python-multipart>=0.0.6",
+    "orjson>=3.9.0",
+    "affine-shared",
+    "affine-llm-core",
+    "affine-config"
+]
+
+[tool.uv.sources]
+affine-shared = { workspace = true }
+affine-llm-core = { workspace = true }
+affine-config = { workspace = true }
