@@ -58,9 +58,9 @@ jobs:
           enable-cache: true
       - run: uv sync
         working-directory: packages/config
-      - run: uv run ruff format --check
+      - run: uv run ruff format --check src/
         working-directory: packages/config
-      - run: uv run ruff check
+      - run: uv run ruff check src/
         working-directory: packages/config
 
   shared:
@@ -73,7 +73,7 @@ jobs:
           enable-cache: true
       - run: uv sync
         working-directory: packages/shared/python
-      - run: uv run ruff format --check
+      - run: uv run ruff format --check src/
         working-directory: packages/shared/python
-      - run: uv run ruff check
+      - run: uv run ruff check src/
         working-directory: packages/shared/python
