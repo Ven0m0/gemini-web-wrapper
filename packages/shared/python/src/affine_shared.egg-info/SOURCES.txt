@@ -1,0 +1,10 @@
+pyproject.toml
+src/affine/__init__.py
+src/affine/shared/__init__.py
+src/affine/shared/models.py
+src/affine/shared/openai_schemas.py
+src/affine_shared.egg-info/PKG-INFO
+src/affine_shared.egg-info/SOURCES.txt
+src/affine_shared.egg-info/dependency_links.txt
+src/affine_shared.egg-info/requires.txt
+src/affine_shared.egg-info/top_level.txt

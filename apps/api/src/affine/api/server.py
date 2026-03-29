@@ -1,13 +1,15 @@
-import os
-import json
 import uuid
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from affine.config.settings import get_settings
 from affine.llm_core.factory import ProviderFactory
-from affine.shared.openai_schemas import ChatCompletionRequest, ChatCompletionResponse, ChatCompletionChunk
+from affine.shared.openai_schemas import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatCompletionChunk,
+)
 
 app = FastAPI(title="Affine AI Workstation API")
 settings = get_settings()
@@ -19,6 +21,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def get_provider():
     api_key = (
@@ -36,18 +39,31 @@ def get_provider():
         **provider_kwargs,
     )
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 @app.get("/v1/models")
 async def list_models():
     return {
         "data": [
-            {"id": "gemini-2.0-flash-exp", "object": "model", "created": 1677610602, "owned_by": "google"},
-            {"id": "claude-3-5-sonnet-20241022", "object": "model", "created": 1677610602, "owned_by": "anthropic"},
+            {
+                "id": "gemini-2.0-flash-exp",
+                "object": "model",
+                "created": 1677610602,
+                "owned_by": "google",
+            },
+            {
+                "id": "claude-3-5-sonnet-20241022",
+                "object": "model",
+                "created": 1677610602,
+                "owned_by": "anthropic",
+            },
         ]
     }
+
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest):
@@ -72,17 +88,16 @@ async def chat_completions(request: ChatCompletionRequest):
         prompt = last_msg["content"]
 
     if request.stream:
+
         async def event_generator():
             async for chunk in provider.stream(prompt, system=system, history=history):
                 data = ChatCompletionChunk(
                     id=request_id,
                     created=created,
                     model=model_name,
-                    choices=[{
-                        "index": 0,
-                        "delta": {"content": chunk},
-                        "finish_reason": None
-                    }]
+                    choices=[
+                        {"index": 0, "delta": {"content": chunk}, "finish_reason": None}
+                    ],
                 )
                 yield f"data: {data.model_dump_json()}\n\n"
 
@@ -90,11 +105,7 @@ async def chat_completions(request: ChatCompletionRequest):
                 id=request_id,
                 created=created,
                 model=model_name,
-                choices=[{
-                    "index": 0,
-                    "delta": {},
-                    "finish_reason": "stop"
-                }]
+                choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
             )
             yield f"data: {final_chunk.model_dump_json()}\n\n"
             yield "data: [DONE]\n\n"
@@ -106,10 +117,12 @@ async def chat_completions(request: ChatCompletionRequest):
         id=request_id,
         created=created,
         model=model_name,
-        choices=[{
-            "index": 0,
-            "message": {"role": "assistant", "content": content},
-            "finish_reason": "stop"
-        }],
-        usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        choices=[
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
     )

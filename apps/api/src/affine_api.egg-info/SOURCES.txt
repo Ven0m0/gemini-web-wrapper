@@ -1,0 +1,12 @@
+pyproject.toml
+src/affine/__init__.py
+src/affine/api/__init__.py
+src/affine/api/__main__.py
+src/affine/api/server.py
+src/affine/api/endpoints/__init__.py
+src/affine/api/services/__init__.py
+src/affine_api.egg-info/PKG-INFO
+src/affine_api.egg-info/SOURCES.txt
+src/affine_api.egg-info/dependency_links.txt
+src/affine_api.egg-info/requires.txt
+src/affine_api.egg-info/top_level.txt
