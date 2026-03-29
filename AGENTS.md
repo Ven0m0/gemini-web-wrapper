@@ -1,18 +1,18 @@
 # AGENTS.md — Gemini Web Wrapper
 
-Canonical repository guidance for agentic tools. `CLAUDE.md` must remain a symlink to this file.
+Canonical repository guidance for agentic tools. `CLAUDE.md` must remain a symlink to this file. If other assistant-facing mirror files are added later, keep them symlinked or otherwise explicitly synchronized.
 
 ## Project Snapshot
 
 Gemini Web Wrapper is a monorepo for a FastAPI backend, a React PWA frontend, and shared Python packages.
 
-- **Frontend:** `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/web`
+- **Frontend:** `apps/web`
   - React 19 + TypeScript + Vite PWA
   - Zustand state in `src/store.ts`
   - Business logic and API clients belong in `src/services/`
-- **Backend:** `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/api`
+- **Backend:** `apps/api`
   - Python FastAPI app in `src/affine/api/server.py`
-  - Entrypoint module in `src/affine/api/__main__.py`
+  - Package entrypoint in `src/affine/api/__main__.py` for `python -m affine.api`
   - Current mounted endpoints are implemented directly in `server.py`
 - **Shared Python packages:**
   - `packages/config` — typed settings
@@ -24,11 +24,11 @@ Gemini Web Wrapper is a monorepo for a FastAPI backend, a React PWA frontend, an
 When repository documents disagree, trust sources in this order:
 
 1. Current code under `apps/` and `packages/`
-2. CI workflow commands in `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/.github/workflows/ci.yml`
-3. Runtime setup in `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/README.md`
-4. Planning docs such as `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/docs/architecture.md`
+2. CI workflow commands in `.github/workflows/ci.yml`
+3. Runtime setup in `README.md`
+4. Planning docs such as `docs/architecture.md`
 
-`docs/architecture.md` describes a broader target architecture and can be ahead of the current implementation.
+`docs/architecture.md` describes a broader target architecture and can be ahead of the current implementation. Keep this file and `.github/copilot-instructions.md` aligned with the higher-priority sources above.
 
 ## Working Rules
 
@@ -64,7 +64,7 @@ Use the existing app-scoped commands from CI.
 ### Frontend
 
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/web
+cd apps/web
 bun install --frozen-lockfile
 bun run lint
 bun run typecheck
@@ -74,24 +74,27 @@ bun run test
 
 ### API
 
+Follow the current CI and README pattern here: `affine-llm-core` and `affine-shared` resolve as workspace dependencies, while `config` is still provided through an explicit `PYTHONPATH` entry.
+
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/api
+cd apps/api
 uv sync --all-extras
-PYTHONPATH=src:../../packages/config/src uv run ruff format --check
-PYTHONPATH=src:../../packages/config/src uv run ruff check
-PYTHONPATH=src:../../packages/config/src uv run pyrefly check
-PYTHONPATH=src:../../packages/config/src uv run pytest
+export PYTHONPATH=src:../../packages/config/src
+uv run ruff format --check
+uv run ruff check
+uv run pyrefly check
+uv run pytest
 ```
 
 ### Shared packages
 
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/packages/config
+cd packages/config
 uv sync
 uv run ruff format --check
 uv run ruff check
 
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/packages/shared
+cd packages/shared
 uv sync
 uv run ruff format --check
 uv run ruff check
@@ -102,22 +105,22 @@ uv run ruff check
 ### Run the API
 
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/api
+cd apps/api
 PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
 ```
 
 ### Run the web app
 
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/web
+cd apps/web
 bun run dev
 ```
 
 ## File-Specific Notes
 
 - `CLAUDE.md` should stay a symlink to `AGENTS.md`.
-- Keep `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/.github/copilot-instructions.md` short and aligned with this file.
-- Keep detailed language rules in `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/.github/instructions/`.
+- Keep `.github/copilot-instructions.md` short and aligned with this file.
+- Keep detailed language rules in `.github/instructions/`.
 - Do not copy aspirational architecture text into implementation guidance unless the code already matches it.
 
 ## When Updating Architecture

@@ -1,13 +1,13 @@
 # Gemini Web Wrapper — Copilot Instructions
 
-Use this file for repo-specific behavior only. For detailed style rules, also follow the files in `/home/runner/work/gemini-web-wrapper/gemini-web-wrapper/.github/instructions/`.
+Use this file for repo-specific behavior only. For detailed style rules, also follow the instruction files in `.github/instructions/`.
 
 ## Repository Reality
 
 - The current backend is Python FastAPI code in `apps/api/src/affine/api/server.py`.
 - The current frontend is a React 19 + TypeScript + Vite app in `apps/web`.
 - Shared Python code lives in `packages/config`, `packages/llm-core`, and `packages/shared/python`.
-- `docs/architecture.md` is broader than the current implementation, so prefer code, CI, and README when they conflict.
+- Follow the source-of-truth order documented in `AGENTS.md`; `docs/architecture.md` is broader than the current implementation.
 
 ## What Copilot Should Optimize For
 
@@ -38,7 +38,7 @@ Use this file for repo-specific behavior only. For detailed style rules, also fo
 ### Frontend
 
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/web
+cd apps/web
 bun install --frozen-lockfile
 bun run lint
 bun run typecheck
@@ -49,23 +49,24 @@ bun run test
 ### API
 
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/apps/api
+cd apps/api
 uv sync --all-extras
-PYTHONPATH=src:../../packages/config/src uv run ruff format --check
-PYTHONPATH=src:../../packages/config/src uv run ruff check
-PYTHONPATH=src:../../packages/config/src uv run pyrefly check
-PYTHONPATH=src:../../packages/config/src uv run pytest
+export PYTHONPATH=src:../../packages/config/src
+uv run ruff format --check
+uv run ruff check
+uv run pyrefly check
+uv run pytest
 ```
 
 ### Shared packages
 
 ```bash
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/packages/config
+cd packages/config
 uv sync
 uv run ruff format --check
 uv run ruff check
 
-cd /home/runner/work/gemini-web-wrapper/gemini-web-wrapper/packages/shared
+cd packages/shared
 uv sync
 uv run ruff format --check
 uv run ruff check
