@@ -39,7 +39,7 @@ export interface WebSocketState {
 }
 
 export interface AppState {
-  mode: 'cli' | 'editor' | 'tool' | 'wsh' | 'python'
+  mode: 'cli' | 'editor' | 'tool' | 'wsh' | 'python' | 'chat-demo'
   file: FileState
   ai: AIState
   config: ConfigState
@@ -52,7 +52,7 @@ export interface AppState {
 }
 
 interface AppStore extends AppState {
-  setMode: (mode: 'cli' | 'editor' | 'tool') => void
+  setMode: (mode: 'cli' | 'editor' | 'tool' | 'chat-demo') => void
   setFile: (file: Partial<FileState>) => void
   setAI: (ai: Partial<AIState>) => void
   setConfig: (config: Partial<ConfigState>) => void

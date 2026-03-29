@@ -14,6 +14,12 @@ dependencies = [
     "affine-config"
 ]
 
+[dependency-groups]
+dev = [
+    "pyrefly>=0.58.0",
+    "ruff>=0.6.0",
+]
+
 [tool.uv.sources]
 affine-shared = { workspace = true }
 affine-llm-core = { workspace = true }

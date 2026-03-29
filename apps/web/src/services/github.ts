@@ -49,10 +49,26 @@ export class GitHubService {
   }
 
   async getFile(path: string, branch: string = 'main'): Promise<{ content: string; sha: string }> {
+    const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}?ref=${branch}`
+    
     try {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `token ${this.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
       const binaryString = atob(data.content);
       const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
       const content = new TextDecoder('utf-8').decode(bytes);
+      
+      return { content, sha: data.sha }
     } catch (error) {
       throw new Error(`Failed to fetch file: ${error}`)
     }

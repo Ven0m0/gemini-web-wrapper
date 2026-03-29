@@ -17,6 +17,7 @@ export const ChatDemo: React.FC = () => {
   const [customGreeting, setCustomGreeting] = useState("Hello! How can I help you today?")
   const [agentName, setAgentName] = useState("AI Assistant")
   const [agentAvatar, setAgentAvatar] = useState("🤖")
+  const companyName = "Demo Company"
 
   const currentTheme = ChatDesignSystem.themes[selectedTheme as keyof typeof ChatDesignSystem.themes]
 

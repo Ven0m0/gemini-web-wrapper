@@ -120,7 +120,6 @@ bun run dev
 
 - `CLAUDE.md` should stay a symlink to `AGENTS.md`.
 - Keep `.github/copilot-instructions.md` short and aligned with this file.
-- Keep detailed language rules in `.github/instructions/`.
 - Do not copy aspirational architecture text into implementation guidance unless the code already matches it.
 
 ## When Updating Architecture

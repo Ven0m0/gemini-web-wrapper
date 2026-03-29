@@ -1,0 +1,75 @@
+# Pyrefly configuration for the monorepo
+# https://pyrefly.org/docs/configuration
+
+[project]
+# Root directory for the project
+root = "."
+
+# Python version to target
+python_version = "3.12"
+
+# Search paths for imports - include all package source directories
+search_paths = [
+    "apps/api/src",
+    "packages/config/src",
+    "packages/llm-core/src",
+    "packages/shared/python/src",
+]
+
+# Exclude directories from type checking
+exclude = [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/__pycache__/**",
+    "**/.git/**",
+]
+
+[project.typeshed]
+# Use typeshed from the environment
+path = ".venv/lib/python3.12/site-packages"
+
+[[project.module_mapping]]
+# Map module names to their source directories
+name = "affine.config"
+path = "packages/config/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.interfaces"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.providers"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.providers.gemini"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.providers.anthropic"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.factory"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.shared"
+path = "packages/shared/python/src"
+
+[[project.module_mapping]]
+name = "affine.shared.models"
+path = "packages/shared/python/src"
+
+[[project.module_mapping]]
+name = "affine.shared.openai_schemas"
+path = "packages/shared/python/src"
+
+[[project.module_mapping]]
+name = "affine.api"
+path = "apps/api/src"

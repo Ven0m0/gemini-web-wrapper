@@ -1,14 +1,15 @@
 from __future__ import annotations
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, AsyncIterator, Optional, Union, List
+from typing import Any, Optional, Union, List
+
 
 class MessageRole(str, Enum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+
 
 class FinishReason(str, Enum):
     STOP = "stop"
@@ -17,11 +18,13 @@ class FinishReason(str, Enum):
     CONTENT_FILTER = "content_filter"
     ERROR = "error"
 
+
 @dataclass
 class ToolCall:
     id: str
     name: str
     arguments: dict[str, Any]
+
 
 @dataclass
 class ContentPart:
@@ -34,6 +37,7 @@ class ContentPart:
     tool_call_id: Optional[str] = None
     is_error: bool = False
 
+
 @dataclass
 class Message:
     role: MessageRole
@@ -45,11 +49,13 @@ class Message:
         texts = [p.text for p in self.content if p.text]
         return "\n".join(texts)
 
+
 @dataclass
 class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
+
 
 @dataclass
 class ChatStreamChunk:

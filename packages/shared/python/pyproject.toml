@@ -2,3 +2,9 @@
 name = "affine-shared"
 version = "0.1.0"
 dependencies = ["pydantic>=2.0.0"]
+
+[dependency-groups]
+dev = ["ruff>=0.6.0"]
+
+[tool.uv.sources]
+affine-shared = { workspace = true }
