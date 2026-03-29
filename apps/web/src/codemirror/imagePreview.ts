@@ -1,5 +1,5 @@
 import type { Extension } from '@codemirror/state'
-import { RangeSetBuilder } from '@codemirror/state'
+import { RangeSetBuilder, StateField } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view'
 
 type ImgRef = { alt: string; src: string }
@@ -20,7 +20,7 @@ function isSafeSrc(src: string): boolean {
 
 class ImagesWidget extends WidgetType {
   constructor(private images: ImgRef[]) { super() }
-  eq(other: ImagesWidget) {
+  override eq(other: ImagesWidget) {
     if (this.images.length !== other.images.length) return false
     for (let i = 0; i < this.images.length; i++) {
       const a = this.images[i], b = other.images[i]
@@ -28,7 +28,7 @@ class ImagesWidget extends WidgetType {
     }
     return true
   }
-  toDOM() {
+  override toDOM() {
     const wrap = document.createElement('div')
     wrap.className = 'cm-image-preview'
     for (const imgref of this.images) {
@@ -45,7 +45,7 @@ class ImagesWidget extends WidgetType {
     }
     return wrap
   }
-  ignoreEvent() { return false }
+  override ignoreEvent() { return false }
 }
 
 function collectLineImages(text: string, maxPerLine = 3): ImgRef[] {
@@ -68,21 +68,24 @@ function collectLineImages(text: string, maxPerLine = 3): ImgRef[] {
 }
 
 export function imagePreview(): Extension {
-  const decoField = EditorView.decorations.compute([EditorView.viewport], (state, view) => {
-    const builder = new RangeSetBuilder<Decoration>()
-    for (const { from, to } of view.visibleRanges) {
-      let pos = from
-      while (pos <= to) {
-        const line = state.doc.lineAt(pos)
+  const decoField = StateField.define({
+    create() {
+      return Decoration.none
+    },
+    update(_value, tr) {
+      if (!tr.docChanged) return _value
+      const builder = new RangeSetBuilder<Decoration>()
+      for (let i = 1; i <= tr.newDoc.lines; i++) {
+        const line = tr.newDoc.line(i)
         const imgs = collectLineImages(line.text)
         if (imgs.length) {
           const widget = Decoration.widget({ widget: new ImagesWidget(imgs), block: true })
           builder.add(line.to, line.to, widget)
         }
-        pos = line.to + 1
       }
-    }
-    return builder.finish()
+      return builder.finish()
+    },
+    provide: f => EditorView.decorations.from(f)
   })
 
   return [
