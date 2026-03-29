@@ -13,6 +13,6 @@ class Settings(BaseSettings):
     cors_allow_origins: str = "*"
     frontend_dist_dir: str = "apps/web/dist"
 
-@functools.lru_cache()
+import functools
 def get_settings() -> Settings:
     return Settings()
