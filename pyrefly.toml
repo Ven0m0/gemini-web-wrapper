@@ -39,7 +39,35 @@ name = "affine.llm_core"
 path = "packages/llm-core/src"
 
 [[project.module_mapping]]
+name = "affine.llm_core.interfaces"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.providers"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.providers.gemini"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.providers.anthropic"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
+name = "affine.llm_core.factory"
+path = "packages/llm-core/src"
+
+[[project.module_mapping]]
 name = "affine.shared"
+path = "packages/shared/python/src"
+
+[[project.module_mapping]]
+name = "affine.shared.models"
+path = "packages/shared/python/src"
+
+[[project.module_mapping]]
+name = "affine.shared.openai_schemas"
 path = "packages/shared/python/src"
 
 [[project.module_mapping]]
