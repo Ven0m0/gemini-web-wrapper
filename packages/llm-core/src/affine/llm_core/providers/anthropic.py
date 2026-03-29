@@ -13,6 +13,8 @@ class AnthropicProvider(LLMProvider):
         base_url: str = "https://api.anthropic.com/v1",
     ):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("Anthropic API key not provided or configured.")
         self.model = model
         self.base_url = base_url
         self.headers = {
