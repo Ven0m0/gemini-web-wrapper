@@ -1,11 +1,11 @@
-# Phone AI + GitHub 📱🤖  
+# Phone AI + GitHub
 [![CI - Playwright Tests](https://github.com/WangChengYeh/Chat_github/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/WangChengYeh/Chat_github/actions/workflows/ci-tests.yml)
 [![Deploy PWA to GitHub Pages](https://github.com/WangChengYeh/Chat_github/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/WangChengYeh/Chat_github/actions/workflows/deploy-pages.yml)
 **Mobile-First Dual Fullscreen: AI CLI & Text Editor with Chinese Support**
 
 A minimal, phone-friendly React PWA for editing GitHub repository files using AI assistance. Designed for SMALL SCREENS with only two main views—AI CLI (chat/commands) and Fullscreen Text Editor (viewer + edit + diff toggle). Fully supports Chinese text editing and AI instructions.
 
-## 🚀 **[Launch PWA →](https://wangchengyeh.github.io/Chat_github/)**
+## [Launch PWA](https://wangchengyeh.github.io/Chat_github/)
 
 ### **Quick Start:**
 1. **Launch**: Click the link above to open the app
@@ -15,9 +15,9 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 
 ---
 
-## ✨ **Key Features**
+## Key Features
 
-### 🎯 **Core Capabilities**
+### Core Capabilities
 - **100% Client-Side**: No server required, tokens stay local
 - **PWA Ready**: Installable as native app with offline capabilities
 - **Mobile-Optimized**: Touch-friendly interface for small screens
@@ -25,14 +25,14 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 - **AI-Powered**: Transform files with natural language instructions
 - **Real-Time Sync**: Direct GitHub API integration for immediate commits
 
-### 🌏 **Chinese Language Support**
+### Chinese Language Support
 - **Full CJK Support**: Traditional & Simplified Chinese text rendering
 - **Chinese Fonts**: PingFang SC, Hiragino Sans GB, Microsoft YaHei
 - **Bilingual Interface**: Chinese + English prompts and help text
 - **IME Compatible**: Proper input method support for Chinese typing
 - **AI Instructions**: Give commands in Chinese: "添加中文註解到這個函數"
 
-### 🔧 **Technical Features**
+### Technical Features
 - **Syntax Highlighting**: JavaScript, TypeScript, Markdown, JSON
 - **File Management**: Create, browse, and preview files with `/new`, `/ls`, `/cat`
 - **WebSocket File Transfer**: Real-time file exchange between devices via WebSocket
@@ -47,7 +47,7 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 
 ---
 
-## 🏗️ **Architecture & Design**
+## Architecture & Design
 
 ### **Three-Mode Interface**
 | Mode | Purpose | Features |
@@ -75,7 +75,7 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 
 ---
 
-## 💻 **Command Reference**
+## Command Reference
 
 ### **File Operations**
 | Command | Description | Example |
@@ -127,7 +127,7 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 
 ---
 
-## 🚀 **Deployment & Installation**
+## Deployment & Installation
 
 ### **Web Access**
 - **Live URL**: https://wangchengyeh.github.io/Chat_github/
@@ -359,14 +359,14 @@ git push origin main
 ```
 
 ##### **Step 4: PWA Validation Checklist**
-- [ ] ✅ Manifest loads correctly (no 404 errors)
-- [ ] ✅ Service worker registers and caches resources
-- [ ] ✅ App works offline (shows cached content)
-- [ ] ✅ Install prompt appears on supported browsers
-- [ ] ✅ Icons display correctly in install prompt
-- [ ] ✅ App launches in standalone mode when installed
-- [ ] ✅ All paths use correct repository prefix
-- [ ] ✅ HTTPS certificate is valid (GitHub Pages default)
+- [ ] Manifest loads correctly (no 404 errors)
+- [ ] Service worker registers and caches resources
+- [ ] App works offline (shows cached content)
+- [ ] Install prompt appears on supported browsers
+- [ ] Icons display correctly in install prompt
+- [ ] App launches in standalone mode when installed
+- [ ] All paths use correct repository prefix
+- [ ] HTTPS certificate is valid (GitHub Pages default)
 
 ##### **Step 5: Troubleshooting Common Issues**
 
@@ -427,7 +427,7 @@ jobs:
 
 ---
 
-## 🔐 **Security & Configuration**
+## Security & Configuration
 
 ### **Required Tokens**
 | Token Type | Permissions | Usage |
@@ -456,7 +456,7 @@ jobs:
 
 ---
 
-## 🛠️ **Development**
+## Development
 
 ### **Tech Stack**
 - **Frontend**: React 18 + TypeScript + Vite
@@ -517,7 +517,7 @@ src/
 
 ---
 
-## 🌟 **Example Workflows**
+## Example Workflows
 
 ### **Basic File Editing**
 ```bash
@@ -594,7 +594,7 @@ Convert to TypeScript with types    # AI instruction
 
 ---
 
-## 🧪 **Testing & Validation**
+## Testing & Validation
 
 ### **Test Prerequisites**
 Before running tests, ensure you have a `.config` file in the project root:
@@ -614,7 +614,7 @@ Before running tests, ensure you have a `.config` file in the project root:
 
 ### **Automated Test Suite**
 ```bash
-npm test                # Run comprehensive test suite
+npm test                # Run test suite
 npm run server          # Start WebSocket server for testing
 npm run typecheck       # Verify TypeScript compilation
 npm run build           # Test production build
@@ -622,7 +622,7 @@ npm run build           # Test production build
 
 ### **Test Flows**
 
-#### **🧪 Test Case 1: Basic File Editing Workflow**
+#### Test Case 1: Basic File Editing Workflow
 **Purpose**: Verify core file editing functionality with AI assistance
 
 ```bash
@@ -642,10 +642,10 @@ Add installation instructions        # Expected: AI processing starts
 
 # Validation
 /cat README.md                      # Expected: Shows updated content with AI changes
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
-#### **🧪 Test Case 2: New File Creation Workflow**
+#### Test Case 2: New File Creation Workflow
 **Purpose**: Test file creation with smart templates
 
 ```bash
@@ -664,10 +664,10 @@ Add installation instructions        # Expected: AI processing starts
 # Validation
 /cat src/components/TestHeader.tsx   # Expected: Shows committed file content
 /ls src/components/                  # Expected: TestHeader.tsx appears in listing
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
-#### **🧪 Test Case 3: File Exploration Workflow**
+#### Test Case 3: File Exploration Workflow
 **Purpose**: Validate directory browsing and file preview
 
 ```bash
@@ -683,13 +683,13 @@ Add installation instructions        # Expected: AI processing starts
 /cat missing-file.txt               # Expected: File not found error
 
 # Validation
-# Verify all listings show correct file types (📁 for dirs, 📄 for files)
+# Verify all listings show correct file types
 # Verify file sizes are displayed in human-readable format
 # Verify error handling for non-existent paths
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
-#### **🧪 Test Case 4: Tool Mode UI Workflow**
+#### Test Case 4: Tool Mode UI Workflow
 **Purpose**: Test visual file transfer interface
 
 ```bash
@@ -715,10 +715,10 @@ Add installation instructions        # Expected: AI processing starts
 /cat test-uploads/sample.txt        # Expected: Shows uploaded file content
 # Check Downloads folder for downloaded file
 # Verify activity log shows timestamps and status
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
-#### **🧪 Test Case 5: WebSocket File Transfer Workflow**
+#### Test Case 5: WebSocket File Transfer Workflow
 **Purpose**: Test WebSocket server integration and file transfer
 
 ```bash
@@ -743,10 +743,10 @@ Add installation instructions        # Expected: AI processing starts
 # Verify server console shows client connection/disconnection
 # Verify websocket_files directory contains uploaded file
 # Verify local Downloads folder contains downloaded file
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
-#### **🧪 Test Case 6: Code Refactoring Workflow**
+#### Test Case 6: Code Refactoring Workflow
 **Purpose**: Test AI-powered code transformation
 
 ```bash
@@ -767,10 +767,10 @@ Convert to TypeScript with types    # Expected: AI processes JavaScript → Type
 # Validation
 /cat src/test-utils.js              # Expected: Shows TypeScript code with proper types
 # Verify Downloads folder contains local copy
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
-#### **🧪 Test Case 7: Chinese Language Support**
+#### Test Case 7: Chinese Language Support
 **Purpose**: Validate CJK text handling and Chinese AI instructions
 
 ```bash
@@ -791,10 +791,10 @@ Convert to TypeScript with types    # Expected: AI processes JavaScript → Type
 /cat 中文测试.md                     # Expected: Shows mixed Chinese/English content
 # Verify Chinese characters render correctly
 # Verify editor handles Chinese input properly
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
-#### **🧪 Test Case 8: Error Handling & Recovery**
+#### Test Case 8: Error Handling & Recovery
 **Purpose**: Test application resilience and error recovery
 
 ```bash
@@ -815,12 +815,12 @@ Invalid command syntax              # Expected: Unknown command error
 # Verify all errors show helpful messages
 # Verify app remains functional after errors
 # Verify no crashes or broken states
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
 ### **Performance Test Cases**
 
-#### **🧪 Test Case 9: Large File Handling**
+#### Test Case 9: Large File Handling
 ```bash
 # Test with files > 100KB
 /cat large-file.json                # Expected: Content truncated with warning
@@ -828,14 +828,14 @@ Invalid command syntax              # Expected: Unknown command error
 # UI: Test editor performance with large file
 ```
 
-#### **🧪 Test Case 10: Mobile Responsiveness**
+#### Test Case 10: Mobile Responsiveness
 ```bash  
 # UI test on mobile device (or DevTools mobile view)
 # 1. Test touch interactions in all three modes
 # 2. Verify command input works with on-screen keyboard
 # 3. Test file picker on mobile
 # 4. Verify Tool mode UI scales properly
-# Status: ✅ PASS / ❌ FAIL
+# Status: PASS / FAIL
 ```
 
 ### **Test Results Template**
@@ -849,23 +849,23 @@ Invalid command syntax              # Expected: Unknown command error
 
 | Test Case | Status | Notes |
 |-----------|--------|-------|
-| Basic File Editing | ✅ PASS / ❌ FAIL | |
-| New File Creation | ✅ PASS / ❌ FAIL | |
-| File Exploration | ✅ PASS / ❌ FAIL | |
-| Tool Mode UI | ✅ PASS / ❌ FAIL | |
-| WebSocket Transfer | ✅ PASS / ❌ FAIL | |
-| Code Refactoring | ✅ PASS / ❌ FAIL | |
-| Chinese Language | ✅ PASS / ❌ FAIL | |
-| Error Handling | ✅ PASS / ❌ FAIL | |
-| Large Files | ✅ PASS / ❌ FAIL | |
-| Mobile UI | ✅ PASS / ❌ FAIL | |
+| Basic File Editing | PASS / FAIL | |
+| New File Creation | PASS / FAIL | |
+| File Exploration | PASS / FAIL | |
+| Tool Mode UI | PASS / FAIL | |
+| WebSocket Transfer | PASS / FAIL | |
+| Code Refactoring | PASS / FAIL | |
+| Chinese Language | PASS / FAIL | |
+| Error Handling | PASS / FAIL | |
+| Large Files | PASS / FAIL | |
+| Mobile UI | PASS / FAIL | |
 
-**Overall Status**: ✅ ALL PASS / ❌ ISSUES FOUND
+**Overall Status**: ALL PASS / ISSUES FOUND
 ```
 
 ---
 
-## 🐛 **Troubleshooting**
+## Troubleshooting
 
 ### **Common Issues**
 | Symptom | Cause | Solution |
@@ -883,7 +883,7 @@ Invalid command syntax              # Expected: Unknown command error
 
 ---
 
-## 🔮 **Roadmap**
+## Roadmap
 
 ### **v1.1 - Enhanced Mobile**
 - [ ] Offline commit queue
@@ -905,13 +905,13 @@ Invalid command syntax              # Expected: Unknown command error
 
 ---
 
-## 📄 **License**
+## License
 
 MIT License - Feel free to use this for personal or commercial projects.
 
 ---
 
-## 🙏 **Contributing**
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
@@ -921,5 +921,4 @@ MIT License - Feel free to use this for personal or commercial projects.
 
 ---
 
-**Happy mobile coding! 📱✨**  
 Use `/help` in the app for quick command reference.

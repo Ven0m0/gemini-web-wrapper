@@ -1,21 +1,21 @@
-# 🤖 AI Assistant App
+# AI Assistant App
 
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/54b643c276114ed89b3dd9b3f2d4d176)](https://app.codacy.com/gh/Ven0m0/dotfiles/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-A modern, mobile-first Progressive Web App (PWA) for AI-assisted development with GitHub integration. Built with React, TypeScript, FastAPI, and Google's Gemini AI.
+A mobile-first Progressive Web App (PWA) for AI-assisted development with GitHub integration. Built with React, TypeScript, FastAPI, and Google's Gemini AI.
 
-## ✨ Features
+## Features
 
-- **🤖 Multi-AI Support**: Google Gemini, Anthropic Claude
-- **📱 PWA Ready**: Installable on mobile/desktop with offline support
-- **🔧 GitHub Integration**: Edit files directly in repositories
-- **💬 Multiple Interfaces**: CLI, Editor, Tool modes
-- **🌐 WebSocket Support**: Real-time file transfer
-- **🎨 Modern UI**: Dark/light themes, responsive design
-- **⚡ Fast & Lightweight**: Optimized for performance
-- **🔒 Secure**: Environment-based configuration
+- **Multi-AI Support**: Google Gemini, Anthropic Claude
+- **PWA Ready**: Installable on mobile/desktop with offline support
+- **GitHub Integration**: Edit files directly in repositories
+- **Multiple Interfaces**: CLI, Editor, Tool modes
+- **WebSocket Support**: Real-time file transfer
+- **Modern UI**: Dark/light themes, responsive design
+- **Fast & Lightweight**: Optimized for performance
+- **Secure**: Environment-based configuration
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+, Bun, and uv
@@ -56,18 +56,18 @@ cd apps/web && bun run dev
 
 Visit: http://localhost:9000
 
-## 🎯 Usage Modes
+## Usage Modes
 
-### CLI Mode 💬
+### CLI Mode
 Interactive command-line interface for AI conversations
 
-### Editor Mode ✏️
+### Editor Mode
 Code editor with syntax highlighting and AI assistance
 
-### Tool Mode 🛠️
+### Tool Mode
 File transfer and GitHub repository management
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 ```bash
@@ -83,7 +83,7 @@ PORT=9000
 - **Anthropic Claude**: claude-3-5-sonnet-20241022
 - **OpenAI Compatible**: Drop-in replacement for GPT models
 
-## 🌐 Deployment
+## Deployment
 
 ### Vercel (Recommended)
 ```bash
@@ -102,22 +102,22 @@ vercel --prod
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 
-## 📱 PWA Features
+## PWA Features
 
-- ✅ Offline functionality
-- ✅ Installable on mobile/desktop
-- ✅ Push notifications ready
-- ✅ Fast loading
-- ✅ Responsive design
+- Offline functionality
+- Installable on mobile/desktop
+- Push notifications ready
+- Fast loading
+- Responsive design
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Core APIs
 - `GET /health` - Health check
 - `GET /v1/models` - List available models
 - `POST /v1/chat/completions` - OpenAI-compatible chat completions (streaming supported)
 
-## 🛠️ Development
+## Development
 
 ### Frontend
 ```bash
@@ -154,7 +154,7 @@ PYTHONPATH=src:../../packages/config/src uv run pytest
 └── vercel.json           # Deployment config
 ```
 
-## 🔒 Security
+## Security
 
 - Environment-based configuration
 - Input validation with Pydantic
@@ -162,14 +162,14 @@ PYTHONPATH=src:../../packages/config/src uv run pytest
 - Secure cookie handling
 - Rate limiting ready
 
-## 📊 Monitoring
+## Monitoring
 
 - Vercel Analytics integration
 - Speed Insights
 - Health check endpoint
 - Error tracking ready
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -177,11 +177,11 @@ PYTHONPATH=src:../../packages/config/src uv run pytest
 4. Test thoroughly
 5. Submit a pull request
 
-## 📝 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## Support
 
 - Check [DEPLOYMENT.md](DEPLOYMENT.md) for deployment issues
 - Review logs for error details
@@ -190,4 +190,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Made with ❤️ using React, TypeScript, FastAPI, and Google's Gemini AI**
+**Built with React, TypeScript, FastAPI, and Google's Gemini AI**

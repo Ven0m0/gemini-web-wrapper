@@ -18,16 +18,16 @@ Three mutually exclusive execution modes control the operational envelope of the
 
 | Feature | server-managed | browser-only | local-workspace-enabled |
 |---------|---------------|--------------|-------------------------|
-| OpenAI-compatible API (`/v1/chat/completions`) | ✅ | ❌ | ✅ |
-| Gemini webapi (`gemini-webapi` path) | ✅ | ✅ | ✅ |
-| Gemini API key (`google-genai` path) | ✅ | ❌ | ✅ |
-| Cookie profile auth | ✅ | ❌ | ✅ |
-| Composio tools (`/tools/composio/*`) | ✅ | ❌ | ✅ |
-| GitHub integration (`/github/*`) | ✅ | ❌ | ✅ |
-| Local file editing | ❌ | ❌ | ✅ |
-| Profile management (`/profiles/*`) | ✅ | ❌ | ✅ |
-| Streaming SSE responses | ✅ | ❌ | ✅ |
-| PWA installability | ✅ | ✅ | ✅ |
+| OpenAI-compatible API (`/v1/chat/completions`) | Yes | No | Yes |
+| Gemini webapi (`gemini-webapi` path) | Yes | Yes | Yes |
+| Gemini API key (`google-genai` path) | Yes | No | Yes |
+| Cookie profile auth | Yes | No | Yes |
+| Composio tools (`/tools/composio/*`) | Yes | No | Yes |
+| GitHub integration (`/github/*`) | Yes | No | Yes |
+| Local file editing | No | No | Yes |
+| Profile management (`/profiles/*`) | Yes | No | Yes |
+| Streaming SSE responses | Yes | No | Yes |
+| PWA installability | Yes | Yes | Yes |
 
 ### 1.3 Mode Switching
 
@@ -52,12 +52,12 @@ When `RUNTIME_MODE=browser-only`, only providers that work without server-side c
 
 | Provider | Available in browser-only |
 |----------|--------------------------|
-| `gemini-webapi` (cookie auth) | ✅ |
-| WebLLM / browser-side inference | ✅ (future) |
-| `google-genai` (API key) | ❌ |
-| `anthropic` | ❌ |
-| `copilot` | ❌ |
-| `bifrost` | ❌ |
+| `gemini-webapi` (cookie auth) | Yes |
+| WebLLM / browser-side inference | Yes (future) |
+| `google-genai` (API key) | No |
+| `anthropic` | No |
+| `copilot` | No |
+| `bifrost` | No |
 
 ---
 
@@ -80,15 +80,15 @@ Four trust tiers control what operations are permitted based on the provenance o
 
 | Capability | safe | trusted-local | trusted-remote | experimental |
 |------------|------|---------------|---------------|--------------|
-| Shell command execution | ❌ | ✅ | ✅ | ✅ |
-| Local file read/write | ❌ | ✅ | ✅ | ✅ |
-| Git operations (local) | ❌ | ✅ | ✅ | ✅ |
-| HTTP requests (local) | ❌ | ✅ | ✅ | ✅ |
-| Remote MCP plugins | ❌ | ❌ | ✅ (verified) | ✅ (any) |
-| Plugin code execution | ❌ | ❌ | ✅ | ✅ |
-| Arbitrary code eval | ❌ | ❌ | ❌ | ✅ |
-| Network file access | ❌ | ❌ | ✅ | ✅ |
-| GitHub API (remote) | ❌ | ✅ | ✅ | ✅ |
+| Shell command execution | No | Yes | Yes | Yes |
+| Local file read/write | No | Yes | Yes | Yes |
+| Git operations (local) | No | Yes | Yes | Yes |
+| HTTP requests (local) | No | Yes | Yes | Yes |
+| Remote MCP plugins | No | No | Yes (verified) | Yes (any) |
+| Plugin code execution | No | No | Yes | Yes |
+| Arbitrary code eval | No | No | No | Yes |
+| Network file access | No | No | Yes | Yes |
+| GitHub API (remote) | No | Yes | Yes | Yes |
 
 ### 2.3 Trust Tier Enforcement
 
