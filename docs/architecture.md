@@ -319,7 +319,7 @@ cd apps/web && bun run build  # Catches TypeScript errors
 | `ANTHROPIC_API_KEY` | — | Anthropic API key |
 | `GITHUB_TOKEN` | — | GitHub personal access token |
 | `BIFROST_URL` | `http://localhost:8080/v1` | Bifrost gateway base URL |
-| `BIFROST_API_KEY` | `sk-bifrost-default` | Bifrost API key |
+| `BIFROST_API_KEY` | — | Bifrost API key |
 | `COMPOSIO_API_KEY` | — | Composio API key; omit to disable tool endpoints |
 | `PORT` | `9000` | Server port |
 | `FRONTEND_DIST_DIR` | `apps/web/dist` | Path to built frontend |

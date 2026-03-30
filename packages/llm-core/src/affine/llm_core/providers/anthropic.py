@@ -5,6 +5,7 @@ import httpx
 from typing import Any, AsyncIterator, List, Optional
 from affine.llm_core.interfaces import LLMProvider
 
+
 class AnthropicProvider(LLMProvider):
     def __init__(
         self,
@@ -27,18 +28,14 @@ class AnthropicProvider(LLMProvider):
     def name(self) -> str:
         return "anthropic"
 
-    def _convert_messages(self, prompt: str, history: Optional[List[dict[str, str]]] = None) -> List[dict]:
+    def _convert_messages(
+        self, prompt: str, history: Optional[List[dict[str, str]]] = None
+    ) -> List[dict]:
         messages = []
         if history:
             for msg in history:
-                messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
-        messages.append({
-            "role": "user",
-            "content": prompt
-        })
+                messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": prompt})
         return messages
 
     async def generate(

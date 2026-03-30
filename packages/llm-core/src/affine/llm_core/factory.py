@@ -1,7 +1,7 @@
-from typing import Optional
 from affine.llm_core.interfaces import LLMProvider
 from affine.llm_core.providers.gemini import GeminiProvider
 from affine.llm_core.providers.anthropic import AnthropicProvider
+
 
 class ProviderFactory:
     @staticmethod
