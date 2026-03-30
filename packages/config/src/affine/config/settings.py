@@ -7,6 +7,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
+    api_key: Optional[str] = None
     google_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     model_provider: str = "gemini"

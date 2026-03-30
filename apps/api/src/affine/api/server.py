@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
-from fastapi import FastAPI
+
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from affine.config.settings import get_settings
+from affine.config.settings import get_settings, Settings
 from affine.llm_core.factory import ProviderFactory
 from affine.shared.openai_schemas import (
     ChatCompletionRequest,
@@ -21,6 +23,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+security = HTTPBearer(auto_error=False)
+
+
+def verify_api_key(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    settings: Settings = Depends(get_settings),
+):
+    if not settings.api_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server API Key not configured.",
+        )
+    if not credentials or credentials.credentials != settings.api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API Key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials
 
 
 def get_provider():
@@ -45,7 +67,7 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/v1/models")
+@app.get("/v1/models", dependencies=[Depends(verify_api_key)])
 async def list_models():
     return {
         "data": [
@@ -65,7 +87,7 @@ async def list_models():
     }
 
 
-@app.post("/v1/chat/completions")
+@app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])
 async def chat_completions(request: ChatCompletionRequest):
     provider = get_provider()
     model_name = request.model
