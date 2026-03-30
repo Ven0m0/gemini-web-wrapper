@@ -131,3 +131,30 @@ If you add a provider, endpoint, or package boundary change, update all relevant
 - `README.md` when user-facing setup changes
 - `.github/workflows/ci.yml` when validation changes
 - this file and Copilot instructions when agent guidance changes
+
+## Architecture Constraints
+
+- One frontend (`apps/web`)
+- One backend API (`apps/api`)
+- One provider abstraction (`packages/llm-core`)
+- Provider SDKs and provider-specific request shaping live ONLY in the provider abstraction layer
+- The frontend must NEVER call provider SDKs directly
+- The frontend must NEVER embed provider keys into bundles
+- Streaming must use one canonical event format (`ChatStreamChunk`) across all providers
+
+## Security Requirements
+
+- All mutation paths must be permission-checked and audit logged
+- Secrets must not appear in API responses, frontend state persisted to disk, or logs
+- Enforce payload caps and timeouts on LLM requests, streaming sessions, tool execution, and file operations
+- Every API request gets a request ID
+- Every provider call logs provider, model, mode, latency, and request ID
+- Tool calls must log name, inputs (redacted as needed), outputs (redacted as needed), duration, and permission decision
+
+## Forbidden Shortcuts
+
+- Do not copy entire legacy app directories into this repo
+- Do not implement "just for now" provider logic in the frontend
+- Do not add a second workspace model for GitHub vs local (same abstraction, different adapter)
+- Do not enable remote plugins by default
+- Do not run untrusted plugin code via `eval`, `new Function`, or unrestricted dynamic import
