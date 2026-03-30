@@ -101,7 +101,7 @@ class GeminiProvider(LLMProvider):
                         if data_str:
                             data = json.loads(data_str)
                             parts = (
-                                data.get("candidates", [{}])[0]
+                                next(iter(data.get("candidates", [])), {})
                                 .get("content", {})
                                 .get("parts", [])
                             )
