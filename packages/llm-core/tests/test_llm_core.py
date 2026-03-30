@@ -3,6 +3,7 @@ from affine.llm_core.factory import ProviderFactory
 from affine.llm_core.providers.gemini import GeminiProvider
 from affine.llm_core.providers.anthropic import AnthropicProvider
 
+
 def test_provider_factory():
     gemini = ProviderFactory.create("gemini", api_key="test")
     assert isinstance(gemini, GeminiProvider)

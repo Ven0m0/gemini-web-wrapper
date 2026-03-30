@@ -4,7 +4,7 @@ import json
 import httpx
 from typing import Any, AsyncIterator, List, Optional
 from affine.llm_core.interfaces import LLMProvider
-from affine.shared.models import Usage
+
 
 class GeminiProvider(LLMProvider):
     def __init__(
@@ -24,19 +24,15 @@ class GeminiProvider(LLMProvider):
     def _get_endpoint(self, action: str) -> str:
         return f"{self.base_url}/models/{self.model}:{action}"
 
-    def _convert_messages(self, prompt: str, history: Optional[List[dict[str, str]]] = None) -> List[dict]:
+    def _convert_messages(
+        self, prompt: str, history: Optional[List[dict[str, str]]] = None
+    ) -> List[dict]:
         contents = []
         if history:
             for msg in history:
                 role = "user" if msg["role"] == "user" else "model"
-                contents.append({
-                    "role": role,
-                    "parts": [{"text": msg["content"]}]
-                })
-        contents.append({
-            "role": "user",
-            "parts": [{"text": prompt}]
-        })
+                contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+        contents.append({"role": "user", "parts": [{"text": prompt}]})
         return contents
 
     async def generate(
@@ -104,5 +100,9 @@ class GeminiProvider(LLMProvider):
                         data_str = line[6:].strip()
                         if data_str:
                             data = json.loads(data_str)
-                            parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                            parts = (
+                                data.get("candidates", [{}])[0]
+                                .get("content", {})
+                                .get("parts", [])
+                            )
                             yield "".join(part.get("text", "") for part in parts)

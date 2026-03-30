@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, AsyncIterator, List, Optional
-from affine.shared.models import Message, Usage
+
 
 class LLMProvider(ABC):
     @property
