@@ -27,5 +27,5 @@ repos:
         entry: bun run lint
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
         files: ^apps/web/src/
