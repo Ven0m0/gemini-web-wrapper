@@ -9,27 +9,91 @@ indent_style = space
 indent_size = 2
 tab_width = 2
 max_line_length = 120
-spaces_around_operators = true
-spaces_around_brackets = false
 quote_type = auto
 spelling_language = en
 shell_variant = auto
-keep_padding = false
-space_redirects = false
-switch_case_indent = false
-function_next_line = false
-binary_next_line = true
+curly_bracket_next_line = false
+spaces_around_operators = true
 
-[*.{sh,bash},PKGBUILD]
+[[shell],**/*.{sh,bash,zsh},PKGBUILD]
+indent_style = space
+indent_size = 2
+tab_width = 2
 shell_variant = bash
 spaces_around_operators = true
 spaces_around_brackets = false
-keep_padding = false
-space_redirects = false
-switch_case_indent = true
-function_next_line = false
 binary_next_line = true
+switch_case_indent = true
+keep_padding = true
+space_redirects = false
+function_next_line = false
+simplify = true
+minify = true
+never_split = true
 
-[*.{py,pyw,pyi}]
+# Fish
+[**/*.fish]
+indent_size = 4
+
+[**/*.{bat,cmd,ps1,psm1}]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+
+[**/*.ahk]
+end_of_line = crlf
+
+[**/*.{py,pyw,pyi}]
+indent_size = 4
 max_line_length = 120
 quote_type = double
+
+# C/C++
+[**/*.{c,cc,cpp,cxx,h,hpp,hxx}]
+indent_size = 4
+max_line_length = 100
+
+# C#, Java, PHP, Perl
+[**/*.{cs,java,php,pl,pm}]
+indent_size = 4
+
+# Go (requires tabs)
+[**/*.go,go.mod,go.sum]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+
+# Rust & Zig
+[**/*.{rs,zig}]
+indent_size = 4
+
+# XML / HTML
+[**/*.{xml,html,htm}]
+indent_size = 4
+
+[**/*.{md,markdown}]
+max_line_length = unset
+trim_trailing_whitespace = false
+
+[**/*.{patch,diff}]
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[**/*.{rst,txt}]
+trim_trailing_whitespace = false
+
+[**/*.min.{js,css,txt}]
+insert_final_newline = false
+
+# Makefiles (require tabs)
+[Makefile,**/*.mk]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+
+# Lock files
+[{bun.lockb,package-lock.json}]
+insert_final_newline = true
+
+[*.svg]
+insert_final_newline = false
