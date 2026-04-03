@@ -76,7 +76,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'python',
     label: 'Python',
-    mobileVisible: false,
+    mobileVisible: true,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />
@@ -88,7 +88,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'wsh',
     label: 'Shell',
-    mobileVisible: false,
+    mobileVisible: true,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
