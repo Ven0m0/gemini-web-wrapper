@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useStore } from '../store'
 
 export const CLI: React.FC = () => {
+  const MAX_COMMAND_HISTORY = 100
   const [history, setHistory] = useState<string[]>([])
   const [input, setInput] = useState('')
   // Separate store for entered commands (distinct from display history)
@@ -108,7 +109,7 @@ export const CLI: React.FC = () => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (input.trim()) {
-        setCmdHistory(prev => [...prev, input.trim()])
+        setCmdHistory(prev => [...prev.slice(-(MAX_COMMAND_HISTORY - 1)), input.trim()])
         handleCommand(input)
         setInput('')
         setCmdHistoryIndex(-1)

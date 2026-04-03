@@ -342,9 +342,9 @@ export class JSONHealer {
         return
       }
       if (schema.items) {
-        data.forEach((item: any, idx: number) => {
-          JSONHealer._validateValue(item, schema.items, `${label}[${idx}]`, errors)
-        })
+        for (let idx = 0; idx < data.length; idx++) {
+          JSONHealer._validateValue(data[idx], schema.items, `${label}[${idx}]`, errors)
+        }
       }
     } else if (schema.type === 'string') {
       if (typeof data !== 'string') {

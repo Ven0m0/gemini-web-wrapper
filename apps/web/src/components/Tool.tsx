@@ -88,6 +88,24 @@ export const Tool: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
   }
 
+  const readFileAsBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result !== 'string') {
+          reject(new Error('Failed to encode file'))
+          return
+        }
+
+        const [, base64 = ''] = reader.result.split(',', 2)
+        resolve(base64)
+      }
+      reader.onerror = () => {
+        reject(reader.error ?? new Error('Failed to read file'))
+      }
+      reader.readAsDataURL(file)
+    })
+
   const handleWebSocketConnect = async () => {
     const url = wsUrlInput.trim()
     if (!url) {
@@ -182,9 +200,7 @@ export const Tool: React.FC = () => {
         content = await selectedFile.text()
         addLog('📄 Processing as text file')
       } else {
-        const arrayBuffer = await selectedFile.arrayBuffer()
-        const uint8Array = new Uint8Array(arrayBuffer)
-        content = btoa(String.fromCharCode(...uint8Array))
+        content = await readFileAsBase64(selectedFile)
         addLog('🔧 Processing as binary file (base64)')
       }
       
@@ -336,17 +352,7 @@ export const Tool: React.FC = () => {
     try {
       addLog(`📤 Uploading ${selectedFile.name} (${formatFileSize(selectedFile.size)}) via WebSocket`)
 
-      // Encode file as base64 using an array-join strategy to avoid the O(n²)
-      // cost of repeated string concatenation. For very large files the ideal
-      // approach is FileReader.readAsDataURL(), but that requires a separate
-      // async callback that would complicate this handler unnecessarily.
-      const arrayBuffer = await selectedFile.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      const parts: string[] = []
-      for (let i = 0; i < uint8Array.length; i++) {
-        parts.push(String.fromCharCode(uint8Array[i]))
-      }
-      const base64 = btoa(parts.join(''))
+      const base64 = await readFileAsBase64(selectedFile)
 
       const targetFilename = wsUploadFilename.trim() || selectedFile.name
       svc.sendFileUpload(targetFilename, base64, true)
