@@ -8,6 +8,7 @@ from affine.shared.openai_schemas import (
 from affine.shared.models import (
     MessageRole,
     FinishReason,
+    TextMessage,
     ToolCall,
     ContentPart,
     Message,
@@ -23,6 +24,7 @@ __all__ = [
     "ChatCompletionChunk",
     "MessageRole",
     "FinishReason",
+    "TextMessage",
     "ToolCall",
     "ContentPart",
     "Message",

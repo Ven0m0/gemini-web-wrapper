@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union, List
+from typing import Any, TypedDict
 
 
 class MessageRole(str, Enum):
@@ -19,29 +19,34 @@ class FinishReason(str, Enum):
     ERROR = "error"
 
 
-@dataclass
+class TextMessage(TypedDict):
+    role: MessageRole | str
+    content: str
+
+
+@dataclass(slots=True)
 class ToolCall:
     id: str
     name: str
     arguments: dict[str, Any]
 
 
-@dataclass
+@dataclass(slots=True)
 class ContentPart:
     type: str  # "text", "image", "tool_call", "tool_result"
-    text: Optional[str] = None
-    image_url: Optional[str] = None
-    image_data: Optional[bytes] = None
-    image_media_type: Optional[str] = None
-    tool_call: Optional[ToolCall] = None
-    tool_call_id: Optional[str] = None
+    text: str | None = None
+    image_url: str | None = None
+    image_data: bytes | None = None
+    image_media_type: str | None = None
+    tool_call: ToolCall | None = None
+    tool_call_id: str | None = None
     is_error: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class Message:
     role: MessageRole
-    content: Union[str, List[ContentPart]]
+    content: str | list[ContentPart]
 
     def get_text(self) -> str:
         if isinstance(self.content, str):
@@ -50,18 +55,18 @@ class Message:
         return "\n".join(texts)
 
 
-@dataclass
+@dataclass(slots=True)
 class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
 
 
-@dataclass
+@dataclass(slots=True)
 class ChatStreamChunk:
     id: str
-    choices: List[dict[str, Any]]
+    choices: list[dict[str, Any]]
     created: int
     model: str
     object: str = "chat.completion.chunk"
-    usage: Optional[Usage] = None
+    usage: Usage | None = None

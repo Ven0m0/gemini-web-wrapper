@@ -1,10 +1,11 @@
 [project]
 name = "affine-llm-core"
 version = "0.1.0"
-dependencies = ["httpx>=0.24.0", "affine-shared"]
+dependencies = ["httpx>=0.24.0", "affine-shared", "affine-config"]
 
 [dependency-groups]
 dev = ["ruff>=0.6.0"]
 
 [tool.uv.sources]
 affine-shared = { workspace = true }
+affine-config = { workspace = true }

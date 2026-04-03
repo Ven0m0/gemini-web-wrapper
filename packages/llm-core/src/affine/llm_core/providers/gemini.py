@@ -1,19 +1,30 @@
 from __future__ import annotations
-import os
 import json
+
+from typing import Any, AsyncIterator
+
 import httpx
-from typing import Any, AsyncIterator, List, Optional
+
 from affine.llm_core.interfaces import LLMProvider
+from affine.shared.models import TextMessage
+
+DEFAULT_MODEL = "gemini-2.0-flash-exp"
+DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+DEFAULT_MAX_OUTPUT_TOKENS = 8192
+DEFAULT_TEMPERATURE = 0.7
+REQUEST_TIMEOUT_SECONDS = 120.0
 
 
 class GeminiProvider(LLMProvider):
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: str = "gemini-2.0-flash-exp",
-        base_url: str = "https://generativelanguage.googleapis.com/v1beta",
-    ):
-        self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
+        api_key: str | None = None,
+        model: str = DEFAULT_MODEL,
+        base_url: str = DEFAULT_BASE_URL,
+    ) -> None:
+        if not api_key:
+            raise ValueError("Gemini API key not provided or configured.")
+        self.api_key = api_key
         self.model = model
         self.base_url = base_url
 
@@ -25,9 +36,9 @@ class GeminiProvider(LLMProvider):
         return f"{self.base_url}/models/{self.model}:{action}"
 
     def _convert_messages(
-        self, prompt: str, history: Optional[List[dict[str, str]]] = None
-    ) -> List[dict]:
-        contents = []
+        self, prompt: str, history: list[TextMessage] | None = None
+    ) -> list[dict[str, Any]]:
+        contents: list[dict[str, Any]] = []
         if history:
             for msg in history:
                 role = "user" if msg["role"] == "user" else "model"
@@ -35,74 +46,75 @@ class GeminiProvider(LLMProvider):
         contents.append({"role": "user", "parts": [{"text": prompt}]})
         return contents
 
+    def _build_request_body(
+        self,
+        prompt: str,
+        *,
+        system: str | None = None,
+        history: list[TextMessage] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "contents": self._convert_messages(prompt, history),
+            "generationConfig": {
+                "maxOutputTokens": kwargs.get(
+                    "max_tokens", DEFAULT_MAX_OUTPUT_TOKENS
+                ),
+                "temperature": kwargs.get("temperature", DEFAULT_TEMPERATURE),
+            },
+        }
+        if system:
+            body["systemInstruction"] = {"parts": [{"text": system}]}
+        return body
+
+    @staticmethod
+    def _extract_text(data: dict[str, Any]) -> str:
+        parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+        return "".join(part.get("text", "") for part in parts)
+
     async def generate(
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        history: Optional[List[dict[str, str]]] = None,
+        system: str | None = None,
+        history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> str:
         async with httpx.AsyncClient() as client:
             url = self._get_endpoint("generateContent")
-            body = {
-                "contents": self._convert_messages(prompt, history),
-                "generationConfig": {
-                    "maxOutputTokens": kwargs.get("max_tokens", 8192),
-                    "temperature": kwargs.get("temperature", 0.7),
-                },
-            }
-            if system:
-                body["systemInstruction"] = {"parts": [{"text": system}]}
-
             response = await client.post(
                 url,
                 params={"key": self.api_key},
-                json=body,
-                timeout=120.0,
+                json=self._build_request_body(
+                    prompt, system=system, history=history, **kwargs
+                ),
+                timeout=REQUEST_TIMEOUT_SECONDS,
             )
             response.raise_for_status()
-            data = response.json()
-
-            parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-            return "".join(part.get("text", "") for part in parts)
+            return self._extract_text(response.json())
 
     async def stream(
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        history: Optional[List[dict[str, str]]] = None,
+        system: str | None = None,
+        history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         async with httpx.AsyncClient() as client:
             url = self._get_endpoint("streamGenerateContent")
-            body = {
-                "contents": self._convert_messages(prompt, history),
-                "generationConfig": {
-                    "maxOutputTokens": kwargs.get("max_tokens", 8192),
-                    "temperature": kwargs.get("temperature", 0.7),
-                },
-            }
-            if system:
-                body["systemInstruction"] = {"parts": [{"text": system}]}
-
             async with client.stream(
                 "POST",
                 url,
                 params={"key": self.api_key, "alt": "sse"},
-                json=body,
-                timeout=120.0,
+                json=self._build_request_body(
+                    prompt, system=system, history=history, **kwargs
+                ),
+                timeout=REQUEST_TIMEOUT_SECONDS,
             ) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:].strip()
                         if data_str:
-                            data = json.loads(data_str)
-                            parts = (
-                                next(iter(data.get("candidates", [])), {})
-                                .get("content", {})
-                                .get("parts", [])
-                            )
-                            yield "".join(part.get("text", "") for part in parts)
+                            yield self._extract_text(json.loads(data_str))

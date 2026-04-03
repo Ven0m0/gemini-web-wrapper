@@ -1,0 +1,27 @@
+from pathlib import Path
+
+from affine.config.settings import Settings, get_settings
+
+
+def test_settings_parse_cors_origins_and_provider_api_key() -> None:
+    settings = Settings(
+        cors_allow_origins="https://one.example, https://two.example",
+        model_provider="anthropic",
+        anthropic_api_key="anthropic-key",
+    )
+
+    assert settings.cors_allow_origins == [
+        "https://one.example",
+        "https://two.example",
+    ]
+    assert settings.provider_api_key() == "anthropic-key"
+    assert settings.frontend_dist_dir == Path("apps/web/dist")
+
+
+def test_get_settings_is_cached() -> None:
+    get_settings.cache_clear()
+
+    first = get_settings()
+    second = get_settings()
+
+    assert first is second

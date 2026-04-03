@@ -1,16 +1,18 @@
+import secrets
 import uuid
 from datetime import datetime
 
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from affine.config.settings import get_settings, Settings
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from affine.config.settings import Settings, get_settings
 from affine.llm_core.factory import ProviderFactory
 from affine.shared.openai_schemas import (
+    ChatCompletionChunk,
     ChatCompletionRequest,
     ChatCompletionResponse,
-    ChatCompletionChunk,
 )
 
 app = FastAPI(title="Affine AI Workstation API")
@@ -18,7 +20,7 @@ settings = get_settings()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_allow_origins.split(","),
+    allow_origins=settings.cors_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,13 +48,7 @@ def verify_api_key(
 
 
 def get_provider():
-    api_key = (
-        settings.anthropic_api_key
-        if settings.model_provider == "anthropic"
-        else settings.google_api_key
-    )
-
-    provider_kwargs = {"api_key": api_key}
+    provider_kwargs = {"api_key": settings.provider_api_key()}
     if settings.model_name is not None:
         provider_kwargs["model"] = settings.model_name
 
