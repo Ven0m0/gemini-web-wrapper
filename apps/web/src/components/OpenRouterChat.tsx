@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
 import { AIService } from '../services/ai'
-import { healJSON } from '../utils/jsonHealer'
 
 interface Message {
   id: string
@@ -9,369 +8,548 @@ interface Message {
   content: string
   timestamp: number
   isJSON?: boolean
-  healedData?: any
+  healedData?: unknown
   hasError?: boolean
   errorMessage?: string
 }
 
+const MODELS = [
+  { id: 'gpt-4o-mini',  name: 'GPT-4o Mini',  provider: 'OpenAI' },
+  { id: 'gpt-4o',       name: 'GPT-4o',        provider: 'OpenAI' },
+  { id: 'gpt-5',        name: 'GPT-5',          provider: 'OpenAI' },
+  { id: 'gpt-4-turbo',  name: 'GPT-4 Turbo',   provider: 'OpenAI' },
+]
+
+const SUGGESTED = [
+  'Explain quantum computing',
+  'Generate a JSON response',
+  'Write a haiku about code',
+  'Debug my function',
+]
+
+function formatTime(ts: number) {
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function UserBubble({ content }: { content: string }) {
+  return (
+    <div style={{
+      alignSelf: 'flex-end',
+      maxWidth: '72%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-end',
+      gap: 4,
+    }}>
+      <div style={{
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border-hover)',
+        borderRadius: 4,
+        padding: '8px 12px',
+        fontSize: 13,
+        lineHeight: 1.55,
+        color: 'var(--color-text)',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      }}>
+        {content}
+      </div>
+    </div>
+  )
+}
+
+function AssistantBubble({ message }: { message: Message }) {
+  const renderContent = () => {
+    if (message.isJSON && message.healedData) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <pre style={{
+            fontFamily: 'var(--font-family-mono)',
+            fontSize: 12,
+            background: 'var(--color-code-bg)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 3,
+            padding: '8px 10px',
+            overflowX: 'auto',
+            margin: 0,
+            color: 'var(--color-success)',
+          }}>
+            {JSON.stringify(message.healedData, null, 2)}
+          </pre>
+          <span style={{ fontSize: 11, color: 'var(--color-success)', fontFamily: 'var(--font-family-mono)' }}>
+            ✓ JSON healed
+          </span>
+        </div>
+      )
+    }
+    if (message.hasError) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ color: 'var(--color-error)', fontSize: 13 }}>{message.content}</span>
+          {message.errorMessage && (
+            <span style={{
+              fontSize: 11,
+              color: 'var(--color-error)',
+              fontFamily: 'var(--font-family-mono)',
+              background: 'rgba(209,77,65,0.08)',
+              padding: '2px 6px',
+              borderRadius: 2,
+            }}>{message.errorMessage}</span>
+          )}
+        </div>
+      )
+    }
+    return (
+      <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+        {message.content}
+      </span>
+    )
+  }
+
+  return (
+    <div style={{ alignSelf: 'flex-start', maxWidth: '80%', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      {/* Icon */}
+      <div style={{
+        width: 22,
+        height: 22,
+        borderRadius: 3,
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        marginTop: 2,
+        color: 'var(--color-accent)',
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+      </div>
+      <div style={{
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 4,
+        padding: '8px 12px',
+        fontSize: 13,
+        lineHeight: 1.55,
+        color: 'var(--color-text)',
+        flex: 1,
+      }}>
+        {renderContent()}
+      </div>
+    </div>
+  )
+}
+
+function TypingIndicator() {
+  return (
+    <div style={{ alignSelf: 'flex-start', display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{
+        width: 22,
+        height: 22,
+        borderRadius: 3,
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--color-accent)',
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+      </div>
+      <div style={{
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 4,
+        padding: '8px 12px',
+        display: 'flex',
+        gap: 4,
+        alignItems: 'center',
+      }}>
+        {[0, 1, 2].map((i) => (
+          <span key={i} style={{
+            width: 5,
+            height: 5,
+            borderRadius: '50%',
+            background: 'var(--color-text-subtle)',
+            display: 'inline-block',
+            animation: 'typingDot 1.2s ease infinite',
+            animationDelay: `${i * 0.2}s`,
+          }} />
+        ))}
+      </div>
+      <style>{`
+        @keyframes typingDot {
+          0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+          30% { opacity: 1; transform: translateY(-3px); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+function EmptyState({ onSelect }: { onSelect: (s: string) => void }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      gap: 24,
+      padding: '0 24px',
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          width: 40,
+          height: 40,
+          borderRadius: 4,
+          background: 'var(--color-bg-surface)',
+          border: '1px solid var(--color-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 12px',
+          color: 'var(--color-accent)',
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </div>
+        <p style={{ fontSize: 14, color: 'var(--color-text)', marginBottom: 4 }}>New conversation</p>
+        <p style={{ fontSize: 12, color: 'var(--color-text-subtle)' }}>
+          Ask anything — code, JSON healing, general questions
+        </p>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 480 }}>
+        {SUGGESTED.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onSelect(s)}
+            style={{
+              padding: '4px 10px',
+              background: 'var(--color-bg-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 3,
+              color: 'var(--color-text-muted)',
+              fontSize: 12,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-family-mono)',
+              transition: 'all 100ms ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+              e.currentTarget.style.color = 'var(--color-text)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)'
+              e.currentTarget.style.color = 'var(--color-text-muted)'
+            }}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
 export const OpenRouterChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
+  const [input, setInput]       = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini')
   const [enableJSONHealing, setEnableJSONHealing] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  
+  const textareaRef    = useRef<HTMLTextAreaElement>(null)
   const { config } = useStore()
 
-  const models = [
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI' },
-    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' },
-    { id: 'gpt-5', name: 'GPT-5', provider: 'OpenAI' },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI' },
-  ]
-
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  useEffect(() => {
-    adjustTextareaHeight()
+    const el = textareaRef.current
+    if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 180) + 'px' }
   }, [input])
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const adjustTextareaHeight = () => {
-    const textarea = textareaRef.current
-    if (textarea) {
-      textarea.style.height = 'auto'
-      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px'
-    }
-  }
-
-  const handleSendMessage = async () => {
+  const sendMessage = async () => {
     if (!input.trim() || isLoading) return
 
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
+    const userMsg: Message = {
+      id: `u-${Date.now()}`,
       role: 'user',
       content: input.trim(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }
-
-    setMessages(prev => [...prev, userMessage])
+    setMessages((p) => [...p, userMsg])
     setInput('')
     setIsLoading(true)
 
     try {
-      const aiService = new AIService(
-        config.openaiKey || '',
-        selectedModel,
-        config.temperature || 0.7
-      )
+      const svc = new AIService(config.openaiKey || '', selectedModel, config.temperature || 0.7)
 
       if (enableJSONHealing) {
-        // Use JSON healing
-        const healed = await aiService.chatCompletionJSON(
-          [{ role: 'user', content: userMessage.content }]
-        )
-
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: healed.original,
-          timestamp: Date.now(),
-          isJSON: healed.success,
-          healedData: healed.data,
-          hasError: !healed.success,
-          errorMessage: healed.errors?.join(', ')
-        }
-
-        setMessages(prev => [...prev, assistantMessage])
+        const healed = await svc.chatCompletionJSON([{ role: 'user', content: userMsg.content }])
+        setMessages((p) => [...p, {
+          id: `a-${Date.now()}`, role: 'assistant', content: healed.original, timestamp: Date.now(),
+          isJSON: healed.success, healedData: healed.data,
+          hasError: !healed.success, errorMessage: healed.errors?.join(', '),
+        }])
       } else {
-        // Regular chat
-        const response = await aiService.transformFile(
-          userMessage.content,
-          'Please respond to this message conversationally.'
-        )
-
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: response,
-          timestamp: Date.now()
-        }
-
-        setMessages(prev => [...prev, assistantMessage])
+        const response = await svc.transformFile(userMsg.content, 'Please respond conversationally.')
+        setMessages((p) => [...p, {
+          id: `a-${Date.now()}`, role: 'assistant', content: response, timestamp: Date.now(),
+        }])
       }
-    } catch (error) {
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: Date.now(),
-        hasError: true
-      }
-      setMessages(prev => [...prev, errorMessage])
+    } catch (err) {
+      setMessages((p) => [...p, {
+        id: `e-${Date.now()}`, role: 'assistant', timestamp: Date.now(), hasError: true,
+        content: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      }])
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
-    }
-  }
-
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
-  }
-
-  const renderMessageContent = (message: Message) => {
-    if (message.isJSON && message.healedData) {
-      return (
-        <div className="space-y-2">
-          <div className="text-sm font-mono bg-black/30 rounded-lg p-3 overflow-x-auto">
-            <pre className="text-xs">{JSON.stringify(message.healedData, null, 2)}</pre>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-green-400">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>JSON healed successfully</span>
-          </div>
-        </div>
-      )
-    }
-
-    if (message.hasError) {
-      return (
-        <div className="space-y-2">
-          <p className="text-red-400">{message.content}</p>
-          {message.errorMessage && (
-            <div className="text-xs text-red-400/70 bg-red-500/10 rounded p-2">
-              {message.errorMessage}
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    return <p className="whitespace-pre-wrap">{message.content}</p>
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-[#0a0a0f] via-[#13131a] to-[#0a0a0f]">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)]/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-white">AI Chat</h1>
-                <p className="text-sm text-[var(--color-text-muted)]">Powered by OpenAI</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* Model selector */}
-              <div className="relative">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="appearance-none bg-[var(--color-bg-surface)] text-white text-sm px-4 py-2 pr-10 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  {models.map(model => (
-                    <option key={model.id} value={model.id}>
-                      {model.name}
-                    </option>
-                  ))}
-                </select>
-                <svg
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <title>Model selection arrow</title>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--color-bg)' }}>
 
-              {/* JSON Healing toggle */}
-              <button
-                onClick={() => setEnableJSONHealing(!enableJSONHealing)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  enableJSONHealing 
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50' 
-                    : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-                JSON Healing
-              </button>
-            </div>
-          </div>
+      {/* ── Header bar ───────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 12px',
+        height: 36,
+        borderBottom: '1px solid var(--color-border)',
+        background: 'var(--color-bg-elevated)',
+        flexShrink: 0,
+      }}>
+        {/* Left: title + msg count */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-family-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Chat
+          </span>
+          {messages.length > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--color-text-subtle)', fontFamily: 'var(--font-family-mono)' }}>
+              {messages.length} {messages.length === 1 ? 'message' : 'messages'}
+            </span>
+          )}
         </div>
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-4 py-8">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-20">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-white">Start a conversation</h2>
-                <p className="text-[var(--color-text-muted)] max-w-md">
-                  Ask questions, get answers, and explore AI capabilities with automatic JSON response healing
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 justify-center max-w-2xl">
-                {[
-                  'Explain quantum computing',
-                  'Generate a JSON object',
-                  'Write a haiku about code',
-                  'Debug my function'
-                ].map((prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => setInput(prompt)}
-                    className="px-4 py-2 bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-muted)] hover:text-white text-sm rounded-lg border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-all"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-                >
-                  {/* Avatar */}
-                  <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500'
-                      : 'bg-gradient-to-br from-purple-500 to-pink-500'
-                  }`}>
-                    {message.role === 'user' ? (
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                    )}
-                  </div>
+        {/* Right: controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* JSON healing toggle */}
+          <button
+            type="button"
+            onClick={() => setEnableJSONHealing((v) => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '2px 8px',
+              fontSize: 11,
+              fontFamily: 'var(--font-family-mono)',
+              background: enableJSONHealing ? 'var(--color-success)' : 'var(--color-bg-surface)',
+              border: '1px solid',
+              borderColor: enableJSONHealing ? 'var(--color-success)' : 'var(--color-border)',
+              borderRadius: 3,
+              color: enableJSONHealing ? '#fff' : 'var(--color-text-muted)',
+              cursor: 'pointer',
+              transition: 'all 100ms ease',
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            JSON healing {enableJSONHealing ? 'on' : 'off'}
+          </button>
 
-                  {/* Message content */}
-                  <div className={`flex-1 ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
-                    <div className={`max-w-3xl rounded-2xl p-4 ${
-                      message.role === 'user'
-                        ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white'
-                        : 'bg-[var(--color-bg-surface)] text-[var(--color-text)] border border-[var(--color-border)]'
-                    }`}>
-                      {renderMessageContent(message)}
-                    </div>
-                    <span className="text-xs text-[var(--color-text-subtle)] mt-1 px-2">
-                      {formatTime(message.timestamp)}
-                    </span>
-                  </div>
-                </div>
+          {/* Model selector */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              style={{
+                appearance: 'none',
+                background: 'var(--color-bg-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 3,
+                color: 'var(--color-text-muted)',
+                fontSize: 11,
+                fontFamily: 'var(--font-family-mono)',
+                padding: '2px 22px 2px 8px',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {MODELS.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
               ))}
+            </select>
+            <svg
+              width="10" height="10"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: 'var(--color-text-subtle)' }}
+              aria-hidden="true"
+            >
+              <title>Model selection</title>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
 
-              {isLoading && (
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="max-w-3xl bg-[var(--color-bg-surface)] rounded-2xl p-4 border border-[var(--color-border)]">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
+          {/* Clear button */}
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMessages([])}
+              style={{
+                display: 'flex', alignItems: 'center',
+                padding: '2px 6px',
+                background: 'transparent',
+                border: '1px solid transparent',
+                borderRadius: 3,
+                color: 'var(--color-text-subtle)',
+                fontSize: 11,
+                fontFamily: 'var(--font-family-mono)',
+                cursor: 'pointer',
+                transition: 'all 100ms ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-bg-hover)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-subtle)' }}
+              title="Clear conversation"
+            >
+              Clear
+            </button>
           )}
         </div>
       </div>
 
-      {/* Input area */}
-      <div className="flex-shrink-0 border-t border-[var(--color-border)] bg-[var(--color-bg-elevated)]/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message... (Shift+Enter for new line)"
-              disabled={isLoading}
-              className="w-full bg-[var(--color-bg-surface)] text-white placeholder-[var(--color-text-subtle)] rounded-2xl px-6 py-4 pr-14 border border-[var(--color-border)] hover:border-[var(--color-border-hover)] focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all resize-none"
-              rows={1}
-              style={{ minHeight: '56px', maxHeight: '200px' }}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!input.trim() || isLoading}
-              className="absolute right-2 bottom-2 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 disabled:from-gray-600 disabled:to-gray-700 disabled:opacity-50 text-white flex items-center justify-center hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              )}
-            </button>
-          </div>
-          
-          <div className="flex items-center justify-between mt-3 px-2">
-            <p className="text-xs text-[var(--color-text-subtle)]">
-              {enableJSONHealing ? 'JSON healing enabled - responses will be automatically repaired' : 'Standard mode'}
-            </p>
-            <div className="flex items-center gap-2 text-xs text-[var(--color-text-subtle)]">
-              <kbd className="px-2 py-1 bg-[var(--color-bg-surface)] rounded border border-[var(--color-border)]">Enter</kbd>
-              <span>to send</span>
-            </div>
-          </div>
+      {/* ── Messages area ────────────────────────────────────────────── */}
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '16px 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}>
+        {messages.length === 0 ? (
+          <EmptyState onSelect={setInput} />
+        ) : (
+          <>
+            {messages.map((msg) => (
+              <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {msg.role === 'user'
+                  ? <UserBubble content={msg.content} />
+                  : <AssistantBubble message={msg} />}
+                <span style={{
+                  fontSize: 10,
+                  color: 'var(--color-text-subtle)',
+                  fontFamily: 'var(--font-family-mono)',
+                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  paddingLeft: msg.role === 'user' ? 0 : 30,
+                }}>
+                  {formatTime(msg.timestamp)}
+                </span>
+              </div>
+            ))}
+            {isLoading && <TypingIndicator />}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
+
+      {/* ── Input area ───────────────────────────────────────────────── */}
+      <div style={{
+        borderTop: '1px solid var(--color-border)',
+        background: 'var(--color-bg-elevated)',
+        padding: '8px 12px',
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Message... (Enter to send, Shift+Enter for new line)"
+            disabled={isLoading}
+            rows={1}
+            style={{
+              flex: 1,
+              background: 'var(--color-bg-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 3,
+              color: 'var(--color-text)',
+              fontFamily: 'var(--font-family-sans)',
+              fontSize: 13,
+              padding: '6px 10px',
+              resize: 'none',
+              outline: 'none',
+              minHeight: 34,
+              maxHeight: 180,
+              lineHeight: 1.5,
+              caretColor: 'var(--color-accent)',
+              transition: 'border-color 100ms ease',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)' }}
+            onBlur={(e)  => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
+          />
+          <button
+            type="button"
+            onClick={sendMessage}
+            disabled={!input.trim() || isLoading}
+            style={{
+              width: 34,
+              height: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: input.trim() && !isLoading ? 'var(--color-primary)' : 'var(--color-bg-surface)',
+              border: '1px solid',
+              borderColor: input.trim() && !isLoading ? 'var(--color-primary)' : 'var(--color-border)',
+              borderRadius: 3,
+              color: input.trim() && !isLoading ? '#fff' : 'var(--color-text-subtle)',
+              cursor: input.trim() && !isLoading ? 'pointer' : 'not-allowed',
+              flexShrink: 0,
+              transition: 'all 100ms ease',
+            }}
+            aria-label="Send message"
+          >
+            {isLoading ? (
+              <span className="loading-spinner" style={{ width: 14, height: 14 }} />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            )}
+          </button>
+        </div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: 4,
+          fontSize: 10,
+          color: 'var(--color-text-subtle)',
+          fontFamily: 'var(--font-family-mono)',
+        }}>
+          <span>{enableJSONHealing ? '⚡ json healing active' : ''}</span>
+          <span>
+            <kbd style={{ padding: '1px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 2, fontSize: 10 }}>Enter</kbd>
+            {' '}send
+          </span>
         </div>
       </div>
     </div>

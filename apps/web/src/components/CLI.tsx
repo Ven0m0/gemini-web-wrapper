@@ -153,39 +153,25 @@ export const CLI: React.FC = () => {
       {/* Header */}
       <div className="cli-header">
         <div className="cli-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="4 17 10 11 4 5"></polyline>
             <line x1="12" y1="19" x2="20" y2="19"></line>
           </svg>
-          Gemini Terminal
+          terminal
         </div>
         <div className="cli-actions">
-          <button 
-            onClick={() => setMode('editor')} 
-            className="btn btn-secondary"
-            title="Switch to Editor"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Editor
-          </button>
-          <button 
-            onClick={() => setHistory([])} 
+          <button
+            onClick={() => setHistory([])}
             className="btn btn-ghost"
-            title="Clear Terminal"
+            title="Clear"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="1 4 1 10 7 10"></polyline>
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-            </svg>
+            clear
           </button>
         </div>
       </div>
 
       {/* Terminal Output */}
-      <div 
+      <div
         ref={terminalRef}
         className="terminal-output"
         onClick={() => inputRef.current?.focus()}
@@ -195,27 +181,11 @@ export const CLI: React.FC = () => {
             {line}
           </div>
         ))}
-        
-        {/* Cursor */}
-        <div className="terminal-line" style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem' }}>
-          <span className="terminal-prompt">$</span>
-          <span style={{ marginLeft: '0.75rem', opacity: 0.7 }}>{input}</span>
-          <span 
-            style={{ 
-              display: 'inline-block',
-              width: '0.5rem',
-              height: '1rem',
-              backgroundColor: 'var(--color-primary)',
-              marginLeft: '0.125rem',
-              animation: 'blink 1s infinite'
-            }} 
-          />
-        </div>
       </div>
 
       {/* Input */}
       <div className="terminal-input-container">
-        <span className="terminal-prompt">$</span>
+        <span className="terminal-prompt">~&gt;</span>
         <input
           ref={inputRef}
           type="text"
@@ -223,17 +193,10 @@ export const CLI: React.FC = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           className="terminal-input"
-          placeholder="Type a command... (try /help)"
+          placeholder="/help"
           autoFocus
         />
       </div>
-
-      <style>{`
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
-        }
-      `}</style>
     </div>
   )
 }

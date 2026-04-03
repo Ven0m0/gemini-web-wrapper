@@ -81,15 +81,15 @@ export const InstallPrompt: React.FC = () => {
       <style>{`
         .install-prompt {
           position: fixed;
-          bottom: 0;
-          left: 0;
+          bottom: var(--status-bar-height);
+          left: var(--activity-bar-width);
           right: 0;
-          z-index: 1000;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 16px;
-          box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
-          animation: slideUp 0.3s ease-out;
+          z-index: 900;
+          background: var(--color-bg-elevated);
+          border-top: 1px solid var(--color-border);
+          color: var(--color-text);
+          padding: 8px 16px;
+          animation: slideUp 150ms ease;
         }
 
         .install-banner {
@@ -103,89 +103,75 @@ export const InstallPrompt: React.FC = () => {
         .install-content {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
           flex: 1;
         }
 
         .install-icon {
-          font-size: 24px;
-          background: rgba(255, 255, 255, 0.2);
-          padding: 8px;
-          border-radius: 8px;
+          font-size: 16px;
         }
 
         .install-text h4 {
           margin: 0;
-          font-size: 16px;
-          font-weight: 600;
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--color-text);
+          font-family: var(--font-family-mono);
         }
 
         .install-text p {
-          margin: 4px 0 0 0;
-          font-size: 14px;
-          opacity: 0.9;
+          margin: 0;
+          font-size: 11px;
+          color: var(--color-text-muted);
+          font-family: var(--font-family-mono);
         }
 
         .install-actions {
           display: flex;
-          gap: 8px;
+          gap: 6px;
           align-items: center;
         }
 
         .install-btn {
-          background: rgba(255, 255, 255, 0.2);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          color: white;
-          padding: 8px 16px;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 500;
+          background: var(--color-primary);
+          border: 1px solid var(--color-primary);
+          color: #fff;
+          padding: 3px 10px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-family: var(--font-family-mono);
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: all 100ms ease;
         }
 
         .install-btn:hover {
-          background: rgba(255, 255, 255, 0.3);
-          transform: translateY(-1px);
+          background: var(--color-primary-hover);
         }
 
         .dismiss-btn {
           background: transparent;
-          border: none;
-          color: white;
-          font-size: 18px;
-          padding: 4px 8px;
-          border-radius: 4px;
+          border: 1px solid transparent;
+          color: var(--color-text-subtle);
+          font-size: 14px;
+          padding: 2px 6px;
+          border-radius: 3px;
           cursor: pointer;
-          opacity: 0.7;
-          transition: opacity 0.2s ease;
+          transition: all 100ms ease;
         }
 
         .dismiss-btn:hover {
-          opacity: 1;
+          border-color: var(--color-border);
+          color: var(--color-text-muted);
         }
 
         @keyframes slideUp {
-          from {
-            transform: translateY(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
+          from { transform: translateY(8px); opacity: 0; }
+          to   { transform: translateY(0);   opacity: 1; }
         }
 
         @media (max-width: 480px) {
-          .install-banner {
-            flex-direction: column;
-            gap: 12px;
-            text-align: center;
-          }
-
-          .install-content {
-            justify-content: center;
-          }
+          .install-prompt { left: 0; }
+          .install-banner { flex-direction: column; gap: 8px; }
         }
       `}</style>
     </div>

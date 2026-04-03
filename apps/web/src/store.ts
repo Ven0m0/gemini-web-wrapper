@@ -38,8 +38,10 @@ export interface WebSocketState {
   }>
 }
 
+export type AppMode = 'cli' | 'editor' | 'tool' | 'wsh' | 'python' | 'chat-demo' | 'chat'
+
 export interface AppState {
-  mode: 'cli' | 'editor' | 'tool' | 'wsh' | 'python' | 'chat-demo'
+  mode: AppMode
   file: FileState
   ai: AIState
   config: ConfigState
@@ -52,7 +54,7 @@ export interface AppState {
 }
 
 interface AppStore extends AppState {
-  setMode: (mode: 'cli' | 'editor' | 'tool' | 'chat-demo') => void
+  setMode: (mode: AppMode) => void
   setFile: (file: Partial<FileState>) => void
   setAI: (ai: Partial<AIState>) => void
   setConfig: (config: Partial<ConfigState>) => void
@@ -98,7 +100,7 @@ const initialWebSocket: WebSocketState = {
 }
 
 export const useStore = create<AppStore>((set) => ({
-  mode: 'cli',
+  mode: 'chat',
   file: initialFile,
   ai: initialAI,
   config: initialConfig,
