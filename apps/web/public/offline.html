@@ -10,7 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #000;
@@ -22,29 +22,29 @@
             text-align: center;
             padding: 2rem;
         }
-        
+
         .offline-container {
             max-width: 400px;
         }
-        
+
         .offline-icon {
             font-size: 4rem;
             margin-bottom: 1rem;
             opacity: 0.7;
         }
-        
+
         .offline-title {
             font-size: 1.5rem;
             margin-bottom: 1rem;
             font-weight: 600;
         }
-        
+
         .offline-message {
             color: #888;
             line-height: 1.6;
             margin-bottom: 2rem;
         }
-        
+
         .retry-button {
             background: #007acc;
             color: white;
@@ -55,11 +55,11 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        
+
         .retry-button:hover {
             background: #005a9e;
         }
-        
+
         .retry-button:disabled {
             background: #333;
             cursor: not-allowed;
@@ -71,20 +71,20 @@
         <div class="offline-icon">📡</div>
         <h1 class="offline-title">You're Offline</h1>
         <p class="offline-message">
-            It looks like you've lost your internet connection. 
+            It looks like you've lost your internet connection.
             Some features may not be available until you're back online.
         </p>
         <button class="retry-button" onclick="checkConnection()">
             Try Again
         </button>
     </div>
-    
+
     <script>
         function checkConnection() {
             const button = document.querySelector('.retry-button');
             button.disabled = true;
             button.textContent = 'Checking...';
-            
+
             // Try to fetch a small resource to test connection
             fetch('/favicon.ico', { method: 'HEAD' })
                 .then(() => {
@@ -97,7 +97,7 @@
                     button.textContent = 'Try Again';
                 });
         }
-        
+
         // Check connection periodically
         setInterval(() => {
             if (navigator.onLine) {

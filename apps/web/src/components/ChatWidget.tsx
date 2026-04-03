@@ -6,7 +6,7 @@ interface ChatWidgetProps {
   // Position and layout
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
   offset?: { x: number; y: number }
-  
+
   // Branding
   companyName?: string
   companyLogo?: string
@@ -14,7 +14,7 @@ interface ChatWidgetProps {
   agentAvatar?: string
   welcomeMessage?: string
   customGreeting?: string
-  
+
   // Styling
   theme?: 'light' | 'dark' | 'auto'
   primaryColor?: string
@@ -22,14 +22,14 @@ interface ChatWidgetProps {
   textColor?: string
   borderRadius?: number
   fontSize?: 'small' | 'medium' | 'large'
-  
+
   // Features
   showAvatar?: boolean
   showTimestamp?: boolean
   allowAttachments?: boolean
   soundEnabled?: boolean
   notificationsEnabled?: boolean
-  
+
   // Behavior
   autoOpen?: boolean
   minimizeOnOutsideClick?: boolean

@@ -1,9 +1,32 @@
 [[repos]]
+repo = "https://github.com/pre-commit/pre-commit-hooks"
+rev = "v6.0.0"
+hooks = [
+  { id = "trailing-whitespace" },
+  { id = "end-of-file-fixer" },
+  { id = "check-yaml" },
+  { id = "check-added-large-files" },
+  { id = "check-merge-conflict" },
+]
+
+[[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "v0.15.0" # Ruff version.
+rev = "v0.15.9" # Ruff version.
 hooks = [
   # Run the linter.
   { id = "ruff-check", args = ["--fix"], types_or = ["python", "pyi"] },
   # Run the formatter.
   { id = "ruff-format", types_or = ["python", "pyi"] },
 ]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "web-lint"
+name = "web lint"
+language = "system"
+entry = "bash -lc 'cd apps/web && bun run lint'"
+pass_filenames = false
+stages = ["pre-push"]
+files = "^apps/web/src/"

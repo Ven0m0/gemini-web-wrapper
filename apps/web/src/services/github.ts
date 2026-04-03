@@ -50,7 +50,7 @@ export class GitHubService {
 
   async getFile(path: string, branch: string = 'main'): Promise<{ content: string; sha: string }> {
     const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}?ref=${branch}`
-    
+
     try {
       const response = await fetch(url, {
         headers: {
@@ -67,7 +67,7 @@ export class GitHubService {
       const binaryString = atob(data.content);
       const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
       const content = new TextDecoder('utf-8').decode(bytes);
-      
+
       return { content, sha: data.sha }
     } catch (error) {
       throw new Error(`Failed to fetch file: ${error}`)
@@ -75,26 +75,26 @@ export class GitHubService {
   }
 
   async updateFile(
-    path: string, 
-    content: string, 
-    sha: string, 
-    message: string, 
+    path: string,
+    content: string,
+    sha: string,
+    message: string,
     branch: string = 'main'
   ): Promise<string> {
     try {
       const encodedContent = btoa(unescape(encodeURIComponent(content)))
-      
+
       const requestBody: any = {
         message,
         content: encodedContent,
         branch,
       }
-      
+
       // Only include SHA if it exists (for updating existing files)
       if (sha && sha.trim() !== '') {
         requestBody.sha = sha
       }
-      
+
       const data: GitHubCommitResponse = await this.request(`contents/${path}`, {
         method: 'PUT',
         body: JSON.stringify(requestBody),
@@ -160,7 +160,7 @@ export class GitHubService {
   async listDirectory(path: string = '', branch: string = 'main'): Promise<GitHubDirectoryItem[]> {
     try {
       const data = await this.request(`contents/${path}?ref=${branch}`)
-      
+
       // GitHub API returns array for directories, single object for files
       if (Array.isArray(data)) {
         return data.map((item: any) => ({

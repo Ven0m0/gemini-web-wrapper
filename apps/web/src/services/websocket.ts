@@ -142,7 +142,7 @@ export class WebSocketService {
 
   getReadyState(): string {
     if (!this.ws) return 'CLOSED'
-    
+
     switch (this.ws.readyState) {
       case WebSocket.CONNECTING: return 'CONNECTING'
       case WebSocket.OPEN: return 'OPEN'

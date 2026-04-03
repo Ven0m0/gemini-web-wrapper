@@ -12,7 +12,7 @@ export const CLI: React.FC = () => {
   const [inputDraft, setInputDraft] = useState('')
   const terminalRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  
+
   const { setMode } = useStore()
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export const CLI: React.FC = () => {
 
   const handleCommand = (cmd: string) => {
     addHistory(`$ ${cmd}`)
-    
+
     const trimmed = cmd.trim()
     if (!trimmed) return
 
@@ -44,30 +44,30 @@ export const CLI: React.FC = () => {
       case '/help':
         showHelp()
         break
-      
+
       case '/clear':
         setHistory([])
         break
-      
+
       case '/editor':
         setMode('editor')
         break
-      
+
       case '/tool':
         setMode('tool')
         break
-      
+
       case '/config':
         // Open config overlay
         addHistory('Opening configuration...')
         break
-      
+
       case '/chat':
         if (args[0] === 'demo') {
           setMode('chat-demo')
         }
         break
-      
+
       default:
         addHistory(`Unknown command: ${command}`)
         addHistory('Type /help for available commands')

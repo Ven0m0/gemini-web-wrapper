@@ -25,18 +25,18 @@ export const ChatDemo: React.FC = () => {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Chat Widget Demo</h1>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Configuration Panel */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">Configuration</h2>
-            
+
             {/* Basic Settings */}
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Theme</label>
-                <select 
-                  value={selectedTheme} 
+                <select
+                  value={selectedTheme}
                   onChange={(e) => setSelectedTheme(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
@@ -48,8 +48,8 @@ export const ChatDemo: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                <select 
-                  value={selectedPosition} 
+                <select
+                  value={selectedPosition}
                   onChange={(e) => setSelectedPosition(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
@@ -63,15 +63,15 @@ export const ChatDemo: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
                 <div className="flex items-center space-x-2">
-                  <input 
-                    type="color" 
-                    value={primaryColor} 
+                  <input
+                    type="color"
+                    value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     className="w-12 h-8 border border-gray-300 rounded cursor-pointer"
                   />
-                  <input 
-                    type="text" 
-                    value={primaryColor} 
+                  <input
+                    type="text"
+                    value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
@@ -80,11 +80,11 @@ export const ChatDemo: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Border Radius</label>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="24" 
-                  value={borderRadius} 
+                <input
+                  type="range"
+                  min="0"
+                  max="24"
+                  value={borderRadius}
                   onChange={(e) => setBorderRadius(Number(e.target.value))}
                   className="w-full"
                 />
@@ -93,8 +93,8 @@ export const ChatDemo: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
-                <select 
-                  value={fontSize} 
+                <select
+                  value={fontSize}
                   onChange={(e) => setFontSize(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
@@ -106,9 +106,9 @@ export const ChatDemo: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Agent Name</label>
-                <input 
-                  type="text" 
-                  value={agentName} 
+                <input
+                  type="text"
+                  value={agentName}
                   onChange={(e) => setAgentName(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -116,9 +116,9 @@ export const ChatDemo: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Agent Avatar</label>
-                <input 
-                  type="text" 
-                  value={agentAvatar} 
+                <input
+                  type="text"
+                  value={agentAvatar}
                   onChange={(e) => setAgentAvatar(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="🤖 or URL"
@@ -127,8 +127,8 @@ export const ChatDemo: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Welcome Message</label>
-                <textarea 
-                  value={customGreeting} 
+                <textarea
+                  value={customGreeting}
                   onChange={(e) => setCustomGreeting(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={2}
@@ -141,9 +141,9 @@ export const ChatDemo: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Features</h3>
               <div className="space-y-3">
                 <label className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={showAvatar} 
+                  <input
+                    type="checkbox"
+                    checked={showAvatar}
                     onChange={(e) => setShowAvatar(e.target.checked)}
                     className="mr-2"
                   />
@@ -151,9 +151,9 @@ export const ChatDemo: React.FC = () => {
                 </label>
 
                 <label className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={showTimestamp} 
+                  <input
+                    type="checkbox"
+                    checked={showTimestamp}
                     onChange={(e) => setShowTimestamp(e.target.checked)}
                     className="mr-2"
                   />
@@ -161,9 +161,9 @@ export const ChatDemo: React.FC = () => {
                 </label>
 
                 <label className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={allowAttachments} 
+                  <input
+                    type="checkbox"
+                    checked={allowAttachments}
                     onChange={(e) => setAllowAttachments(e.target.checked)}
                     className="mr-2"
                   />
@@ -171,9 +171,9 @@ export const ChatDemo: React.FC = () => {
                 </label>
 
                 <label className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={soundEnabled} 
+                  <input
+                    type="checkbox"
+                    checked={soundEnabled}
                     onChange={(e) => setSoundEnabled(e.target.checked)}
                     className="mr-2"
                   />
@@ -181,9 +181,9 @@ export const ChatDemo: React.FC = () => {
                 </label>
 
                 <label className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={notificationsEnabled} 
+                  <input
+                    type="checkbox"
+                    checked={notificationsEnabled}
                     onChange={(e) => setNotificationsEnabled(e.target.checked)}
                     className="mr-2"
                   />
@@ -191,9 +191,9 @@ export const ChatDemo: React.FC = () => {
                 </label>
 
                 <label className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={autoOpen} 
+                  <input
+                    type="checkbox"
+                    checked={autoOpen}
                     onChange={(e) => setAutoOpen(e.target.checked)}
                     className="mr-2"
                   />
@@ -206,7 +206,7 @@ export const ChatDemo: React.FC = () => {
           {/* Preview Panel */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">Live Preview</h2>
-            
+
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="text-lg font-medium text-gray-700 mb-2">Current Configuration</h3>
               <div className="text-sm text-gray-600 space-y-1">
@@ -220,7 +220,7 @@ export const ChatDemo: React.FC = () => {
 
             <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                💡 The chat widget will appear in the {selectedPosition} corner of this page. 
+                💡 The chat widget will appear in the {selectedPosition} corner of this page.
                 Click the button below to test it!
               </p>
             </div>

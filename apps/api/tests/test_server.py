@@ -8,6 +8,7 @@ Covers:
 - Server-configured fallback when no request-level keys are supplied
 - Rejection of unsupported x_provider values
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -52,7 +52,6 @@ def verify_api_key(
     return credentials
 
 
-
 def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:
     """Return an LLMProvider for this request.
 

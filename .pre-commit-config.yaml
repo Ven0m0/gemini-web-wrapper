@@ -14,17 +14,18 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.9
     hooks:
-      - id: ruff
+      - id: ruff-check
+        types_or: [python, pyi]
         args: [--fix]
       - id: ruff-format
+        types_or: [python, pyi]
 
   # TypeScript/JavaScript
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v10.1.0
+  - repo: local
     hooks:
-      - id: eslint
-        name: eslint (web)
-        entry: bun run lint
+      - id: web-lint
+        name: web lint
+        entry: bash -lc 'cd apps/web && bun run lint'
         language: system
         pass_filenames: false
         stages: [pre-push]

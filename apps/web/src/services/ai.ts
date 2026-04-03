@@ -72,7 +72,7 @@ export class AIService {
 
   async transformFile(instruction: string, currentContent: string): Promise<string> {
     const systemPrompt = `You rewrite the whole file based on the instruction. Return ONLY the full updated file with no explanations. Support Chinese text properly and preserve Chinese characters, formatting, and encoding.`
-    
+
     const userPrompt = `Instruction: ${instruction}
 
 Current file content:
@@ -108,13 +108,13 @@ Note: Preserve proper character encoding and formatting for all text content.`
       }
 
       const data = await response.json()
-      
+
       if (!data.choices || data.choices.length === 0) {
         throw new Error('No response from AI')
       }
 
       let content = data.choices[0].message.content.trim()
-      
+
       // Clean up common AI response artifacts
       if (content.startsWith('---START FILE---')) {
         content = content.replace(/^---START FILE---\s*/, '')
@@ -122,7 +122,7 @@ Note: Preserve proper character encoding and formatting for all text content.`
       if (content.endsWith('---END FILE---')) {
         content = content.replace(/\s*---END FILE---$/, '')
       }
-      
+
       return content
     } catch (error) {
       throw new Error(`Failed to transform file: ${error}`)
@@ -138,7 +138,7 @@ Note: Preserve proper character encoding and formatting for all text content.`
    * Automatically heals malformed JSON responses from AI models
    */
   async transformFileJSON<T = any>(
-    instruction: string, 
+    instruction: string,
     currentContent: string,
     schema?: any
   ): Promise<HealedResponse<T>> {
@@ -176,7 +176,7 @@ Note: Preserve proper character encoding and formatting for all text content.`
       }
 
       const data = await response.json()
-      
+
       if (!data.choices || data.choices.length === 0) {
         throw new Error('No response from AI')
       }

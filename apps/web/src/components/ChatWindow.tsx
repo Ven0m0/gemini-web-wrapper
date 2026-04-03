@@ -61,11 +61,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isRecording, setIsRecording] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   const { config } = useStore()
 
   // Auto-detect theme based on system preference
-  const effectiveTheme = theme === 'auto' 
+  const effectiveTheme = theme === 'auto'
     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
     : theme
 
@@ -121,14 +121,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
     const oscillator = audioContext.createOscillator()
     const gainNode = audioContext.createGain()
-    
+
     oscillator.connect(gainNode)
     gainNode.connect(audioContext.destination)
-    
+
     oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
     gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-    
+
     oscillator.start(audioContext.currentTime)
     oscillator.stop(audioContext.currentTime + 0.3)
   }
@@ -207,9 +207,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     })
   }
 
@@ -251,7 +251,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     <>
       {/* Floating button when minimized */}
       {!isOpen && (
-        <div 
+        <div
           className="fixed z-50 cursor-pointer transition-all duration-300 hover:scale-110"
           style={{
             ...getPositionStyles(),
@@ -259,9 +259,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           }}
           onClick={() => setIsMinimized(false)}
         >
-          <div 
+          <div
             className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
-            style={{ 
+            style={{
               backgroundColor: primaryColor,
               borderRadius: `${borderRadius}px`
             }}
@@ -278,7 +278,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Main chat window */}
       {isOpen && (
-        <div 
+        <div
           className="fixed z-50 w-80 h-96 rounded-lg shadow-2xl flex flex-col transition-all duration-300"
           style={{
             ...getPositionStyles(),
@@ -288,9 +288,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           }}
         >
           {/* Header */}
-          <div 
+          <div
             className="flex items-center justify-between p-3 cursor-pointer"
-            style={{ 
+            style={{
               backgroundColor: primaryColor,
               borderTopLeftRadius: `${borderRadius}px`,
               borderTopRightRadius: `${borderRadius}px`
@@ -311,7 +311,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation()
                   setIsMinimized(true)
@@ -322,7 +322,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation()
                   onClose()
@@ -380,12 +380,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               </div>
             ))}
-            
+
             {isTyping && (
               <div className="flex justify-start">
-                <div 
+                <div
                   className="rounded-lg p-3"
-                  style={{ 
+                  style={{
                     backgroundColor: themeStyles.inputBg,
                     borderRadius: `${borderRadius}px`
                   }}
@@ -405,7 +405,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -423,7 +423,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   </svg>
                 </button>
               )}
-              
+
               <div className="flex-1 relative">
                 <textarea
                   value={input}
@@ -431,7 +431,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
                   className={`w-full resize-none border rounded-lg p-2 focus:outline-none focus:ring-2 ${fontSizeClass}`}
-                  style={{ 
+                  style={{
                     backgroundColor: themeStyles.inputBg,
                     borderColor: themeStyles.border,
                     color: themeStyles.text,
@@ -440,12 +440,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   rows={1}
                 />
               </div>
-              
+
               <button
                 onClick={handleSendMessage}
                 disabled={!input.trim() || isTyping}
                 className="p-2 rounded-lg transition-colors disabled:opacity-50"
-                style={{ 
+                style={{
                   backgroundColor: primaryColor,
                   borderRadius: `${borderRadius}px`
                 }}
@@ -455,7 +455,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 </svg>
               </button>
             </div>
-            
+
             <input
               ref={fileInputRef}
               type="file"
