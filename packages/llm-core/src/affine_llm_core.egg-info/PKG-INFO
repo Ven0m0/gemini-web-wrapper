@@ -3,3 +3,4 @@ Name: affine-llm-core
 Version: 0.1.0
 Requires-Dist: httpx>=0.24.0
 Requires-Dist: affine-shared
+Requires-Dist: affine-config

@@ -57,9 +57,7 @@ class GeminiProvider(LLMProvider):
         body: dict[str, Any] = {
             "contents": self._convert_messages(prompt, history),
             "generationConfig": {
-                "maxOutputTokens": kwargs.get(
-                    "max_tokens", DEFAULT_MAX_OUTPUT_TOKENS
-                ),
+                "maxOutputTokens": kwargs.get("max_tokens", DEFAULT_MAX_OUTPUT_TOKENS),
                 "temperature": kwargs.get("temperature", DEFAULT_TEMPERATURE),
             },
         }

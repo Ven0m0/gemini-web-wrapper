@@ -38,7 +38,9 @@ def verify_api_key(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server API Key not configured.",
         )
-    if not credentials or not secrets.compare_digest(credentials.credentials, settings.api_key):
+    if not credentials or not secrets.compare_digest(
+        credentials.credentials, settings.api_key
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key",
