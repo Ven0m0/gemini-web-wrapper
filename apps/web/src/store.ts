@@ -1,4 +1,10 @@
 import { create } from 'zustand'
+import {
+  createDefaultProviders,
+  DEFAULT_MODEL_ID,
+  DEFAULT_PROVIDER_ID,
+  type ProviderConfig,
+} from './services/providers'
 
 export interface FileState {
   original: string
@@ -13,8 +19,6 @@ export interface AIState {
   pending: boolean
 }
 
-export type ProviderName = 'gemini' | 'anthropic'
-
 export interface ConfigState {
   githubToken: string
   /** Server gateway API key sent in Authorization header. */
@@ -25,12 +29,10 @@ export interface ConfigState {
   path: string
   model: string
   temperature: number
-  /** Selected LLM provider for user-supplied key requests. */
-  provider: ProviderName
-  /** User-supplied Gemini API key sent in request body. */
-  geminiKey: string
-  /** User-supplied Anthropic API key sent in request body. */
-  anthropicKey: string
+  /** Selected provider ID used for the current model request. */
+  provider: string
+  /** User-managed provider definitions and credentials. */
+  providers: ProviderConfig[]
 }
 
 export interface WebSocketState {
@@ -97,11 +99,10 @@ const initialConfig: ConfigState = {
   repo: '',
   branch: 'main',
   path: '',
-  model: 'gemini-2.0-flash-exp',
+  model: DEFAULT_MODEL_ID,
   temperature: 0.3,
-  provider: 'gemini',
-  geminiKey: '',
-  anthropicKey: '',
+  provider: DEFAULT_PROVIDER_ID,
+  providers: createDefaultProviders(),
 }
 
 const initialWebSocket: WebSocketState = {

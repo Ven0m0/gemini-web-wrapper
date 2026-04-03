@@ -5,8 +5,9 @@ Covers:
 - Auth enforcement when a server API key is configured
 - Open/public mode when no server API key is configured
 - Request-level provider override (x_provider + x_provider_api_key)
+- Custom OpenAI-compatible provider override (x_provider + x_provider_base_url)
 - Server-configured fallback when no request-level keys are supplied
-- Rejection of unsupported x_provider values
+- Rejection of custom x_provider values without a base URL
 """
 
 from __future__ import annotations
@@ -215,11 +216,36 @@ def test_chat_completions_missing_api_key_falls_back_to_server(
 
 
 # ---------------------------------------------------------------------------
-# Unsupported provider rejected at schema level
+# Custom provider validation
 # ---------------------------------------------------------------------------
 
 
-def test_chat_completions_unsupported_provider_rejected(
+def test_chat_completions_custom_provider_with_base_url(
+    client_with_key: TestClient,
+) -> None:
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _mock_provider("custom provider response")
+
+        resp = client_with_key.post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={
+                "model": "gpt-4o-mini",
+                "messages": VALID_MESSAGES,
+                "x_provider": "myprovider",
+                "x_provider_base_url": "https://api.example.com/v1",
+            },
+        )
+
+    assert resp.status_code == 200
+    call_args = mock_create.call_args
+    assert call_args[0][0] == "myprovider"
+    assert call_args[1].get("base_url") == "https://api.example.com/v1"
+    assert call_args[1].get("model") == "gpt-4o-mini"
+    assert "api_key" not in call_args[1]
+
+
+def test_chat_completions_custom_provider_requires_base_url(
     client_with_key: TestClient,
 ) -> None:
     resp = client_with_key.post(
@@ -228,12 +254,11 @@ def test_chat_completions_unsupported_provider_rejected(
         json={
             "model": "gpt-4o",
             "messages": VALID_MESSAGES,
-            "x_provider": "openai",  # not in SupportedProvider
+            "x_provider": "openai",
             "x_provider_api_key": "sk-xxx",
         },
     )
-    # Pydantic validation error
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------

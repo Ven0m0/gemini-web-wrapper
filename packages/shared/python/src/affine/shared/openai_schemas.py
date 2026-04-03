@@ -1,13 +1,8 @@
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from affine.shared.models import FinishReason, MessageRole
-
-# Providers supported by this backend.  Kept in sync with
-# packages/config/src/affine/config/settings.py::ProviderName.
-SupportedProvider = Literal["gemini", "anthropic"]
-
 
 class ChatMessage(BaseModel):
     role: MessageRole
@@ -20,10 +15,17 @@ class ChatCompletionRequest(BaseModel):
     stream: bool = False
     max_tokens: int | None = None
     temperature: float | None = None
-    # Optional request-level provider override.  When both fields are supplied
-    # the backend uses them instead of the server-configured provider keys.
-    x_provider: SupportedProvider | None = None
+    # Optional request-level provider override. Built-in providers use the
+    # request API key when supplied; custom providers also require a base URL.
+    x_provider: str | None = None
     x_provider_api_key: str | None = None
+    x_provider_base_url: str | None = None
+
+    @model_validator(mode="after")
+    def validate_provider_override(self) -> "ChatCompletionRequest":
+        if self.x_provider_base_url and not self.x_provider:
+            raise ValueError("x_provider_base_url requires x_provider")
+        return self
 
 
 class ChatResponseMessage(BaseModel):

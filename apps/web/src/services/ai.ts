@@ -30,6 +30,7 @@ export class AIService {
   private temperature: number
   private provider: string | undefined
   private providerKey: string | undefined
+  private providerBaseUrl: string | undefined
 
   // Local API base URL - uses relative path for proxy in dev, direct access in prod
   private apiBase = '/v1'
@@ -40,12 +41,14 @@ export class AIService {
     temperature: number = 0.3,
     provider?: string,
     providerKey?: string,
+    providerBaseUrl?: string,
   ) {
     this.apiKey = apiKey
     this.model = model
     this.temperature = temperature
     this.provider = provider
     this.providerKey = providerKey
+    this.providerBaseUrl = providerBaseUrl
   }
 
   /**
@@ -64,8 +67,12 @@ export class AIService {
    * Only included when both provider and providerKey are non-empty.
    */
   private providerFields(): Record<string, string> {
-    if (this.provider && this.providerKey) {
-      return { x_provider: this.provider, x_provider_api_key: this.providerKey }
+    if (this.provider && (this.providerKey || this.providerBaseUrl)) {
+      return {
+        x_provider: this.provider,
+        ...(this.providerKey ? { x_provider_api_key: this.providerKey } : {}),
+        ...(this.providerBaseUrl ? { x_provider_base_url: this.providerBaseUrl } : {}),
+      }
     }
     return {}
   }
