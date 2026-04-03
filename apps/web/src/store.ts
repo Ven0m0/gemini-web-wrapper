@@ -47,7 +47,7 @@ export interface WebSocketState {
   }>
 }
 
-export type AppMode = 'cli' | 'editor' | 'tool' | 'wsh' | 'python' | 'chat-demo' | 'chat'
+export type AppMode = 'cli' | 'editor' | 'tool' | 'wsh' | 'python' | 'chat-demo' | 'chat' | 'settings'
 
 export interface AppState {
   mode: AppMode
