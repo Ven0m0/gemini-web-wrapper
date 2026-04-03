@@ -92,9 +92,18 @@ function normalizeProvider(provider: unknown): ProviderConfig | null {
   }
 
   const models = Array.isArray(candidate.models)
-    ? candidate.models
-        .map((model, index) => normalizeModel(model, `${id}-model-${index + 1}`, `Model ${index + 1}`))
-        .filter((model, index, all) => model.id && all.findIndex((entry) => entry.id === model.id) === index)
+    ? (() => {
+        const seenIds = new Set<string>()
+        return candidate.models
+          .map((model, index) => normalizeModel(model, `${id}-model-${index + 1}`, `Model ${index + 1}`))
+          .filter((model) => {
+            if (!model.id || seenIds.has(model.id)) {
+              return false
+            }
+            seenIds.add(model.id)
+            return true
+          })
+      })()
     : []
 
   return {

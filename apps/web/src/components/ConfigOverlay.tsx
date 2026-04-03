@@ -43,6 +43,14 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     () => getProviderById(localConfig.providers, localConfig.provider),
     [localConfig.provider, localConfig.providers]
   )
+  const otherProviderIds = useMemo(
+    () => new Set(
+      localConfig.providers
+        .filter((provider) => provider.id !== selectedProvider?.id)
+        .map((provider) => provider.id)
+    ),
+    [localConfig.providers, selectedProvider?.id]
+  )
 
   const setProviders = (providers: ProviderConfig[], nextProviderId = localConfig.provider, nextModelId = localConfig.model) => {
     const provider = ensureProviderSelection(nextProviderId, providers)
@@ -278,7 +286,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                     value={selectedProvider.id}
                     onChange={(e) => {
                       const nextId = e.target.value.trim()
-                      if (!nextId || localConfig.providers.some((provider) => provider.id === nextId && provider.id !== selectedProvider.id)) {
+                      if (!nextId || otherProviderIds.has(nextId)) {
                         return
                       }
 
@@ -419,7 +427,13 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             max="2"
             step="0.1"
             value={localConfig.temperature}
-            onChange={(e) => setLocalConfig({ ...localConfig, temperature: parseFloat(e.target.value) || 0 })}
+            onChange={(e) => {
+              const nextTemperature = Number.parseFloat(e.target.value)
+              setLocalConfig({
+                ...localConfig,
+                temperature: Number.isNaN(nextTemperature) ? localConfig.temperature : nextTemperature,
+              })
+            }}
           />
           <small>0 = deterministic, 2 = very creative</small>
         </div>

@@ -69,6 +69,8 @@ def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMPr
         if ProviderFactory.is_registered(request.x_provider):
             if request.x_provider_api_key:
                 return ProviderFactory.create(request.x_provider, **provider_kwargs)
+            # Preserve the existing built-in behavior: without a user-supplied
+            # key the request falls back to the server-configured provider.
         elif request.x_provider_base_url:
             return ProviderFactory.create(request.x_provider, **provider_kwargs)
         elif request.x_provider_api_key:

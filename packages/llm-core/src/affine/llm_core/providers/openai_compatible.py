@@ -70,11 +70,8 @@ class OpenAICompatibleProvider(LLMProvider):
             "model": self.model,
             "messages": self._build_messages(prompt, system=system, history=history),
             "stream": stream,
+            "max_tokens": kwargs.get("max_tokens", DEFAULT_MAX_TOKENS),
         }
-        if kwargs.get("max_tokens") is not None:
-            body["max_tokens"] = kwargs["max_tokens"]
-        elif not stream:
-            body["max_tokens"] = DEFAULT_MAX_TOKENS
         if kwargs.get("temperature") is not None:
             body["temperature"] = kwargs["temperature"]
         else:
