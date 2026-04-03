@@ -5,6 +5,7 @@ import {
   ensureProviderSelection,
   getProviderById,
   migrateProviderSelections,
+  migrateSavedConfig,
   type ProviderConfig,
 } from '../services/providers'
 
@@ -30,13 +31,16 @@ function createProviderId(providers: ProviderConfig[]): string {
 
 export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) => {
   const { config, setConfig, setShowConfig, showConfig } = useStore()
-  const [localConfig, setLocalConfig] = useState(() => migrateProviderSelections(config))
+  const [localConfig, setLocalConfig] = useState(() => migrateSavedConfig(config))
+  const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature))
   const [showTokens, setShowTokens] = useState(false)
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false)
 
   useEffect(() => {
-    setLocalConfig(migrateProviderSelections(config))
+    const migratedConfig = migrateSavedConfig(config)
+    setLocalConfig(migratedConfig)
+    setTemperatureInput(String(migratedConfig.temperature))
   }, [config])
 
   const selectedProvider = useMemo(
@@ -79,7 +83,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
         name: `Custom Provider ${localConfig.providers.filter((provider) => !provider.builtin).length + 1}`,
         apiKey: '',
         baseUrl: '',
-        models: [{ id: 'gpt-4o-mini', name: 'Default Model' }],
+        models: [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
       },
     ]
     setProviders(providers, providerId, 'gpt-4o-mini')
@@ -137,7 +141,9 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   }
 
   const handleCancel = () => {
-    setLocalConfig(migrateProviderSelections(config))
+    const migratedConfig = migrateSavedConfig(config)
+    setLocalConfig(migratedConfig)
+    setTemperatureInput(String(migratedConfig.temperature))
     if (!inline) {
       setShowConfig(false)
     }
@@ -147,20 +153,12 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     const saved = localStorage.getItem('chat-github-config')
     if (saved) {
       try {
-        const rawParsed = JSON.parse(saved)
-        const parsedConfig = migrateProviderSelections({
+        const parsedConfig = migrateSavedConfig({
           ...localConfig,
-          ...rawParsed,
+          ...JSON.parse(saved),
         })
-        if (
-          !Array.isArray(rawParsed.providers) &&
-          typeof parsedConfig.model === 'string' &&
-          parsedConfig.model.startsWith('gpt-')
-        ) {
-          parsedConfig.provider = 'gemini'
-          parsedConfig.model = 'gemini-2.0-flash-exp'
-        }
         setLocalConfig(parsedConfig)
+        setTemperatureInput(String(parsedConfig.temperature))
       } catch {
         alert('Failed to load saved configuration')
       }
@@ -350,7 +348,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                 <label>Custom Models</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {selectedProvider.models.map((model, index) => (
-                    <div key={`${selectedProvider.id}-${model.id}-${index}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div key={model.uid ?? `${selectedProvider.id}-${model.id}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <input
                         type="text"
                         value={model.id}
@@ -379,10 +377,10 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                         onClick={() => updateProvider(selectedProvider.id, (provider) => {
                           const models = provider.models.filter((_, entryIndex) => entryIndex !== index)
                           return {
-                            ...provider,
-                            models: models.length > 0 ? models : [{ id: 'gpt-4o-mini', name: 'Default Model' }],
-                          }
-                        })}
+                             ...provider,
+                             models: models.length > 0 ? models : [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
+                           }
+                         })}
                       >
                         Remove
                       </button>
@@ -399,6 +397,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                           {
                             id: `model-${provider.models.length + 1}`,
                             name: `Model ${provider.models.length + 1}`,
+                            uid: crypto.randomUUID(),
                           },
                         ],
                       }))}
@@ -426,13 +425,20 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             min="0"
             max="2"
             step="0.1"
-            value={localConfig.temperature}
+            value={temperatureInput}
             onChange={(e) => {
-              const nextTemperature = Number.parseFloat(e.target.value)
-              setLocalConfig({
-                ...localConfig,
-                temperature: Number.isNaN(nextTemperature) ? localConfig.temperature : nextTemperature,
-              })
+              const nextValue = e.target.value
+              setTemperatureInput(nextValue)
+              if (nextValue.trim() === '') {
+                return
+              }
+              const nextTemperature = Number.parseFloat(nextValue)
+              if (!Number.isNaN(nextTemperature)) {
+                setLocalConfig({
+                  ...localConfig,
+                  temperature: nextTemperature,
+                })
+              }
             }}
           />
           <small>0 = deterministic, 2 = very creative</small>

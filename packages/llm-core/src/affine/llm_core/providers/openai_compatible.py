@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from json import JSONDecodeError
 from typing import Any, AsyncIterator
 
 import httpx
@@ -163,4 +164,11 @@ class OpenAICompatibleProvider(LLMProvider):
                     data_str = line[6:].strip()
                     if not data_str or data_str == "[DONE]":
                         continue
-                    yield self._extract_delta_text(json.loads(data_str))
+                    try:
+                        data = json.loads(data_str)
+                    except JSONDecodeError as exc:
+                        raise ValueError(
+                            f"Malformed streaming response from {self.provider_name}:"
+                            f" {data_str!r}"
+                        ) from exc
+                    yield self._extract_delta_text(data)

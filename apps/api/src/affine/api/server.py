@@ -80,10 +80,10 @@ def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMPr
             )
 
     # Server-configured fallback.
-    provider_kwargs: dict[str, Any] = {"api_key": settings.provider_api_key()}
+    server_provider_kwargs: dict[str, Any] = {"api_key": settings.provider_api_key()}
     if settings.model_name is not None:
-        provider_kwargs["model"] = settings.model_name
-    return ProviderFactory.create(settings.model_provider, **provider_kwargs)
+        server_provider_kwargs["model"] = settings.model_name
+    return ProviderFactory.create(settings.model_provider, **server_provider_kwargs)
 
 
 @app.get("/health")

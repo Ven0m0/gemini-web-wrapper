@@ -1,6 +1,7 @@
 export interface ProviderModelOption {
   id: string
   name: string
+  uid?: string
 }
 
 export interface ProviderConfig {
@@ -54,7 +55,10 @@ export const DEFAULT_MODEL_ID =
 function cloneProvider(provider: ProviderConfig): ProviderConfig {
   return {
     ...provider,
-    models: provider.models.map((model) => ({ ...model })),
+    models: provider.models.map((model) => ({
+      ...model,
+      uid: model.uid ?? crypto.randomUUID(),
+    })),
   }
 }
 
@@ -64,12 +68,17 @@ function sanitizeText(value: unknown): string {
 
 function normalizeModel(model: unknown, fallbackId: string, fallbackName: string): ProviderModelOption {
   if (!model || typeof model !== 'object') {
-    return { id: fallbackId, name: fallbackName }
+    return { id: fallbackId, name: fallbackName, uid: crypto.randomUUID() }
   }
 
   const id = sanitizeText((model as { id?: unknown }).id) || fallbackId
   const name = sanitizeText((model as { name?: unknown }).name) || id || fallbackName
-  return { id, name }
+  const uid = sanitizeText((model as { uid?: unknown }).uid) || crypto.randomUUID()
+  return { id, name, uid }
+}
+
+function createFallbackModelId(providerId: string, index: number): string {
+  return `__fallback_${providerId}_${index + 1}`
 }
 
 function normalizeProvider(provider: unknown): ProviderConfig | null {
@@ -95,7 +104,7 @@ function normalizeProvider(provider: unknown): ProviderConfig | null {
     ? (() => {
         const seenIds = new Set<string>()
         return candidate.models
-          .map((model, index) => normalizeModel(model, `${id}-model-${index + 1}`, `Model ${index + 1}`))
+          .map((model, index) => normalizeModel(model, createFallbackModelId(id, index), `Model ${index + 1}`))
           .filter((model) => {
             if (!model.id || seenIds.has(model.id)) {
               return false
@@ -174,12 +183,21 @@ export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): 
     return builtin
   })
 
+  const customProviderIds = new Set<string>()
   const customProviders = normalizedProviders
     .filter((provider) => !mergedBuiltinIds.has(provider.id) && !provider.builtin)
-    .filter((provider, index, all) => all.findIndex((entry) => entry.id === provider.id) === index)
+    .filter((provider) => {
+      if (customProviderIds.has(provider.id)) {
+        return false
+      }
+      customProviderIds.add(provider.id)
+      return true
+    })
     .map((provider) => ({
       ...provider,
-      models: provider.models.length > 0 ? provider.models : [{ id: `${provider.id}-model`, name: 'Default Model' }],
+      models: provider.models.length > 0
+        ? provider.models
+        : [{ id: createFallbackModelId(provider.id, 0), name: 'Default Model', uid: crypto.randomUUID() }],
     }))
 
   return [...mergedProviders, ...customProviders]
@@ -218,6 +236,24 @@ export function migrateProviderSelections<T extends { provider?: string; model?:
     provider,
     model,
   }
+}
+
+export function migrateSavedConfig<T extends { provider?: string; model?: string; providers?: ProviderConfig[] }>(
+  config: T
+): T {
+  const migrated = migrateProviderSelections(config)
+  if (
+    !Array.isArray((config as LegacyConfigLike).providers) &&
+    typeof migrated.model === 'string' &&
+    migrated.model.startsWith('gpt-')
+  ) {
+    return {
+      ...migrated,
+      provider: DEFAULT_PROVIDER_ID,
+      model: DEFAULT_MODEL_ID,
+    }
+  }
+  return migrated
 }
 
 export function isBuiltinProvider(providerId: string): boolean {
