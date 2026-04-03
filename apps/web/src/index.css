@@ -47,89 +47,93 @@ h6 {
   isolation: isolate;
 }
 
-/* Custom properties for theming - OpenRouter inspired */
+/* Design system — opencode/openchamber inspired, Flexoki palette */
 :root {
-  /* Background colors - OpenRouter-style gradients and dark theme */
-  --color-bg: #0a0a0f;
-  --color-bg-elevated: #13131a;
-  --color-bg-surface: #1a1a24;
-  --color-bg-hover: #22222e;
-  --color-bg-active: #2a2a38;
-  
-  /* Gradient accents */
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --gradient-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  --gradient-success: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  
-  /* Text colors */
-  --color-text: #f5f5f7;
-  --color-text-muted: #a1a1aa;
-  --color-text-subtle: #71717a;
-  
-  /* Border colors */
-  --color-border: #27272a;
-  --color-border-hover: #3f3f46;
-  
-  /* Accent colors - vibrant like OpenRouter */
-  --color-primary: #8b5cf6;
-  --color-primary-hover: #7c3aed;
-  --color-secondary: #06b6d4;
-  --color-accent: #ec4899;
-  --color-success: #10b981;
-  --color-error: #ef4444;
-  --color-warning: #f59e0b;
-  --color-info: #3b82f6;
-  
-  /* Code/editor colors */
-  --color-code-bg: #0d0d12;
-  --color-code-border: #1e1e28;
-  
+  /* Flexoki-inspired warm dark backgrounds */
+  --color-bg: #100f0f;
+  --color-bg-elevated: #1c1b1a;
+  --color-bg-surface: #282726;
+  --color-bg-hover: #343331;
+  --color-bg-active: #403e3c;
+
+  /* Text — warm off-white scale */
+  --color-text: #cecdc3;
+  --color-text-bright: #fffcf0;
+  --color-text-muted: #878580;
+  --color-text-subtle: #575653;
+
+  /* Borders — barely visible separators */
+  --color-border: #282726;
+  --color-border-hover: #403e3c;
+  --color-border-subtle: #1e1d1c;
+
+  /* Accent colors — Flexoki warm palette, no purple */
+  --color-primary: #4485be;        /* muted blue */
+  --color-primary-hover: #5a9fd4;
+  --color-accent: #d0a215;         /* warm amber */
+  --color-accent-hover: #e8b420;
+  --color-secondary: #66999b;      /* muted teal */
+  --color-success: #879a39;        /* muted green */
+  --color-error: #d14d41;          /* muted red */
+  --color-warning: #da702c;        /* muted orange */
+  --color-info: #3aa99f;           /* muted cyan */
+
+  /* Activity bar */
+  --activity-bar-width: 48px;
+  --status-bar-height: 22px;
+
+  /* Code/terminal */
+  --color-code-bg: #0d0c0c;
+  --color-code-border: #1e1d1c;
+  --color-terminal-green: #879a39;
+  --color-terminal-prompt: #d0a215;
+
   /* Typography */
   --font-family-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
-  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", 'Segoe UI', 'Roboto', sans-serif;
-  
-  /* Spacing */
-  --border-radius-sm: 8px;
-  --border-radius: 12px;
-  --border-radius-lg: 16px;
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+
+  /* Sharp edges — IDE feel */
+  --border-radius-sm: 3px;
+  --border-radius: 4px;
+  --border-radius-lg: 6px;
   --border-width: 1px;
-  
-  /* Shadows - more pronounced */
-  --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.4);
-  --shadow-md: 0 8px 16px -4px rgb(0 0 0 / 0.5), 0 4px 8px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 20px 40px -10px rgb(0 0 0 / 0.6), 0 8px 16px -4px rgb(0 0 0 / 0.5);
-  --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.7);
-  
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Minimal shadows */
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.6);
+
+  /* Snappy transitions — terminal speed */
+  --transition-fast: 100ms ease;
+  --transition-normal: 150ms ease;
+  --transition-slow: 250ms ease;
 }
 
-/* Dark theme (default) */
+/* Dark theme (default) — inherits :root */
 [data-theme="dark"] {
-  --color-bg: #000000;
-  --color-text: #ededed;
-  --color-primary: #3b82f6;
+  --color-bg: #100f0f;
+  --color-text: #cecdc3;
+  --color-primary: #4485be;
 }
 
 /* Light theme */
 [data-theme="light"] {
-  --color-bg: #ffffff;
-  --color-bg-elevated: #f9fafb;
-  --color-bg-surface: #f3f4f6;
-  --color-bg-hover: #e5e7eb;
-  --color-bg-active: #d1d5db;
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --color-text-subtle: #9ca3af;
-  --color-border: #e5e7eb;
-  --color-border-hover: #d1d5db;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-code-bg: #f9fafb;
-  --color-code-border: #e5e7eb;
+  --color-bg: #fffcf0;
+  --color-bg-elevated: #f2f0e5;
+  --color-bg-surface: #e6e4d9;
+  --color-bg-hover: #dad8ce;
+  --color-bg-active: #cecdc3;
+  --color-text: #100f0f;
+  --color-text-bright: #100f0f;
+  --color-text-muted: #6f6e69;
+  --color-text-subtle: #b7b5ac;
+  --color-border: #dad8ce;
+  --color-border-hover: #b7b5ac;
+  --color-primary: #205ea6;
+  --color-primary-hover: #2b6cb0;
+  --color-accent: #ad8301;
+  --color-code-bg: #f2f0e5;
+  --color-code-border: #dad8ce;
 }
 
 /* Base styles */
@@ -158,10 +162,10 @@ body {
   color: white;
 }
 
-/* Scrollbar styles */
+/* Scrollbar styles — minimal IDE-style */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -169,12 +173,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-secondary);
-  border-radius: 4px;
+  background: var(--color-bg-active);
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
+  background: var(--color-text-subtle);
 }
 
 /* Utility classes */
