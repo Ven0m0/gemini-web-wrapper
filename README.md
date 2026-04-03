@@ -8,22 +8,23 @@ A mobile-first Progressive Web App (PWA) for AI-assisted development with GitHub
 ## Features
 
 - **Multi-AI Support**: Google Gemini, Anthropic Claude
-- **PWA Ready**: Installable on mobile/desktop with offline support
+- **PWA**: Installable on mobile/desktop with offline support
 - **GitHub Integration**: Edit files directly in repositories
 - **Multiple Interfaces**: CLI, Editor, Tool modes
 - **WebSocket Support**: Real-time file transfer
-- **Modern UI**: Dark/light themes, responsive design
-- **Fast & Lightweight**: Optimized for performance
-- **Secure**: Environment-based configuration
+- **Dark/light themes, responsive design**
+- **Environment-based configuration**
 
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 18+, Bun, and uv
 - Python 3.10+
 - Git
 
 ### 1. Clone & Setup
+
 ```bash
 git clone <your-repo>
 cd <your-repo>
@@ -34,6 +35,7 @@ cp .env.example .env
 ### 2. Install & Build
 
 **Frontend:**
+
 ```bash
 cd apps/web
 bun install
@@ -41,12 +43,14 @@ bun run build
 ```
 
 **Backend:**
+
 ```bash
 cd apps/api
 uv sync --all-extras
 ```
 
 ### 3. Start Development
+
 ```bash
 # Start the API
 cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
@@ -60,17 +64,21 @@ Visit: http://localhost:9000
 ## Usage Modes
 
 ### CLI Mode
+
 Interactive command-line interface for AI conversations
 
 ### Editor Mode
+
 Code editor with syntax highlighting and AI assistance
 
 ### Tool Mode
+
 File transfer and GitHub repository management
 
 ## Configuration
 
 ### Environment Variables
+
 ```bash
 GOOGLE_API_KEY=your_google_api_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here  # Optional
@@ -80,40 +88,41 @@ PORT=9000
 ```
 
 ### Model Support
+
 - **Google Gemini**: gemini-2.5-flash, gemini-2.5-pro, gemini-3.0-pro
 - **Anthropic Claude**: claude-3-5-sonnet-20241022
-- **OpenAI Compatible**: Drop-in replacement for GPT models
+- **OpenAI Compatible**: drop-in replacement for GPT models
 
 ## Deployment
 
-### Vercel (Recommended)
+### Vercel
+
 ```bash
 npm i -g vercel
 vercel --prod
 ```
 
 ### Render
+
 - Connect GitHub repo
 - Build: `cd apps/api && uv sync --all-extras`
 - Start: `cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --host 0.0.0.0 --port 9000`
 
 ### Railway
+
 - Deploy from GitHub
 - Automatic build and deploy
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+See [DEPLOYMENT.md](docs/deployment.md) for detailed deployment instructions.
 
 ## PWA Features
 
 - Offline functionality
 - Installable on mobile/desktop
-- Push notifications ready
-- Fast loading
 - Responsive design
 
 ## API Endpoints
 
-### Core APIs
 - `GET /health` - Health check
 - `GET /v1/models` - List available models
 - `POST /v1/chat/completions` - OpenAI-compatible chat completions (streaming supported)
@@ -121,6 +130,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 ## Development
 
 ### Frontend
+
 ```bash
 cd apps/web
 bun run dev        # Development server
@@ -130,6 +140,7 @@ bun run typecheck  # Type checking
 ```
 
 ### Backend
+
 ```bash
 cd apps/api
 PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
@@ -137,6 +148,7 @@ PYTHONPATH=src:../../packages/config/src uv run pytest
 ```
 
 ### Project Structure
+
 ```
 ├── apps/
 │   ├── web/              # React TypeScript frontend (Vite PWA)
@@ -157,18 +169,15 @@ PYTHONPATH=src:../../packages/config/src uv run pytest
 
 ## Security
 
-- Environment-based configuration
 - Input validation with Pydantic
 - CORS protection
-- Secure cookie handling
-- Rate limiting ready
+- Environment-based secrets
 
 ## Monitoring
 
 - Vercel Analytics integration
 - Speed Insights
 - Health check endpoint
-- Error tracking ready
 
 ## Contributing
 
@@ -184,11 +193,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- Check [DEPLOYMENT.md](DEPLOYMENT.md) for deployment issues
+- Check [DEPLOYMENT.md](docs/deployment.md) for deployment issues
 - Review logs for error details
 - Ensure API keys are valid
 - Check quota limits
-
----
-
-**Built with React, TypeScript, FastAPI, and Google's Gemini AI**

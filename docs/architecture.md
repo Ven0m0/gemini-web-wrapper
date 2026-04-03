@@ -192,13 +192,13 @@ Feature availability by mode:
 
 | Feature | server-managed | browser-only | local-workspace-enabled |
 |---------|----------------|--------------|-------------------------|
-| OpenAI-compatible API | ✅ | ❌ | ✅ |
-| Cookie profile auth | ✅ | ❌ | ✅ |
-| Composio tools | ✅ | ❌ | ✅ |
-| GitHub integration | ✅ | ❌ | ✅ |
-| Local file editing | ❌ | ❌ | ✅ |
-| Gemini webapi | ✅ | ✅ | ✅ |
-| Gemini API key | ✅ | ❌ | ✅ |
+| OpenAI-compatible API | Yes | No | Yes |
+| Cookie profile auth | Yes | No | Yes |
+| Composio tools | Yes | No | Yes |
+| GitHub integration | Yes | No | Yes |
+| Local file editing | No | No | Yes |
+| Gemini webapi | Yes | Yes | Yes |
+| Gemini API key | Yes | No | Yes |
 
 ---
 
@@ -208,10 +208,10 @@ Four trust tiers; all code execution is gated by the effective tier of the curre
 
 | Tier | Name | Description | Shell exec | Remote plugins | Local workspace |
 |------|------|-------------|------------|----------------|-----------------|
-| **safe** | Safe | No execution of untrusted content | ❌ | ❌ | ❌ |
-| **trusted-local** | Trusted Local | Local code only, no network | ✅ | ❌ | ✅ |
-| **trusted-remote** | Trusted Remote | Local + verified remote tools | ✅ | ✅ (verified) | ✅ |
-| **experimental** | Experimental | All features enabled | ✅ | ✅ (any) | ✅ |
+| **safe** | Safe | No execution of untrusted content | No | No | No |
+| **trusted-local** | Trusted Local | Local code only, no network | Yes | No | Yes |
+| **trusted-remote** | Trusted Remote | Local + verified remote tools | Yes | Yes (verified) | Yes |
+| **experimental** | Experimental | All features enabled | Yes | Yes (any) | Yes |
 
 **Trust tier assignment:** Environment variable `TRUST_TIER` (default: `trusted-local`).
 
@@ -288,6 +288,7 @@ Tests are organized by package. Async tests use **anyio** (not asyncio directly)
 | `packages/shared` | (to be added) | `uv run pytest` |
 
 **Quality gate (run before every commit):**
+
 ```bash
 uv run ruff format .          # 1. Format
 pyrefly check                 # 2. Type check
@@ -296,6 +297,7 @@ uv run pytest                 # 4. Tests
 ```
 
 Frontend:
+
 ```bash
 cd apps/web && bun run build  # Catches TypeScript errors
 ```
