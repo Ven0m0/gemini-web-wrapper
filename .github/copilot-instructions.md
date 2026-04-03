@@ -1,23 +1,31 @@
 # Copilot Instructions
 
-This repository follows the guidance in [`AGENTS.md`](../AGENTS.md).
+Follow `AGENTS.md` for full repository guidance.
 
-## Quick Reference
+## Current Repo Reality
 
-- **Frontend**: React 19 + TypeScript + Vite in `apps/web/`
-- **Backend**: FastAPI in `apps/api/src/affine/api/`
-- **Shared packages**: `packages/config`, `packages/llm-core`, `packages/shared/python`
-- **State**: Zustand in `apps/web/src/store.ts`
-- **Settings**: `packages/config/src/affine/config/settings.py`
+- Monorepo with `bun` for JS and TS and `uv` for Python
+- Frontend: `apps/web` — React 19, TypeScript, Vite PWA, Zustand, `src/services/` for API and business logic
+- Backend: `apps/api` — FastAPI in `src/affine/api/server.py`
+- Shared Python packages: `packages/config`, `packages/llm-core`, `packages/shared/python`
 
-## Validation
+## Source of Truth
+
+1. Code in `apps/` and `packages/`
+2. `.github/workflows/ci.yml`
+3. `README.md`
+
+## Validate with Current CI Commands
 
 ```bash
-# Frontend
-cd apps/web && bun run lint && bun run typecheck && bun run build
-
-# Backend
-cd apps/api && PYTHONPATH=src:../../packages/config/src uv run ruff check && uv run pytest
+cd apps/web && bun install && bun run lint && bun run typecheck && bun run build
+cd apps/api && export PYTHONPATH=src:../../packages/config/src && uv sync --all-extras && uv run ruff format --check && uv run ruff check && uv run pyrefly check && uv run pytest
 ```
 
-See `AGENTS.md` for complete guidance.
+## Guardrails
+
+- Keep edits focused and avoid unrelated cleanup.
+- Do not introduce a new package manager.
+- Do not copy aspirational docs into implementation guidance.
+- Keep this file aligned with `AGENTS.md`.
+
