@@ -377,10 +377,10 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                         onClick={() => updateProvider(selectedProvider.id, (provider) => {
                           const models = provider.models.filter((_, entryIndex) => entryIndex !== index)
                           return {
-                             ...provider,
-                             models: models.length > 0 ? models : [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
-                           }
-                         })}
+                            ...provider,
+                            models: models.length > 0 ? models : [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
+                          }
+                        })}
                       >
                         Remove
                       </button>

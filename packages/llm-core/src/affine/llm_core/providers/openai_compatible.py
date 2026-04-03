@@ -168,7 +168,7 @@ class OpenAICompatibleProvider(LLMProvider):
                         data = json.loads(data_str)
                     except JSONDecodeError as exc:
                         raise ValueError(
-                            f"Malformed streaming response from {self.provider_name}:"
-                            f" {data_str!r}"
+                            f"Malformed streaming response from"
+                            f" {self.provider_name}: {data_str!r}"
                         ) from exc
                     yield self._extract_delta_text(data)
