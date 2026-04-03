@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     @field_validator("cors_allow_origins", mode="before")
     @classmethod
     def parse_cors_allow_origins(cls, value: object) -> object:
+        if isinstance(value, list):
+            if not all(isinstance(origin, str) for origin in value):
+                raise ValueError("CORS origins must be strings.")
+            origins = [origin.strip() for origin in value if origin.strip()]
+            return origins or ["*"]
+
         if not isinstance(value, str):
             return value
 

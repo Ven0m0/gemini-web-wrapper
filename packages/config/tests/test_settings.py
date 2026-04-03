@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from affine.config.settings import Settings, get_settings
 
 
@@ -25,3 +27,12 @@ def test_get_settings_is_cached() -> None:
     second = get_settings()
 
     assert first is second
+
+
+def test_settings_validate_list_cors_origins() -> None:
+    settings = Settings(cors_allow_origins=[" https://one.example ", ""])
+
+    assert settings.cors_allow_origins == ["https://one.example"]
+
+    with pytest.raises(ValueError, match="CORS origins must be strings"):
+        Settings(cors_allow_origins=[1])  # type: ignore[list-item]
