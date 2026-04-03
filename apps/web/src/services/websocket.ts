@@ -13,6 +13,7 @@ export class WebSocketService {
   private reconnectAttempts: number = 0
   private maxReconnectAttempts: number = 5
   private reconnectDelay: number = 1000
+  private shouldReconnect: boolean = true
   private onMessage: (message: WebSocketMessage) => void
   private onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void
 
@@ -29,6 +30,7 @@ export class WebSocketService {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        this.shouldReconnect = true
         this.onStatusChange('connecting')
         this.ws = new WebSocket(this.url)
 
@@ -54,7 +56,9 @@ export class WebSocketService {
 
         this.ws.onclose = () => {
           this.onStatusChange('disconnected')
-          this.attemptReconnect()
+          if (this.shouldReconnect) {
+            this.attemptReconnect()
+          }
         }
 
         this.ws.onerror = (error) => {
@@ -125,6 +129,7 @@ export class WebSocketService {
   }
 
   disconnect(): void {
+    this.shouldReconnect = false
     if (this.ws) {
       this.ws.close()
       this.ws = null
@@ -148,3 +153,13 @@ export class WebSocketService {
   }
 }
 
+/** Module-level singleton so any component can reach the active connection. */
+let _activeService: WebSocketService | null = null
+
+export function setActiveWebSocketService(svc: WebSocketService | null): void {
+  _activeService = svc
+}
+
+export function getActiveWebSocketService(): WebSocketService | null {
+  return _activeService
+}

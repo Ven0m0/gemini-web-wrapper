@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 
 export const WebShell: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
   const { setMode, webShell } = useStore()
 
   const handleBack = useCallback(() => {
@@ -20,8 +21,23 @@ export const WebShell: React.FC = () => {
   }, [webShell.prepared])
 
   useEffect(() => {
-    // Future: try postMessage to webassembly.sh if supported
-  }, [])
+    if (!webShell.prepared || !iframeLoaded || !iframeRef.current) return
+    const target = iframeRef.current.contentWindow
+    if (!target) return
+    try {
+      // Attempt to pass the prepared commands directly into the iframe.
+      // webassembly.sh may or may not handle this message; we specify the
+      // exact origin so browsers will only deliver to the correct frame.
+      // If the frame doesn't accept the message the user can still use
+      // the "Copy Commands" button below.
+      target.postMessage(
+        { type: 'run', commands: webShell.prepared },
+        'https://webassembly.sh',
+      )
+    } catch {
+      // Cross-origin send failed silently – manual copy fallback remains.
+    }
+  }, [iframeLoaded, webShell.prepared])
 
   return (
     <div className="tool-container" style={{height: '100vh'}}>
@@ -38,6 +54,7 @@ export const WebShell: React.FC = () => {
           ref={iframeRef}
           title="webassembly.sh"
           src="https://webassembly.sh/"
+          onLoad={() => setIframeLoaded(true)}
           style={{ width: '100%', height: '100%', border: 'none' }}
           sandbox="allow-scripts allow-same-origin allow-popups allow-downloads"
         />
@@ -51,4 +68,3 @@ export const WebShell: React.FC = () => {
     </div>
   )
 }
-

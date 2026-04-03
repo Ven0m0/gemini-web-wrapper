@@ -234,58 +234,130 @@ export class JSONHealer {
   }
 
   /**
-   * Escape unescaped special characters
+   * Escape raw control characters that appear inside JSON string literals.
+   * Walks the input character-by-character tracking string context so that
+   * only characters inside quotes are touched, leaving structural JSON intact.
    */
   private static escapeCharacters(input: string): string {
-    // This is complex and risky, so we'll skip for now
-    // In production, you'd want more sophisticated escaping
-    return input
+    let result = ''
+    let inString = false
+    let i = 0
+
+    while (i < input.length) {
+      const ch = input[i]
+      const code = ch.charCodeAt(0)
+
+      if (inString) {
+        if (ch === '\\') {
+          // Already-escaped sequence: copy both the backslash and the next char verbatim.
+          // We always increment past the backslash first; if it was a trailing backslash
+          // (i.e., i is now ≥ length) the while-loop guard will exit cleanly.
+          result += ch
+          i++
+          if (i < input.length) {
+            result += input[i]
+            i++
+          }
+          continue
+        }
+        if (ch === '"') {
+          // Closing quote – leave string context
+          inString = false
+          result += ch
+          i++
+          continue
+        }
+        // Raw control character (U+0000–U+001F) must be escaped inside strings
+        if (code < 0x20) {
+          switch (ch) {
+            case '\n': result += '\\n'; break
+            case '\r': result += '\\r'; break
+            case '\t': result += '\\t'; break
+            case '\b': result += '\\b'; break
+            case '\f': result += '\\f'; break
+            default:
+              result += `\\u${code.toString(16).toUpperCase().padStart(4, '0')}`
+          }
+          i++
+          continue
+        }
+        result += ch
+        i++
+      } else {
+        if (ch === '"') {
+          inString = true
+        }
+        result += ch
+        i++
+      }
+    }
+
+    return result
   }
 
   /**
-   * Validate against a JSON schema (optional)
+   * Validate against a JSON schema (optional).
+   * Supports nested objects and arrays with required-field checks.
    */
   static validateSchema<T>(data: any, schema: any): { valid: boolean; errors?: string[] } {
-    // Simple validation - in production, use a library like ajv
     const errors: string[] = []
-    
+    JSONHealer._validateValue(data, schema, '', errors)
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+    }
+  }
+
+  /** Recursive value validator used by validateSchema */
+  private static _validateValue(data: any, schema: any, path: string, errors: string[]): void {
+    const label = path || 'root'
+
     if (schema.type === 'object') {
-      if (typeof data !== 'object' || Array.isArray(data)) {
-        errors.push('Expected an object')
-        return { valid: false, errors }
+      if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+        errors.push(`${label}: expected object`)
+        return
       }
-      
-      // Check required fields
       if (schema.required && Array.isArray(schema.required)) {
         for (const field of schema.required) {
           if (!(field in data)) {
-            errors.push(`Missing required field: ${field}`)
+            errors.push(`${label}: missing required field "${field}"`)
           }
         }
       }
-      
-      // Check properties
       if (schema.properties) {
-        for (const key in schema.properties) {
+        for (const key of Object.keys(schema.properties)) {
           if (key in data) {
-            const propSchema = schema.properties[key]
-            const propData = data[key]
-            
-            if (propSchema.type === 'string' && typeof propData !== 'string') {
-              errors.push(`Field ${key} should be a string`)
-            } else if (propSchema.type === 'number' && typeof propData !== 'number') {
-              errors.push(`Field ${key} should be a number`)
-            } else if (propSchema.type === 'boolean' && typeof propData !== 'boolean') {
-              errors.push(`Field ${key} should be a boolean`)
-            }
+            JSONHealer._validateValue(
+              data[key],
+              schema.properties[key],
+              path ? `${path}.${key}` : key,
+              errors,
+            )
           }
         }
       }
-    }
-    
-    return {
-      valid: errors.length === 0,
-      errors: errors.length > 0 ? errors : undefined
+    } else if (schema.type === 'array') {
+      if (!Array.isArray(data)) {
+        errors.push(`${label}: expected array`)
+        return
+      }
+      if (schema.items) {
+        data.forEach((item: any, idx: number) => {
+          JSONHealer._validateValue(item, schema.items, `${label}[${idx}]`, errors)
+        })
+      }
+    } else if (schema.type === 'string') {
+      if (typeof data !== 'string') {
+        errors.push(`${label}: expected string`)
+      }
+    } else if (schema.type === 'number') {
+      if (typeof data !== 'number') {
+        errors.push(`${label}: expected number`)
+      }
+    } else if (schema.type === 'boolean') {
+      if (typeof data !== 'boolean') {
+        errors.push(`${label}: expected boolean`)
+      }
     }
   }
 

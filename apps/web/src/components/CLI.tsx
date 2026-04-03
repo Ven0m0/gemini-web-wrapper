@@ -4,7 +4,11 @@ import { useStore } from '../store'
 export const CLI: React.FC = () => {
   const [history, setHistory] = useState<string[]>([])
   const [input, setInput] = useState('')
-  const [historyIndex, setHistoryIndex] = useState(-1)
+  // Separate store for entered commands (distinct from display history)
+  const [cmdHistory, setCmdHistory] = useState<string[]>([])
+  const [cmdHistoryIndex, setCmdHistoryIndex] = useState(-1)
+  // Preserve the in-progress draft when the user starts navigating history
+  const [inputDraft, setInputDraft] = useState('')
   const terminalRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   
@@ -104,25 +108,38 @@ export const CLI: React.FC = () => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (input.trim()) {
+        setCmdHistory(prev => [...prev, input.trim()])
         handleCommand(input)
         setInput('')
-        setHistoryIndex(-1)
+        setCmdHistoryIndex(-1)
+        setInputDraft('')
       }
     } else if (e.key === 'ArrowUp') {
+      if (cmdHistory.length === 0) return
       e.preventDefault()
-      if (historyIndex < history.length - 1) {
-        const newIndex = historyIndex + 1
-        setHistoryIndex(newIndex)
-        // Would need to store command history separately
+      if (cmdHistoryIndex === -1) {
+        // First press: save the current draft and jump to the newest command
+        setInputDraft(input)
+        const newIdx = cmdHistory.length - 1
+        setCmdHistoryIndex(newIdx)
+        setInput(cmdHistory[newIdx])
+      } else if (cmdHistoryIndex > 0) {
+        const newIdx = cmdHistoryIndex - 1
+        setCmdHistoryIndex(newIdx)
+        setInput(cmdHistory[newIdx])
       }
+      // Already at oldest entry – do nothing
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      if (historyIndex > -1) {
-        const newIndex = historyIndex - 1
-        setHistoryIndex(newIndex)
-        if (newIndex === -1) {
-          setInput('')
-        }
+      if (cmdHistoryIndex === -1) return
+      if (cmdHistoryIndex < cmdHistory.length - 1) {
+        const newIdx = cmdHistoryIndex + 1
+        setCmdHistoryIndex(newIdx)
+        setInput(cmdHistory[newIdx])
+      } else {
+        // Back past the newest entry – restore the saved draft
+        setCmdHistoryIndex(-1)
+        setInput(inputDraft)
       }
     }
   }
