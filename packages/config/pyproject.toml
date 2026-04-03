@@ -1,7 +1,7 @@
 [project]
 name = "affine-config"
 version = "0.1.0"
-dependencies = ["pydantic-settings>=2.0.0"]
+dependencies = ["pydantic>=2.0.0", "pydantic-settings>=2.0.0"]
 
 [dependency-groups]
 dev = ["ruff>=0.6.0"]
