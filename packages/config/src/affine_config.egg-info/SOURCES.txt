@@ -7,3 +7,4 @@ src/affine_config.egg-info/SOURCES.txt
 src/affine_config.egg-info/dependency_links.txt
 src/affine_config.egg-info/requires.txt
 src/affine_config.egg-info/top_level.txt
+tests/test_settings.py
