@@ -109,7 +109,10 @@ export const CLI: React.FC = () => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (input.trim()) {
-        setCmdHistory(prev => [...prev.slice(-(MAX_COMMAND_HISTORY - 1)), input.trim()])
+        setCmdHistory(prev => {
+          const keepCount = Math.min(prev.length, MAX_COMMAND_HISTORY - 1)
+          return [...prev.slice(-keepCount), input.trim()]
+        })
         handleCommand(input)
         setInput('')
         setCmdHistoryIndex(-1)

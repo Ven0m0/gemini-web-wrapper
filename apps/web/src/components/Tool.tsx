@@ -97,8 +97,8 @@ export const Tool: React.FC = () => {
           return
         }
 
-        const [, base64 = ''] = reader.result.split(',', 2)
-        resolve(base64)
+        const parts = reader.result.split(',', 2)
+        resolve(parts[1] || '')
       }
       reader.onerror = () => {
         reject(reader.error ?? new Error('Failed to read file'))
