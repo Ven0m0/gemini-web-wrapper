@@ -124,7 +124,7 @@ class AnthropicProvider(LLMProvider):
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:].strip()
-                        if not data_str or data_str == "[DONE]":
+                        if not data_str:
                             continue
                         data = json.loads(data_str)
                         if data.get("type") == "content_block_delta":

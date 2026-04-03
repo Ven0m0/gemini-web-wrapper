@@ -23,7 +23,7 @@ class GeminiProvider(LLMProvider):
         base_url: str = DEFAULT_BASE_URL,
     ) -> None:
         if not api_key:
-            raise ValueError("Gemini API key not provided or configured.")
+            raise ValueError("Gemini API key not provided.")
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
