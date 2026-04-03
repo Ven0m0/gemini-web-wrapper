@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -42,6 +45,19 @@ jobs:
       - run: uv run ruff format --check
         working-directory: apps/api
       - run: uv run ruff check
+        working-directory: apps/api
+      - name: Write pyrefly config
+        run: |
+          cat > pyrefly.toml <<'EOF'
+          python-version = "3.12"
+          project-includes = ["src"]
+          search-path = [
+              "src",
+              "../../packages/config/src",
+              "../../packages/llm-core/src",
+              "../../packages/shared/python/src",
+          ]
+          EOF
         working-directory: apps/api
       - run: uv run pyrefly check
         working-directory: apps/api
