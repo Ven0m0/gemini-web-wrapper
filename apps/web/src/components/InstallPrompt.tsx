@@ -81,8 +81,8 @@ export const InstallPrompt: React.FC = () => {
       <style>{`
         .install-prompt {
           position: fixed;
-          bottom: 26px;
-          left: 52px;
+          bottom: var(--status-bar-height);
+          left: var(--activity-bar-width);
           right: 0;
           z-index: 900;
           background: var(--color-bg-elevated);

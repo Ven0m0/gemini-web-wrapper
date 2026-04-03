@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useStore } from './store'
+import type { AppMode } from './store'
 import { CLI } from './components/CLI'
 import { Editor } from './components/Editor'
 import { Tool } from './components/Tool'
@@ -10,8 +11,6 @@ import { PythonRunner } from './components/PythonRunner'
 import { ChatDemo } from './components/ChatDemo'
 import { OpenRouterChat } from './components/OpenRouterChat'
 import './App.css'
-
-type AppMode = 'cli' | 'editor' | 'tool' | 'wsh' | 'python' | 'chat-demo' | 'chat'
 
 const NAV_ITEMS: { id: AppMode; label: string; icon: React.ReactNode }[] = [
   {
@@ -97,7 +96,7 @@ function App() {
       try {
         setConfig(JSON.parse(savedConfig))
       } catch {
-        // ignore
+        // silently ignore invalid config JSON in localStorage
       }
     }
   }, [setConfig])
@@ -123,7 +122,7 @@ function App() {
           <button
             key={id}
             className={`activity-btn ${mode === id ? 'active' : ''}`}
-            onClick={() => setMode(id as Parameters<typeof setMode>[0])}
+            onClick={() => setMode(id)}
             aria-label={label}
             title={label}
           >
