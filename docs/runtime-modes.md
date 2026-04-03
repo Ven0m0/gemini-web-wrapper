@@ -40,7 +40,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     runtime_mode: Literal["server-managed", "browser-only", "local-workspace-enabled"] = "server-managed"
-    
+
     class Config:
         env_file = ".env"
         env_file_config = {"RUNTIME_MODE": "runtime_mode"}
@@ -224,16 +224,16 @@ from packages.config import Settings, FeatureFlags
 def validate_config():
     settings = Settings()
     flags = FeatureFlags()
-    
+
     # Runtime mode validation
     if flags.local_workspace and settings.runtime_mode != "local-workspace-enabled":
         raise ValueError("localWorkspace=true requires RUNTIME_MODE=local-workspace-enabled")
-    
+
     # Trust tier + feature flag validation
     errors = flags.validate_flags()
     if errors:
         raise ValueError(f"Feature flag validation failed: {errors}")
-    
+
     # Provider availability check
     if settings.runtime_mode == "browser-only" and not flags.browser_only_providers:
         # Warn but don't fail; browser will handle provider filtering
