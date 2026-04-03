@@ -13,8 +13,11 @@ export interface AIState {
   pending: boolean
 }
 
+export type ProviderName = 'gemini' | 'anthropic'
+
 export interface ConfigState {
   githubToken: string
+  /** Server gateway API key sent in Authorization header. */
   openaiKey: string
   owner: string
   repo: string
@@ -22,6 +25,12 @@ export interface ConfigState {
   path: string
   model: string
   temperature: number
+  /** Selected LLM provider for user-supplied key requests. */
+  provider: ProviderName
+  /** User-supplied Gemini API key sent in request body. */
+  geminiKey: string
+  /** User-supplied Anthropic API key sent in request body. */
+  anthropicKey: string
 }
 
 export interface WebSocketState {
@@ -88,8 +97,11 @@ const initialConfig: ConfigState = {
   repo: '',
   branch: 'main',
   path: '',
-  model: 'gpt-4o-mini',
-  temperature: 0.3
+  model: 'gemini-2.0-flash-exp',
+  temperature: 0.3,
+  provider: 'gemini',
+  geminiKey: '',
+  anthropicKey: '',
 }
 
 const initialWebSocket: WebSocketState = {

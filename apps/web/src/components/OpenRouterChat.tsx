@@ -14,10 +14,10 @@ interface Message {
 }
 
 const MODELS = [
-  { id: 'gpt-4o-mini',  name: 'GPT-4o Mini',  provider: 'OpenAI' },
-  { id: 'gpt-4o',       name: 'GPT-4o',        provider: 'OpenAI' },
-  { id: 'gpt-5',        name: 'GPT-5',          provider: 'OpenAI' },
-  { id: 'gpt-4-turbo',  name: 'GPT-4 Turbo',   provider: 'OpenAI' },
+  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'gemini' },
+  { id: 'gemini-1.5-pro',       name: 'Gemini 1.5 Pro',   provider: 'gemini' },
+  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'anthropic' },
+  { id: 'claude-3-haiku-20240307',    name: 'Claude 3 Haiku',    provider: 'anthropic' },
 ]
 
 const SUGGESTED = [
@@ -266,7 +266,7 @@ export const OpenRouterChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput]       = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini')
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp')
   const [enableJSONHealing, setEnableJSONHealing] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -293,7 +293,19 @@ export const OpenRouterChat: React.FC = () => {
     setIsLoading(true)
 
     try {
-      const svc = new AIService(config.openaiKey || '', selectedModel, config.temperature || 0.7)
+      const selectedMeta = MODELS.find((m) => m.id === selectedModel)
+      // Derive the provider from the selected model entry; fall back to store config.
+      // config.provider already has a typed default so no extra magic string needed.
+      const resolvedProvider = selectedMeta?.provider ?? config.provider
+      const providerKey =
+        resolvedProvider === 'anthropic' ? config.anthropicKey : config.geminiKey
+      const svc = new AIService(
+        config.openaiKey || '',
+        selectedModel,
+        config.temperature || 0.7,
+        resolvedProvider,
+        providerKey,
+      )
 
       if (enableJSONHealing) {
         const healed = await svc.chatCompletionJSON([{ role: 'user', content: userMsg.content }])
