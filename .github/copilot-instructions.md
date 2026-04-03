@@ -28,4 +28,3 @@ cd apps/api && export PYTHONPATH=src:../../packages/config/src && uv sync --all-
 - Do not introduce a new package manager.
 - Do not copy aspirational docs into implementation guidance.
 - Keep this file aligned with `AGENTS.md`.
-

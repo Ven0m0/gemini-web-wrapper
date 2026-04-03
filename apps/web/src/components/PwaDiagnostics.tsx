@@ -167,4 +167,3 @@ export const PwaDiagnostics: React.FC = () => {
     </div>
   )
 }
-

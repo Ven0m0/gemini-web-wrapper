@@ -21,7 +21,7 @@ export const Tool: React.FC = () => {
   const [log, setLog] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const wsServiceRef = useRef<WebSocketService | null>(null)
-  
+
   const {
     setMode,
     config,
@@ -178,12 +178,12 @@ export const Tool: React.FC = () => {
 
     const selectedFile = fileInputRef.current.files[0]
     setUploading(true)
-    
+
     try {
       addLog(`📤 Uploading ${selectedFile.name} (${formatFileSize(selectedFile.size)})`)
-      
+
       // Check if it's a text file or binary
-      const isTextFile = selectedFile.type.startsWith('text/') || 
+      const isTextFile = selectedFile.type.startsWith('text/') ||
                         selectedFile.name.endsWith('.md') ||
                         selectedFile.name.endsWith('.json') ||
                         selectedFile.name.endsWith('.js') ||
@@ -195,7 +195,7 @@ export const Tool: React.FC = () => {
                         selectedFile.name.endsWith('.txt')
 
       let content: string
-      
+
       if (isTextFile) {
         content = await selectedFile.text()
         addLog('📄 Processing as text file')
@@ -203,9 +203,9 @@ export const Tool: React.FC = () => {
         content = await readFileAsBase64(selectedFile)
         addLog('🔧 Processing as binary file (base64)')
       }
-      
+
       const github = new GitHubService(config.githubToken, config.owner, config.repo)
-      
+
       // Check if file exists
       let existingSha = ''
       try {
@@ -215,7 +215,7 @@ export const Tool: React.FC = () => {
       } catch (error) {
         addLog('✨ Creating new file')
       }
-      
+
       const newSha = await github.updateFile(
         uploadPath,
         content,
@@ -223,17 +223,17 @@ export const Tool: React.FC = () => {
         `Upload ${selectedFile.name} via Tool UI`,
         config.branch
       )
-      
+
       addLog(`✅ Upload successful!`)
       addLog(`📁 Path: ${uploadPath}`)
       addLog(`🔗 SHA: ${newSha.substring(0, 7)}`)
-      
+
       // Clear form
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
       setUploadPath('')
-      
+
     } catch (error) {
       addLog(`❌ Upload failed: ${error instanceof Error ? error.message : error}`)
     } finally {
@@ -254,13 +254,13 @@ export const Tool: React.FC = () => {
     }
 
     setDownloading(true)
-    
+
     try {
       addLog(`📥 Downloading ${downloadPath}`)
-      
+
       const github = new GitHubService(config.githubToken, config.owner, config.repo)
       const { content, sha } = await github.getFile(downloadPath, config.branch)
-      
+
       // Determine if it's a text file
       const isTextFile = downloadPath.endsWith('.md') ||
                         downloadPath.endsWith('.txt') ||
@@ -275,7 +275,7 @@ export const Tool: React.FC = () => {
                         downloadPath.endsWith('.java')
 
       let blob: Blob
-      
+
       if (isTextFile) {
         blob = new Blob([content], { type: 'text/plain' })
         addLog('📄 Processing as text file')
@@ -293,29 +293,29 @@ export const Tool: React.FC = () => {
           addLog('📄 Fallback to text processing')
         }
       }
-      
+
       // Create download
       const url = URL.createObjectURL(blob)
       const downloadLink = document.createElement('a')
       downloadLink.href = url
       downloadLink.download = downloadPath.split('/').pop() || 'download'
       downloadLink.style.display = 'none'
-      
+
       document.body.appendChild(downloadLink)
       downloadLink.click()
-      
+
       setTimeout(() => {
         document.body.removeChild(downloadLink)
         URL.revokeObjectURL(url)
       }, 100)
-      
+
       addLog(`✅ Download complete: ${downloadLink.download}`)
       addLog(`💾 Size: ${formatFileSize(blob.size)}`)
       addLog(`🔗 SHA: ${sha.substring(0, 7)}`)
       addLog(`📁 Check Downloads folder`)
-      
+
       setDownloadPath('')
-      
+
     } catch (error) {
       addLog(`❌ Download failed: ${error instanceof Error ? error.message : error}`)
     } finally {
@@ -420,14 +420,14 @@ export const Tool: React.FC = () => {
       <div className="tool-header">
         <h2>🔧 File Transfer Tools</h2>
         <div className="tool-mode-switch">
-          <button 
+          <button
             className={toolMode === 'github' ? 'active' : ''}
             onClick={() => setToolMode('github')}
             data-testid="tool-github-btn"
           >
             GitHub
           </button>
-          <button 
+          <button
             className={toolMode === 'websocket' ? 'active' : ''}
             onClick={() => setToolMode('websocket')}
             data-testid="tool-websocket-btn"
@@ -435,7 +435,7 @@ export const Tool: React.FC = () => {
             WebSocket
           </button>
         </div>
-        <button 
+        <button
           onClick={() => setMode('cli')}
           className="back-btn"
         >
@@ -447,23 +447,23 @@ export const Tool: React.FC = () => {
       {toolMode === 'github' && (
         <div className="tool-section">
           <h3>📁 GitHub File Operations</h3>
-          
+
           {/* Upload Section */}
           <div className="upload-section">
             <h4>📤 Upload File</h4>
             <div className="form-group">
               <label>Select File:</label>
-              <input 
+              <input
                 ref={fileInputRef}
-                type="file" 
+                type="file"
                 className="file-input"
                 disabled={uploading}
               />
             </div>
             <div className="form-group">
               <label>GitHub Path:</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={uploadPath}
                 onChange={(e) => setUploadPath(e.target.value)}
                 placeholder="assets/image.png"
@@ -471,7 +471,7 @@ export const Tool: React.FC = () => {
                 disabled={uploading}
               />
             </div>
-            <button 
+            <button
               onClick={handleGithubUpload}
               disabled={uploading}
               className="upload-btn"
@@ -485,8 +485,8 @@ export const Tool: React.FC = () => {
             <h4>📥 Download File</h4>
             <div className="form-group">
               <label>GitHub Path:</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={downloadPath}
                 onChange={(e) => setDownloadPath(e.target.value)}
                 placeholder="src/App.tsx"
@@ -494,7 +494,7 @@ export const Tool: React.FC = () => {
                 disabled={downloading}
               />
             </div>
-            <button 
+            <button
               onClick={handleGithubDownload}
               disabled={downloading}
               className="download-btn"
@@ -540,23 +540,23 @@ export const Tool: React.FC = () => {
               Disconnect
             </button>
           </div>
-          
+
           {/* Upload Section */}
           <div className="upload-section">
             <h4>📤 Upload File</h4>
             <div className="form-group">
               <label>Select File:</label>
-              <input 
+              <input
                 ref={fileInputRef}
-                type="file" 
+                type="file"
                 className="file-input"
                 disabled={uploading || !websocket.connected}
               />
             </div>
             <div className="form-group">
               <label>Filename:</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={wsUploadFilename}
                 onChange={(e) => setWsUploadFilename(e.target.value)}
                 placeholder="document.pdf"
@@ -564,7 +564,7 @@ export const Tool: React.FC = () => {
                 disabled={uploading || !websocket.connected}
               />
             </div>
-            <button 
+            <button
               onClick={handleWebSocketUpload}
               disabled={uploading || !websocket.connected}
               className="upload-btn"
@@ -578,8 +578,8 @@ export const Tool: React.FC = () => {
             <h4>📥 Download File</h4>
             <div className="form-group">
               <label>Filename:</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={wsDownloadFilename}
                 onChange={(e) => setWsDownloadFilename(e.target.value)}
                 placeholder="data.json"
@@ -587,7 +587,7 @@ export const Tool: React.FC = () => {
                 disabled={downloading || !websocket.connected}
               />
             </div>
-            <button 
+            <button
               onClick={handleWebSocketDownload}
               disabled={downloading || !websocket.connected}
               className="download-btn"
@@ -610,7 +610,7 @@ export const Tool: React.FC = () => {
             ))
           )}
         </div>
-        <button 
+        <button
           onClick={() => setLog([])}
           className="clear-log-btn"
         >

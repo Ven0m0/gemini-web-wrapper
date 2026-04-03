@@ -20,7 +20,7 @@ export class JSONHealer {
   static heal<T = any>(input: string): HealedResponse<T> {
     const errors: string[] = []
     const warnings: string[] = []
-    
+
     try {
       // Try parsing as-is first
       const parsed = JSON.parse(input)
@@ -36,28 +36,28 @@ export class JSONHealer {
 
     // Apply healing strategies in order
     let healed = input
-    
+
     // 1. Extract from markdown code blocks
     healed = this.extractFromMarkdown(healed)
-    
+
     // 2. Extract JSON from mixed text
     healed = this.extractJSONFromText(healed)
-    
+
     // 3. Fix unquoted keys
     healed = this.fixUnquotedKeys(healed)
-    
+
     // 4. Remove trailing commas
     healed = this.removeTrailingCommas(healed)
-    
+
     // 5. Fix missing closing brackets
     healed = this.fixMissingBrackets(healed)
-    
+
     // 6. Remove comments
     healed = this.removeComments(healed)
-    
+
     // 7. Fix single quotes to double quotes
     healed = this.fixQuotes(healed)
-    
+
     // 8. Escape unescaped characters
     healed = this.escapeCharacters(healed)
 
@@ -92,7 +92,7 @@ export class JSONHealer {
     // Match markdown code blocks with optional language identifier
     const markdownPattern = /```(?:json|javascript|js)?\s*\n?([\s\S]*?)\n?```/g
     const matches = input.match(markdownPattern)
-    
+
     if (matches && matches.length > 0) {
       // Extract content from first code block
       return matches[0]
@@ -100,7 +100,7 @@ export class JSONHealer {
         .replace(/\n?```$/, '')
         .trim()
     }
-    
+
     return input
   }
 
@@ -113,19 +113,19 @@ export class JSONHealer {
     // Try to find JSON object or array patterns
     const jsonObjectPattern = /\{[\s\S]*\}/
     const jsonArrayPattern = /\[[\s\S]*\]/
-    
+
     // Try object first
     const objectMatch = input.match(jsonObjectPattern)
     if (objectMatch) {
       return objectMatch[0]
     }
-    
+
     // Try array
     const arrayMatch = input.match(jsonArrayPattern)
     if (arrayMatch) {
       return arrayMatch[0]
     }
-    
+
     return input
   }
 
@@ -158,23 +158,23 @@ export class JSONHealer {
    */
   private static fixMissingBrackets(input: string): string {
     let result = input.trim()
-    
+
     // Count opening and closing brackets
     const openBraces = (result.match(/\{/g) || []).length
     const closeBraces = (result.match(/\}/g) || []).length
     const openBrackets = (result.match(/\[/g) || []).length
     const closeBrackets = (result.match(/\]/g) || []).length
-    
+
     // Add missing closing braces
     for (let i = 0; i < openBraces - closeBraces; i++) {
       result += '}'
     }
-    
+
     // Add missing closing brackets
     for (let i = 0; i < openBrackets - closeBrackets; i++) {
       result += ']'
     }
-    
+
     return result
   }
 
@@ -186,10 +186,10 @@ export class JSONHealer {
   private static removeComments(input: string): string {
     // Remove single-line comments
     let result = input.replace(/\/\/.*$/gm, '')
-    
+
     // Remove multi-line comments
     result = result.replace(/\/\*[\s\S]*?\*\//g, '')
-    
+
     return result
   }
 
@@ -205,11 +205,11 @@ export class JSONHealer {
     let inString = false
     let quoteChar = ''
     let fixed = ''
-    
+
     for (let i = 0; i < result.length; i++) {
       const char = result[i]
       const prevChar = i > 0 ? result[i - 1] : ''
-      
+
       if ((char === '"' || char === "'") && prevChar !== '\\') {
         if (!inString) {
           // Starting a string
@@ -229,7 +229,7 @@ export class JSONHealer {
         fixed += char
       }
     }
-    
+
     return fixed
   }
 
@@ -367,7 +367,7 @@ export class JSONHealer {
    */
   static healAndValidate<T>(input: string, schema?: any): HealedResponse<T> {
     const healed = this.heal<T>(input)
-    
+
     if (healed.success && schema && healed.data) {
       const validation = this.validateSchema(healed.data, schema)
       if (!validation.valid) {
@@ -378,7 +378,7 @@ export class JSONHealer {
         }
       }
     }
-    
+
     return healed
   }
 }

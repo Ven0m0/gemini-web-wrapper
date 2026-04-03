@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 
+
 # Locate the repository root by walking up until we find a pyproject.toml that
 # lists [tool.uv.workspace] (i.e., the monorepo root).  This is more robust
 # than hard-coding the number of parent hops.

@@ -9,7 +9,7 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 
 ### **Quick Start:**
 1. **Launch**: Click the link above to open the app
-2. **Setup**: Type `/config` to configure your GitHub token and OpenAI API key  
+2. **Setup**: Type `/config` to configure your GitHub token and OpenAI API key
 3. **Edit**: Use `/open filename` to load files and start AI-assisted editing
 4. **Install**: Look for "Add to Home Screen" (mobile) or install icon (desktop)
 
@@ -68,7 +68,7 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 ### **Data Flow**
 ```
 1. /open file.md → GitHub API → Load content into editor
-2. "Add comments" → OpenAI API → Generate updated content  
+2. "Add comments" → OpenAI API → Generate updated content
 3. /apply → Replace editor content → Mark as dirty
 4. /commit "msg" → GitHub API → Save with new SHA
 ```
@@ -163,7 +163,7 @@ A minimal, phone-friendly React PWA for editing GitHub repository files using AI
 #### **PWA Features After Installation**
 - **Offline Access**: Works without internet connection
 - **App-like Experience**: No browser address bar or tabs
-- **Home Screen Icon**: Quick access like native apps  
+- **Home Screen Icon**: Quick access like native apps
 - **Push Notifications**: (Future feature)
 - **Background Sync**: (Future feature)
 - **File System Access**: Direct file uploads/downloads
@@ -199,7 +199,7 @@ Ensure your `manifest.webmanifest` includes proper GitHub Pages paths:
       "type": "image/png"
     },
     {
-      "src": "/Chat_github/icon-512.png", 
+      "src": "/Chat_github/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
@@ -399,27 +399,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Build PWA
         run: npm run build
-        
+
       - name: Setup Pages
         uses: actions/configure-pages@v3
-        
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
           path: './dist'
-          
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
@@ -445,7 +445,7 @@ jobs:
 ```javascript
 {
   githubToken: "ghp_...",     // GitHub Personal Access Token
-  openaiKey: "sk-...",        // OpenAI API Key  
+  openaiKey: "sk-...",        // OpenAI API Key
   owner: "username",          // GitHub username/org
   repo: "repository",         // Repository name
   branch: "main",             // Target branch
@@ -484,7 +484,7 @@ src/
 │   └── ConfigOverlay.tsx # Settings modal
 ├── services/
 │   ├── github.ts         # GitHub API integration
-│   ├── ai.ts            # OpenAI API integration  
+│   ├── ai.ts            # OpenAI API integration
 │   └── diff.ts          # Text comparison utilities
 ├── store.ts             # Zustand state management
 ├── App.tsx              # Main application
@@ -555,7 +555,7 @@ Add installation instructions        # AI instruction
 
 # Use visual interface with forms and buttons to:
 # - Select files with file picker
-# - Enter GitHub paths or WebSocket filenames  
+# - Enter GitHub paths or WebSocket filenames
 # - Upload/download with real-time progress
 # - View activity log with timestamps
 ```
@@ -705,7 +705,7 @@ Add installation instructions        # Expected: AI processing starts
 # 4. Click Upload button
 # 5. Verify activity log shows progress
 # 6. Switch to download section
-# 7. Enter path: "test-uploads/sample.txt" 
+# 7. Enter path: "test-uploads/sample.txt"
 # 8. Click Download button
 # 9. Verify file downloads to local device
 
@@ -728,7 +728,7 @@ Add installation instructions        # Expected: AI processing starts
 /clear
 /socket status                      # Expected: Shows disconnected status
 
-# Test Execution  
+# Test Execution
 /socket connect ws://localhost:8080  # Expected: Connection established
 /socket status                      # Expected: Shows connected status
 /upload test-document.pdf           # Expected: File picker opens
@@ -750,7 +750,7 @@ Add installation instructions        # Expected: AI processing starts
 **Purpose**: Test AI-powered code transformation
 
 ```bash
-# Setup Phase  
+# Setup Phase
 /clear
 
 # Test Execution
@@ -787,7 +787,7 @@ Convert to TypeScript with types    # Expected: AI processes JavaScript → Type
 /apply                              # Expected: Chinese content added
 /commit "docs: 添加中文测试文件"       # Expected: Commits with Chinese message
 
-# Validation  
+# Validation
 /cat 中文测试.md                     # Expected: Shows mixed Chinese/English content
 # Verify Chinese characters render correctly
 # Verify editor handles Chinese input properly
@@ -829,7 +829,7 @@ Invalid command syntax              # Expected: Unknown command error
 ```
 
 #### Test Case 10: Mobile Responsiveness
-```bash  
+```bash
 # UI test on mobile device (or DevTools mobile view)
 # 1. Test touch interactions in all three modes
 # 2. Verify command input works with on-screen keyboard

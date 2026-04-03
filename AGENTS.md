@@ -131,4 +131,3 @@ bun run dev
 - Frontend code must not embed provider secrets or call provider SDKs directly.
 - Prefer shared schemas and typed settings over duplicating request or response shapes.
 - Treat README feature claims as secondary to the actual codebase when they diverge.
-

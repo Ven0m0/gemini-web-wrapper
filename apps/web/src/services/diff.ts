@@ -14,7 +14,7 @@ export class DiffService {
 
     changes.forEach(change => {
       const lines = change.value.split('\n').filter(line => line !== '')
-      
+
       lines.forEach(line => {
         if (change.added) {
           result.push({ type: 'added', content: line, lineNumber })

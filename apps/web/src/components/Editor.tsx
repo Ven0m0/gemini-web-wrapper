@@ -16,7 +16,7 @@ type DiffMode = 'original' | 'modified' | 'diff'
 export const Editor: React.FC = () => {
   const [diffMode, setDiffMode] = useState<DiffMode>('modified')
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
-  
+
   const {
     file,
     setFile,
@@ -26,7 +26,7 @@ export const Editor: React.FC = () => {
 
   const getLanguageExtension = (path: string) => {
     const ext = path.split('.').pop()?.toLowerCase()
-    
+
     // Chinese text support extensions
     const chineseSupport = [
       EditorView.lineWrapping,
@@ -51,7 +51,7 @@ export const Editor: React.FC = () => {
         }
       })
     ]
-    
+
     switch (ext) {
       case 'js':
       case 'jsx':
@@ -159,25 +159,25 @@ export const Editor: React.FC = () => {
           <span className="path-info">{config.path}</span>
           {file.dirty && <span className="dirty-flag">*</span>}
         </div>
-        
+
         <div className="status-center">
-          <button 
+          <button
             onClick={cycleDiffMode}
             className="diff-mode-btn"
           >
             {getDiffModeLabel()}
           </button>
         </div>
-        
+
         <div className="status-right">
-          <button 
+          <button
             onClick={toggleTheme}
             className="theme-btn"
             title="Toggle theme"
           >
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
-          <button 
+          <button
             onClick={() => setMode('cli')}
             className="mode-btn"
             title="Switch to CLI"

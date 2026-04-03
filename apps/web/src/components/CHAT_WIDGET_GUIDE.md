@@ -57,14 +57,14 @@ function App() {
   // Positioning
   position="bottom-left"
   offset={{ x: 30, y: 30 }}
-  
+
   // Branding
   companyName="Your Company"
   companyLogo="/logo.png"
   agentName="Sarah"
   agentAvatar="👩‍💼"
   welcomeMessage="Welcome! I'm here to help with any questions."
-  
+
   // Styling
   theme="dark"
   primaryColor="#8b5cf6"
@@ -72,7 +72,7 @@ function App() {
   textColor="#ffffff"
   borderRadius={16}
   fontSize="large"
-  
+
   // Features
   showAvatar={true}
   showTimestamp={true}
@@ -80,7 +80,7 @@ function App() {
   soundEnabled={true}
   notificationsEnabled={true}
   autoOpen={false}
-  
+
   // Behavior
   minimizeOnOutsideClick={true}
   persistentChat={true}
@@ -202,7 +202,7 @@ function App() {
 ```tsx
 function App() {
   const { user } = useAuth()
-  
+
   return (
     <ChatWidget
       agentName={user?.name || 'Support Agent'}
@@ -217,11 +217,11 @@ function App() {
 ```tsx
 function App() {
   const { trackEvent } = useAnalytics()
-  
+
   const handleMessageSend = (message: string) => {
     trackEvent('chat_message_sent', { message_length: message.length })
   }
-  
+
   return (
     <ChatWidget
       onMessageSend={handleMessageSend}

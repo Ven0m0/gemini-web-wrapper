@@ -122,27 +122,27 @@ export const useStore = create<AppStore>((set) => ({
   webShell: {},
 
   setMode: (mode) => set({ mode }),
-  
+
   setFile: (file) => set((state) => ({
     file: { ...state.file, ...file }
   })),
-  
+
   setAI: (ai) => set((state) => ({
     ai: { ...state.ai, ...ai }
   })),
-  
+
   setConfig: (config) => set((state) => ({
     config: { ...state.config, ...config }
   })),
-  
+
   addHistory: (message) => set((state) => ({
     history: [...state.history, message]
   })),
-  
+
   clearHistory: () => set({ history: [] }),
-  
+
   setShowConfig: (show) => set({ showConfig: show }),
-  
+
   resetFile: () => set({
     file: initialFile
   }),

@@ -31,7 +31,7 @@ export const chatDesignTokens = {
       hover: '#2d2d2d'
     }
   },
-  
+
   // Typography following design system principles
   typography: {
     fontFamily: {
@@ -58,7 +58,7 @@ export const chatDesignTokens = {
       relaxed: 1.75
     }
   },
-  
+
   // Spacing following 8px grid system
   spacing: {
     xs: '0.25rem',   // 4px
@@ -69,7 +69,7 @@ export const chatDesignTokens = {
     '2xl': '3rem',   // 48px
     '3xl': '4rem'    // 64px
   },
-  
+
   // Border radius for modern rounded design
   borderRadius: {
     none: '0',
@@ -80,7 +80,7 @@ export const chatDesignTokens = {
     '2xl': '1.5rem', // 24px
     full: '9999px'
   },
-  
+
   // Shadows for depth and elevation
   shadows: {
     sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
@@ -88,14 +88,14 @@ export const chatDesignTokens = {
     lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
     xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
   },
-  
+
   // Transitions for smooth animations
   transitions: {
     fast: '150ms ease-in-out',
     normal: '250ms ease-in-out',
     slow: '350ms ease-in-out'
   },
-  
+
   // Z-index for layering
   zIndex: {
     dropdown: 1000,
@@ -121,7 +121,7 @@ export const chatThemes = {
     borderRadius: '0.75rem',
     shadows: 'md'
   },
-  
+
   minimal: {
     name: 'Minimal',
     colors: {
@@ -134,7 +134,7 @@ export const chatThemes = {
     borderRadius: '0.25rem',
     shadows: 'sm'
   },
-  
+
   corporate: {
     name: 'Corporate',
     colors: {
@@ -147,7 +147,7 @@ export const chatThemes = {
     borderRadius: '0.5rem',
     shadows: 'lg'
   },
-  
+
   playful: {
     name: 'Playful',
     colors: {
@@ -160,7 +160,7 @@ export const chatThemes = {
     borderRadius: '1rem',
     shadows: 'xl'
   },
-  
+
   dark: {
     name: 'Dark',
     colors: {
@@ -186,7 +186,7 @@ export const chatComponentStyles = {
       maxWidth: '70%',
       wordWrap: 'break-word' as const
     }),
-    
+
     assistant: (theme: 'light' | 'dark') => ({
       backgroundColor: chatDesignTokens.colors[theme].surface,
       color: chatDesignTokens.colors[theme].text,
@@ -196,7 +196,7 @@ export const chatComponentStyles = {
       wordWrap: 'break-word' as const,
       border: `1px solid ${chatDesignTokens.colors[theme].border}`
     }),
-    
+
     system: (theme: 'light' | 'dark') => ({
       backgroundColor: 'transparent',
       color: chatDesignTokens.colors[theme].textSecondary,
@@ -205,7 +205,7 @@ export const chatComponentStyles = {
       padding: chatDesignTokens.spacing.sm
     })
   },
-  
+
   input: (theme: 'light' | 'dark') => ({
     backgroundColor: chatDesignTokens.colors[theme].surface,
     color: chatDesignTokens.colors[theme].text,
@@ -221,10 +221,10 @@ export const chatComponentStyles = {
       boxShadow: `0 0 0 2px ${chatDesignTokens.colors[theme].primary}20`
     }
   }),
-  
+
   button: (theme: 'light' | 'dark', variant: 'primary' | 'secondary' = 'primary') => ({
-    backgroundColor: variant === 'primary' 
-      ? chatDesignTokens.colors[theme].primary 
+    backgroundColor: variant === 'primary'
+      ? chatDesignTokens.colors[theme].primary
       : chatDesignTokens.colors[theme].surface,
     color: variant === 'primary' ? '#ffffff' : chatDesignTokens.colors[theme].text,
     border: variant === 'primary' ? 'none' : `1px solid ${chatDesignTokens.colors[theme].border}`,
@@ -244,14 +244,14 @@ export const chatComponentStyles = {
       transform: 'none'
     }
   }),
-  
+
   avatar: (size: 'sm' | 'md' | 'lg' = 'md') => {
     const sizes = {
       sm: { width: '2rem', height: '2rem', fontSize: chatDesignTokens.typography.fontSize.sm },
       md: { width: '2.5rem', height: '2.5rem', fontSize: chatDesignTokens.typography.fontSize.base },
       lg: { width: '3rem', height: '3rem', fontSize: chatDesignTokens.typography.fontSize.lg }
     }
-    
+
     return {
       width: sizes[size].width,
       height: sizes[size].height,
@@ -264,7 +264,7 @@ export const chatComponentStyles = {
       overflow: 'hidden'
     }
   },
-  
+
   typingIndicator: {
     container: {
       display: 'flex',
@@ -272,7 +272,7 @@ export const chatComponentStyles = {
       gap: chatDesignTokens.spacing.xs,
       padding: chatDesignTokens.spacing.sm
     },
-    
+
     dot: (theme: 'light' | 'dark') => ({
       width: '0.5rem',
       height: '0.5rem',
@@ -293,7 +293,7 @@ export const chatAnimations = `
       transform: translateY(-0.25rem);
     }
   }
-  
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -304,7 +304,7 @@ export const chatAnimations = `
       transform: translateY(0);
     }
   }
-  
+
   @keyframes slideIn {
     from {
       opacity: 0;
@@ -315,15 +315,15 @@ export const chatAnimations = `
       transform: translateX(0);
     }
   }
-  
+
   .chat-message {
     animation: fadeIn 0.3s ease-out;
   }
-  
+
   .chat-window {
     animation: slideIn 0.3s ease-out;
   }
-  
+
   .typing-indicator {
     animation: typing 1.4s infinite ease-in-out;
   }
@@ -342,7 +342,7 @@ export const chatAccessibility = {
     userAvatar: 'Your avatar',
     typingIndicator: 'Agent is typing'
   },
-  
+
   keyboardShortcuts: {
     sendMessage: 'Enter',
     newLine: 'Shift+Enter',
@@ -350,7 +350,7 @@ export const chatAccessibility = {
     minimizeChat: 'M',
     focusInput: 'Tab'
   },
-  
+
   screenReaderAnnouncements: {
     newMessage: 'New message from agent',
     messageSent: 'Message sent',
