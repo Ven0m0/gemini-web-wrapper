@@ -5,7 +5,7 @@ from affine.llm_core.interfaces import LLMProvider
 from affine.llm_core.providers.anthropic import AnthropicProvider
 from affine.llm_core.providers.gemini import GeminiProvider
 
-PROVIDER_REGISTRY: dict[str, type[LLMProvider]] = {
+PROVIDER_REGISTRY: dict[ProviderName, type[LLMProvider]] = {
     "gemini": GeminiProvider,
     "anthropic": AnthropicProvider,
 }

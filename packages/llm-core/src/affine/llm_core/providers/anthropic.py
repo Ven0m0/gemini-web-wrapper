@@ -21,9 +21,9 @@ class AnthropicProvider(LLMProvider):
         model: str = DEFAULT_MODEL,
         base_url: str = DEFAULT_BASE_URL,
     ) -> None:
-        self.api_key = api_key
-        if not self.api_key:
+        if not api_key:
             raise ValueError("Anthropic API key not provided or configured.")
+        self.api_key = api_key
         self.model = model
         self.base_url = base_url
         self.headers = {

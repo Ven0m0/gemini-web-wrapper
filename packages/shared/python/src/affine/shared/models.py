@@ -20,7 +20,7 @@ class FinishReason(str, Enum):
 
 
 class TextMessage(TypedDict):
-    role: MessageRole | str
+    role: MessageRole
     content: str
 
 
