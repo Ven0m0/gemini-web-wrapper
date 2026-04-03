@@ -394,11 +394,11 @@ export const Tool: React.FC = () => {
     }
 
     const targetFilename = wsDownloadFilename.trim()
-    setDownloading(true)
-    setPendingDownload(targetFilename)
-    addLog(`📥 Requesting ${targetFilename} via WebSocket`)
 
     try {
+      setDownloading(true)
+      setPendingDownload(targetFilename)
+      addLog(`📥 Requesting ${targetFilename} via WebSocket`)
       svc.requestFileDownload(targetFilename)
       addWebSocketMessage({
         type: 'file_download',

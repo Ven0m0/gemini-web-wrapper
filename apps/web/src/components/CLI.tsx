@@ -110,8 +110,8 @@ export const CLI: React.FC = () => {
       e.preventDefault()
       if (input.trim()) {
         setCmdHistory(prev => {
-          const keepCount = Math.min(prev.length, MAX_COMMAND_HISTORY - 1)
-          return [...prev.slice(-keepCount), input.trim()]
+          const maxPreviousCommands = Math.min(prev.length, MAX_COMMAND_HISTORY - 1)
+          return [...prev.slice(-maxPreviousCommands), input.trim()]
         })
         handleCommand(input)
         setInput('')

@@ -277,6 +277,7 @@ export class JSONHealer {
             case '\f': result += '\\f'; break
             default:
               result += `\\u${code.toString(16).padStart(4, '0').toUpperCase()}`
+              break
           }
           i++
           continue
