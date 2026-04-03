@@ -1,5 +1,19 @@
 import React, { useState } from 'react'
 import { useStore } from '../store'
+import type { ProviderName } from '../store'
+
+const PROVIDER_MODELS: Record<ProviderName, { id: string; name: string }[]> = {
+  gemini: [
+    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Recommended)' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+  ],
+  anthropic: [
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Recommended)' },
+    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+  ],
+}
 
 export const ConfigOverlay: React.FC = () => {
   const { config, setConfig, setShowConfig, showConfig } = useStore()
@@ -8,26 +22,35 @@ export const ConfigOverlay: React.FC = () => {
 
   const handleSave = () => {
     setConfig(localConfig)
-    
-    if (localConfig.githubToken || localConfig.openaiKey) {
+
+    const hasCredentials =
+      localConfig.githubToken ||
+      localConfig.openaiKey ||
+      localConfig.geminiKey ||
+      localConfig.anthropicKey
+
+    if (hasCredentials) {
       const shouldSave = window.confirm(
         'Save credentials to localStorage for future sessions? ' +
         '(Not recommended on shared devices)'
       )
-      
+
       if (shouldSave) {
         localStorage.setItem('chat-github-config', JSON.stringify({
           githubToken: localConfig.githubToken,
           openaiKey: localConfig.openaiKey,
+          geminiKey: localConfig.geminiKey,
+          anthropicKey: localConfig.anthropicKey,
+          provider: localConfig.provider,
           owner: localConfig.owner,
           repo: localConfig.repo,
           branch: localConfig.branch,
           model: localConfig.model,
-          temperature: localConfig.temperature
+          temperature: localConfig.temperature,
         }))
       }
     }
-    
+
     setShowConfig(false)
   }
 
@@ -42,7 +65,7 @@ export const ConfigOverlay: React.FC = () => {
       try {
         const parsedConfig = JSON.parse(saved)
         setLocalConfig({ ...localConfig, ...parsedConfig })
-      } catch (error) {
+      } catch {
         alert('Failed to load saved configuration')
       }
     } else {
@@ -56,6 +79,8 @@ export const ConfigOverlay: React.FC = () => {
       alert('Configuration cleared from storage')
     }
   }
+
+  const availableModels = PROVIDER_MODELS[localConfig.provider] ?? PROVIDER_MODELS.gemini
 
   if (!showConfig) return null
 
@@ -79,7 +104,7 @@ export const ConfigOverlay: React.FC = () => {
                 placeholder="ghp_xxxx... (fine-grained token with contents:write)"
               />
             </div>
-            
+
             <div className="config-field">
               <label>Owner</label>
               <input
@@ -89,7 +114,7 @@ export const ConfigOverlay: React.FC = () => {
                 placeholder="username or organization"
               />
             </div>
-            
+
             <div className="config-field">
               <label>Repository</label>
               <input
@@ -99,7 +124,7 @@ export const ConfigOverlay: React.FC = () => {
                 placeholder="repository-name"
               />
             </div>
-            
+
             <div className="config-field">
               <label>Branch</label>
               <input
@@ -112,31 +137,84 @@ export const ConfigOverlay: React.FC = () => {
           </div>
 
           <div className="config-section">
-            <h3>AI Settings</h3>
+            <h3>AI Provider Settings</h3>
+
             <div className="config-field">
-              <label>OpenAI API Key</label>
+              <label>Server API Key</label>
               <input
                 type={showTokens ? 'text' : 'password'}
                 value={localConfig.openaiKey}
                 onChange={(e) => setLocalConfig({ ...localConfig, openaiKey: e.target.value })}
-                placeholder="sk-xxxx..."
+                placeholder="Backend gateway key (leave blank if server is in open mode)"
               />
+              <small>Only needed when the server requires gateway authentication.</small>
             </div>
-            
+
+            <div className="config-field">
+              <label>Provider</label>
+              <select
+                value={localConfig.provider}
+                onChange={(e) => {
+                  const p = e.target.value as ProviderName
+                  // Always reset model to the first option for the new provider
+                  // to avoid carrying over an incompatible model from the prior provider.
+                  const firstModel = PROVIDER_MODELS[p]?.[0]?.id ?? 'gemini-2.0-flash-exp'
+                  setLocalConfig({ ...localConfig, provider: p, model: firstModel })
+                }}
+              >
+                <option value="gemini">Google Gemini</option>
+                <option value="anthropic">Anthropic Claude</option>
+              </select>
+            </div>
+
+            {localConfig.provider === 'gemini' && (
+              <div className="config-field">
+                <label>Gemini API Key</label>
+                <input
+                  type={showTokens ? 'text' : 'password'}
+                  value={localConfig.geminiKey}
+                  onChange={(e) => setLocalConfig({ ...localConfig, geminiKey: e.target.value })}
+                  placeholder="AIza..."
+                />
+                <small>
+                  Get a key at{' '}
+                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+                    aistudio.google.com/apikey
+                  </a>
+                </small>
+              </div>
+            )}
+
+            {localConfig.provider === 'anthropic' && (
+              <div className="config-field">
+                <label>Anthropic API Key</label>
+                <input
+                  type={showTokens ? 'text' : 'password'}
+                  value={localConfig.anthropicKey}
+                  onChange={(e) => setLocalConfig({ ...localConfig, anthropicKey: e.target.value })}
+                  placeholder="sk-ant-..."
+                />
+                <small>
+                  Get a key at{' '}
+                  <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">
+                    console.anthropic.com
+                  </a>
+                </small>
+              </div>
+            )}
+
             <div className="config-field">
               <label>Model</label>
               <select
                 value={localConfig.model}
                 onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
               >
-                <option value="gpt-5">GPT-5 (Latest)</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (Recommended)</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                {availableModels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
               </select>
             </div>
-            
+
             <div className="config-field">
               <label>Temperature</label>
               <input
@@ -165,7 +243,7 @@ export const ConfigOverlay: React.FC = () => {
           </div>
 
           <div className="config-section">
-            <h3>Privacy & Security</h3>
+            <h3>Privacy &amp; Security</h3>
             <div className="config-field">
               <label>
                 <input
@@ -176,7 +254,7 @@ export const ConfigOverlay: React.FC = () => {
                 Show tokens in plain text
               </label>
             </div>
-            
+
             <div className="config-actions">
               <button onClick={handleLoadFromStorage} className="config-action-btn">
                 Load from Storage
@@ -190,10 +268,9 @@ export const ConfigOverlay: React.FC = () => {
           <div className="config-help">
             <h4>Security Notes:</h4>
             <ul>
+              <li>Provider API keys are sent only to this app's backend, never to third parties directly</li>
               <li>GitHub token needs "Contents: Write" permission for your repository</li>
               <li>Use fine-grained tokens when possible (limited to specific repos)</li>
-              <li>Never share your tokens or commit them to code</li>
-              <li>Tokens are sent only to official APIs (GitHub/OpenAI)</li>
               <li>Clear storage when using shared devices</li>
             </ul>
           </div>

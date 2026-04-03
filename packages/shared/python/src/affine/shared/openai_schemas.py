@@ -1,8 +1,12 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
 from affine.shared.models import FinishReason, MessageRole
+
+# Providers supported by this backend.  Kept in sync with
+# packages/config/src/affine/config/settings.py::ProviderName.
+SupportedProvider = Literal["gemini", "anthropic"]
 
 
 class ChatMessage(BaseModel):
@@ -16,6 +20,10 @@ class ChatCompletionRequest(BaseModel):
     stream: bool = False
     max_tokens: int | None = None
     temperature: float | None = None
+    # Optional request-level provider override.  When both fields are supplied
+    # the backend uses them instead of the server-configured provider keys.
+    x_provider: SupportedProvider | None = None
+    x_provider_api_key: str | None = None
 
 
 class ChatResponseMessage(BaseModel):

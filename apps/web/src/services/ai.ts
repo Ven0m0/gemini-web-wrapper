@@ -28,25 +28,46 @@ export class AIService {
   private apiKey: string
   private model: string
   private temperature: number
+  private provider: string | undefined
+  private providerKey: string | undefined
 
   // Local API base URL - uses relative path for proxy in dev, direct access in prod
   private apiBase = '/v1'
 
-  constructor(apiKey: string, model: string = 'gpt-4o-mini', temperature: number = 0.3) {
+  constructor(
+    apiKey: string,
+    model: string = 'gemini-2.0-flash-exp',
+    temperature: number = 0.3,
+    provider?: string,
+    providerKey?: string,
+  ) {
     this.apiKey = apiKey
     this.model = model
     this.temperature = temperature
+    this.provider = provider
+    this.providerKey = providerKey
   }
 
   /**
-   * Get headers for API requests
-   * For local API, we pass the API key in the Authorization header
+   * Get headers for API requests.
+   * Sends the server gateway key (openaiKey) in Authorization if present.
    */
   private getHeaders(): Record<string, string> {
     return {
       'Authorization': `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
     }
+  }
+
+  /**
+   * Extra request-body fields for user-supplied provider keys.
+   * Only included when both provider and providerKey are non-empty.
+   */
+  private providerFields(): Record<string, string> {
+    if (this.provider && this.providerKey) {
+      return { x_provider: this.provider, x_provider_api_key: this.providerKey }
+    }
+    return {}
   }
 
   async transformFile(instruction: string, currentContent: string): Promise<string> {
@@ -78,6 +99,7 @@ Note: Preserve proper character encoding and formatting for all text content.`
             temperature: this.temperature,
             max_tokens: 4000,
           }),
+          ...this.providerFields(),
         }),
       })
 
@@ -145,6 +167,7 @@ Note: Preserve proper character encoding and formatting for all text content.`
           response_format: schema ? { type: 'json_object' } : undefined,
           temperature: options?.temperature ?? this.temperature,
           max_tokens: options?.maxTokens ?? 4000,
+          ...this.providerFields(),
         }),
       })
 

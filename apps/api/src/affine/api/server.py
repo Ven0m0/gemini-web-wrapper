@@ -1,6 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -9,6 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from affine.config.settings import Settings, get_settings
 from affine.llm_core.factory import ProviderFactory
+from affine.llm_core.interfaces import LLMProvider
 from affine.shared.openai_schemas import (
     ChatCompletionChunk,
     ChatCompletionRequest,
@@ -33,11 +35,12 @@ def verify_api_key(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     settings: Settings = Depends(get_settings),
 ):
+    # If no server API key is configured operate in open/public mode so that
+    # users can authenticate only via their own provider keys in the request body.
+    # credentials may be None here (HTTPBearer auto_error=False) which is fine —
+    # the endpoint does not use the credentials object directly.
     if not settings.api_key:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server API Key not configured.",
-        )
+        return credentials
     if not credentials or not secrets.compare_digest(
         credentials.credentials, settings.api_key
     ):
@@ -49,15 +52,27 @@ def verify_api_key(
     return credentials
 
 
-def get_provider():
-    provider_kwargs = {"api_key": settings.provider_api_key()}
+
+def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:
+    """Return an LLMProvider for this request.
+
+    If the request carries ``x_provider`` + ``x_provider_api_key`` those take
+    precedence over the server-configured provider and keys.  Otherwise fall
+    back to the server environment configuration.
+    """
+    if request.x_provider and request.x_provider_api_key:
+        # User-supplied provider: honour the requested model name as well.
+        return ProviderFactory.create(
+            request.x_provider,
+            api_key=request.x_provider_api_key,
+            model=request.model,
+        )
+
+    # Server-configured fallback.
+    provider_kwargs: dict[str, Any] = {"api_key": settings.provider_api_key()}
     if settings.model_name is not None:
         provider_kwargs["model"] = settings.model_name
-
-    return ProviderFactory.create(
-        settings.model_provider,
-        **provider_kwargs,
-    )
+    return ProviderFactory.create(settings.model_provider, **provider_kwargs)
 
 
 @app.get("/health")
@@ -76,7 +91,19 @@ async def list_models():
                 "owned_by": "google",
             },
             {
+                "id": "gemini-1.5-pro",
+                "object": "model",
+                "created": 1677610602,
+                "owned_by": "google",
+            },
+            {
                 "id": "claude-3-5-sonnet-20241022",
+                "object": "model",
+                "created": 1677610602,
+                "owned_by": "anthropic",
+            },
+            {
+                "id": "claude-3-haiku-20240307",
                 "object": "model",
                 "created": 1677610602,
                 "owned_by": "anthropic",
@@ -86,8 +113,11 @@ async def list_models():
 
 
 @app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])
-async def chat_completions(request: ChatCompletionRequest):
-    provider = get_provider()
+async def chat_completions(
+    request: ChatCompletionRequest,
+    settings: Settings = Depends(get_settings),
+):
+    provider = _build_provider(request, settings)
     model_name = request.model
     request_id = f"chatcmpl-{uuid.uuid4().hex}"
     created = int(datetime.now().timestamp())

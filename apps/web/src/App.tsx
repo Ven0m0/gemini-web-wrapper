@@ -94,7 +94,16 @@ function App() {
     const savedConfig = localStorage.getItem('chat-github-config')
     if (savedConfig) {
       try {
-        setConfig(JSON.parse(savedConfig))
+        const parsed = JSON.parse(savedConfig)
+        // Migrate: if no provider saved, default to 'gemini'
+        if (!parsed.provider) {
+          parsed.provider = 'gemini'
+        }
+        // Migrate: if model is a GPT model (from old config), reset to gemini default
+        if (typeof parsed.model === 'string' && parsed.model.startsWith('gpt-')) {
+          parsed.model = 'gemini-2.0-flash-exp'
+        }
+        setConfig(parsed)
       } catch {
         // silently ignore invalid config JSON in localStorage
       }
