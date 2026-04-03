@@ -1,6 +1,8 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, List, Optional
+from typing import Any, AsyncIterator
+
+from affine.shared.models import TextMessage
 
 
 class LLMProvider(ABC):
@@ -14,8 +16,8 @@ class LLMProvider(ABC):
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        history: Optional[List[dict[str, str]]] = None,
+        system: str | None = None,
+        history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> str:
         pass
@@ -25,8 +27,8 @@ class LLMProvider(ABC):
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        history: Optional[List[dict[str, str]]] = None,
+        system: str | None = None,
+        history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         pass

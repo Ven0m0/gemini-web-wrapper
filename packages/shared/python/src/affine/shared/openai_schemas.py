@@ -1,25 +1,44 @@
-from typing import Optional, List, Union
+from typing import Any
+
 from pydantic import BaseModel
+
+from affine.shared.models import FinishReason, MessageRole
 
 
 class ChatMessage(BaseModel):
-    role: str
-    content: Union[str, List[dict]]
+    role: MessageRole
+    content: str | list[dict[str, Any]]
 
 
 class ChatCompletionRequest(BaseModel):
     model: str
-    messages: List[ChatMessage]
-    stream: Optional[bool] = False
-    max_tokens: Optional[int] = None
-    temperature: Optional[float] = None
+    messages: list[ChatMessage]
+    stream: bool = False
+    max_tokens: int | None = None
+    temperature: float | None = None
+
+
+class ChatResponseMessage(BaseModel):
+    role: MessageRole
+    content: str
+
+
+class ChatDelta(BaseModel):
+    role: MessageRole | None = None
+    content: str | None = None
+
+
+class ChatUsage(BaseModel):
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
 
 
 class ChatChoice(BaseModel):
     index: int
-    message: Optional[dict] = None
-    delta: Optional[dict] = None
-    finish_reason: Optional[str] = None
+    message: ChatResponseMessage | None = None
+    delta: ChatDelta | None = None
+    finish_reason: FinishReason | None = None
 
 
 class ChatCompletionResponse(BaseModel):
@@ -27,8 +46,8 @@ class ChatCompletionResponse(BaseModel):
     object: str = "chat.completion"
     created: int
     model: str
-    choices: List[ChatChoice]
-    usage: Optional[dict] = None
+    choices: list[ChatChoice]
+    usage: ChatUsage | None = None
 
 
 class ChatCompletionChunk(BaseModel):
@@ -36,4 +55,4 @@ class ChatCompletionChunk(BaseModel):
     object: str = "chat.completion.chunk"
     created: int
     model: str
-    choices: List[ChatChoice]
+    choices: list[ChatChoice]

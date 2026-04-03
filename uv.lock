@@ -78,6 +78,7 @@ name = "affine-llm-core"
 version = "0.1.0"
 source = { editable = "packages/llm-core" }
 dependencies = [
+    { name = "affine-config" },
     { name = "affine-shared" },
     { name = "httpx" },
 ]
@@ -89,6 +90,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "affine-config", editable = "packages/config" },
     { name = "affine-shared", editable = "packages/shared/python" },
     { name = "httpx", specifier = ">=0.24.0" },
 ]
