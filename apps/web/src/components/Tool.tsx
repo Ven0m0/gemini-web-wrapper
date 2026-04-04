@@ -83,7 +83,7 @@ export const Tool: React.FC = () => {
 
     try {
       const binaryString = latest.isBase64 ? atob(latest.data) : latest.data
-      const bytes = Uint8Array.from(Array.from(binaryString, (char) => char.charCodeAt(0)))
+      const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0))
       const blob = new Blob([bytes], { type: 'application/octet-stream' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -833,12 +833,6 @@ export const Tool: React.FC = () => {
         </div>
         <button onClick={() => setLog([])} className="clear-log-btn">
           Clear Log
-        </button>
-      </div>
-    </div>
-  )
-}
-Log
         </button>
       </div>
     </div>
