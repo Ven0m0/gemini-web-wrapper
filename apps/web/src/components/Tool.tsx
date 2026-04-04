@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { GitHubService, type GitHubDirectoryItem } from '../services/github'
 import {
@@ -9,6 +9,7 @@ import {
 import {
   applyLineRangeEdit,
   isJsonPath,
+  isTextPath,
   readAnnotatedContent,
   repairJsonContent,
   searchAnnotatedContent,
