@@ -17,7 +17,6 @@
   "small_model": "opencode/minimax-m2.5-free",
   "disabled_providers": ["openai"],
   "plugin": [
-    "openslimedit@1.0.4",
     "opencode-ignore@1.1.0",
     "@gotgenes/opencode-agent-identity@3.0.1",
     "@spoons-and-mirrors/subtask2@0.3.5",
@@ -25,7 +24,14 @@
     "openfundus@0.1.6",
     "opencode-toolbox@0.10.4",
     "@nick-vi/opencode-type-inject@1.1.1",
-    "@tarquinen/opencode-dcp@3.1.5"
+    "@tarquinen/opencode-dcp@3.1.5",
+    "./plugins/trim-tool-name.js",
+    "./plugins/openslimedit.ts",
+    "./plugins/gitingest.ts",
+    "./plugins/cachebro.ts",
+    "./plugins/codemogger.ts",
+    "./plugins/memelord.ts",
+    "./plugins/tools.ts"
   ],
   "lsp": {
     "typescript": {
