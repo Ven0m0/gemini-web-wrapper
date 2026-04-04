@@ -43,11 +43,16 @@ export function readAnnotatedContent(content: string, offset = 1, limit = 2000):
 
 function parseSearchPattern(input: string): RegExp {
   const trimmed = input.trim()
-  const slashMatch = trimmed.match(/^\/(.*)\/([a-z]*)$/)
-  if (slashMatch) {
-    return new RegExp(slashMatch[1], slashMatch[2])
+
+  try {
+    const slashMatch = trimmed.match(/^\/(.*)\/([a-z]*)$/)
+    if (slashMatch) {
+      return new RegExp(slashMatch[1], slashMatch[2])
+    }
+    return new RegExp(trimmed, 'i')
+  } catch {
+    throw new Error(`Invalid regex pattern: ${input}`)
   }
-  return new RegExp(trimmed, 'i')
 }
 
 export function searchAnnotatedContent(content: string, pattern: string, context = 2): string {
@@ -122,6 +127,14 @@ export function repairJsonContent(content: string): { content: string; warnings:
 
   return {
     content: JSON.stringify(healed.data, null, 2),
+    warnings: healed.warnings || [],
+  }
+}
+
+export function isJsonPath(path: string): boolean {
+  return /\.json$/i.test(path.trim())
+}
+fy(healed.data, null, 2),
     warnings: healed.warnings || [],
   }
 }

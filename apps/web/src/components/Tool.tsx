@@ -57,6 +57,12 @@ export const Tool: React.FC = () => {
   } = useStore()
 
   const [pendingDownload, setPendingDownload] = useState<string | null>(null)
+  const githubService = useMemo(
+    () => (config.githubToken && config.owner && config.repo
+      ? new GitHubService(config.githubToken, config.owner, config.repo)
+      : null),
+    [config.githubToken, config.owner, config.repo],
+  )
 
   useEffect(() => {
     setWsUrlInput(websocket.url)
@@ -112,11 +118,11 @@ export const Tool: React.FC = () => {
   }
 
   const getGitHubService = (): GitHubService | null => {
-    if (!config.githubToken || !config.owner || !config.repo) {
+    if (!githubService) {
       addLog('GitHub configuration missing')
       return null
     }
-    return new GitHubService(config.githubToken, config.owner, config.repo)
+    return githubService
   }
 
   const readFileAsBase64 = (file: File): Promise<string> =>
@@ -286,19 +292,11 @@ export const Tool: React.FC = () => {
     try {
       addLog(`Uploading ${selectedFile.name} (${formatFileSize(selectedFile.size)})`)
 
-      const isTextFile = selectedFile.type.startsWith('text/') ||
-        selectedFile.name.endsWith('.md') ||
-        selectedFile.name.endsWith('.json') ||
-        selectedFile.name.endsWith('.js') ||
-        selectedFile.name.endsWith('.ts') ||
-        selectedFile.name.endsWith('.tsx') ||
-        selectedFile.name.endsWith('.jsx') ||
-        selectedFile.name.endsWith('.css') ||
-        selectedFile.name.endsWith('.html') ||
-        selectedFile.name.endsWith('.txt')
+      const isTextFile = isTextPath(selectedFile.name, selectedFile.type)
 
       let existingSha = ''
       try {
+        // Bypass the read cache here so we use the latest SHA before attempting the write.
         const existing = await github.getFile(uploadPath, config.branch, true)
         existingSha = existing.sha
       } catch {
@@ -351,17 +349,7 @@ export const Tool: React.FC = () => {
 
       const { content, sha } = await github.getFile(downloadPath, config.branch)
 
-      const isTextFile = downloadPath.endsWith('.md') ||
-        downloadPath.endsWith('.txt') ||
-        downloadPath.endsWith('.json') ||
-        downloadPath.endsWith('.js') ||
-        downloadPath.endsWith('.ts') ||
-        downloadPath.endsWith('.tsx') ||
-        downloadPath.endsWith('.jsx') ||
-        downloadPath.endsWith('.css') ||
-        downloadPath.endsWith('.html') ||
-        downloadPath.endsWith('.py') ||
-        downloadPath.endsWith('.java')
+      const isTextFile = isTextPath(downloadPath)
 
       let blob: Blob
       if (isTextFile) {
@@ -369,7 +357,7 @@ export const Tool: React.FC = () => {
       } else {
         try {
           const binaryString = atob(content)
-          const bytes = Uint8Array.from(binaryString, (char: string) => char.charCodeAt(0))
+          const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0))
           blob = new Blob([bytes], { type: 'application/octet-stream' })
         } catch {
           blob = new Blob([content], { type: 'text/plain' })
@@ -845,6 +833,12 @@ export const Tool: React.FC = () => {
         </div>
         <button onClick={() => setLog([])} className="clear-log-btn">
           Clear Log
+        </button>
+      </div>
+    </div>
+  )
+}
+      Clear Log
         </button>
       </div>
     </div>
