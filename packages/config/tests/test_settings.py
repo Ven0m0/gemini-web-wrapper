@@ -20,6 +20,17 @@ def test_settings_parse_cors_origins_and_provider_api_key() -> None:
     assert settings.frontend_dist_dir == Path("apps/web/dist")
 
 
+def test_settings_gateway_provider_metadata() -> None:
+    settings = Settings(
+        model_provider="kilo-gateway",
+        kilo_api_key="kilo-key",
+    )
+
+    assert settings.provider_api_key() == "kilo-key"
+    assert settings.provider_base_url() == "https://api.kilo.ai/api/gateway"
+    assert settings.provider_default_model() == "kilo-auto/balanced"
+
+
 def test_get_settings_is_cached() -> None:
     get_settings.cache_clear()
 

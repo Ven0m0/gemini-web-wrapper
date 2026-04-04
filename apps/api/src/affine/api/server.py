@@ -20,6 +20,57 @@ from affine.shared.openai_schemas import (
 app = FastAPI(title="Affine AI Workstation API")
 settings = get_settings()
 
+MODEL_CATALOG = [
+    {
+        "id": "gemini-2.0-flash-exp",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "google",
+    },
+    {
+        "id": "gemini-1.5-pro",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "google",
+    },
+    {
+        "id": "claude-3-5-sonnet-20241022",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "anthropic",
+    },
+    {
+        "id": "claude-3-haiku-20240307",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "anthropic",
+    },
+    {
+        "id": "opencode/gpt-5.3-codex",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "opencode",
+    },
+    {
+        "id": "opencode/claude-sonnet-4.5",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "opencode",
+    },
+    {
+        "id": "kilo-auto/balanced",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "kilo",
+    },
+    {
+        "id": "anthropic/claude-sonnet-4.6",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "kilo",
+    },
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,
@@ -80,9 +131,13 @@ def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMPr
             )
 
     # Server-configured fallback.
-    server_provider_kwargs: dict[str, Any] = {"api_key": settings.provider_api_key()}
-    if settings.model_name is not None:
-        server_provider_kwargs["model"] = settings.model_name
+    server_provider_kwargs: dict[str, Any] = {
+        "api_key": settings.provider_api_key(),
+        "model": settings.model_name or settings.provider_default_model(),
+    }
+    provider_base_url = settings.provider_base_url()
+    if provider_base_url:
+        server_provider_kwargs["base_url"] = provider_base_url
     return ProviderFactory.create(settings.model_provider, **server_provider_kwargs)
 
 
@@ -93,34 +148,7 @@ async def health():
 
 @app.get("/v1/models", dependencies=[Depends(verify_api_key)])
 async def list_models():
-    return {
-        "data": [
-            {
-                "id": "gemini-2.0-flash-exp",
-                "object": "model",
-                "created": 1677610602,
-                "owned_by": "google",
-            },
-            {
-                "id": "gemini-1.5-pro",
-                "object": "model",
-                "created": 1677610602,
-                "owned_by": "google",
-            },
-            {
-                "id": "claude-3-5-sonnet-20241022",
-                "object": "model",
-                "created": 1677610602,
-                "owned_by": "anthropic",
-            },
-            {
-                "id": "claude-3-haiku-20240307",
-                "object": "model",
-                "created": 1677610602,
-                "owned_by": "anthropic",
-            },
-        ]
-    }
+    return {"data": MODEL_CATALOG}
 
 
 @app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])
