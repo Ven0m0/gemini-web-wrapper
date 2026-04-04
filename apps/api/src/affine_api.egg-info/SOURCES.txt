@@ -8,3 +8,4 @@ src/affine_api.egg-info/SOURCES.txt
 src/affine_api.egg-info/dependency_links.txt
 src/affine_api.egg-info/requires.txt
 src/affine_api.egg-info/top_level.txt
+tests/test_server.py
