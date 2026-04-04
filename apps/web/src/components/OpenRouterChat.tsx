@@ -294,7 +294,7 @@ function EmptyState({ onSelect }: { onSelect: (s: string) => void }) {
               e.currentTarget.style.background = 'var(--color-bg-surface)'
             }}
           >
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.5 }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.5 }} aria-hidden="true">
               <polyline points="9 18 15 12 9 6" />
             </svg>
             {s}
@@ -512,7 +512,7 @@ export const OpenRouterChat: React.FC = () => {
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.color = 'var(--color-text-subtle)' }}
               title="Clear conversation"
             >
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>

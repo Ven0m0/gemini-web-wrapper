@@ -108,7 +108,7 @@ h6 {
   --transition-normal: 150ms ease;
   --transition-slow: 250ms ease;
 
-  /* Z-index tiers */
+  /* Z-index tiers: 10=activity-bar, 100=tooltips, 200=grain-overlay, 1000=modals */
   --z-grain: 200;
 
   /* Glow effects */
