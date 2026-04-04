@@ -1,4 +1,4 @@
-interface GitHubFileResponse {
+export interface GitHubFileResponse {
   content: string
   sha: string
 }
@@ -11,7 +11,7 @@ interface GitHubCommitResponse {
   }
 }
 
-interface GitHubDirectoryItem {
+export interface GitHubDirectoryItem {
   name: string
   path: string
   type: 'file' | 'dir'
@@ -20,6 +20,8 @@ interface GitHubDirectoryItem {
 }
 
 export class GitHubService {
+  private static fileCache = new Map<string, GitHubFileResponse>()
+
   private token: string
   private owner: string
   private repo: string
@@ -28,6 +30,18 @@ export class GitHubService {
     this.token = token
     this.owner = owner
     this.repo = repo
+  }
+
+  private cacheKey(path: string, branch: string): string {
+    return `${this.owner}/${this.repo}:${branch}:${path}`
+  }
+
+  private setCachedFile(path: string, branch: string, file: GitHubFileResponse) {
+    GitHubService.fileCache.set(this.cacheKey(path, branch), file)
+  }
+
+  invalidateFile(path: string, branch: string = 'main') {
+    GitHubService.fileCache.delete(this.cacheKey(path, branch))
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -48,7 +62,13 @@ export class GitHubService {
     return response.json()
   }
 
-  async getFile(path: string, branch: string = 'main'): Promise<{ content: string; sha: string }> {
+  async getFile(path: string, branch: string = 'main', force: boolean = false): Promise<GitHubFileResponse> {
+    const cacheKey = this.cacheKey(path, branch)
+    if (!force) {
+      const cached = GitHubService.fileCache.get(cacheKey)
+      if (cached) return cached
+    }
+
     const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}?ref=${branch}`
 
     try {
@@ -64,11 +84,12 @@ export class GitHubService {
       }
 
       const data = await response.json()
-      const binaryString = atob(data.content);
-      const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
-      const content = new TextDecoder('utf-8').decode(bytes);
-
-      return { content, sha: data.sha }
+      const binaryString = atob(data.content)
+      const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0))
+      const content = new TextDecoder('utf-8').decode(bytes)
+      const file = { content, sha: data.sha }
+      this.setCachedFile(path, branch, file)
+      return file
     } catch (error) {
       throw new Error(`Failed to fetch file: ${error}`)
     }
@@ -90,7 +111,6 @@ export class GitHubService {
         branch,
       }
 
-      // Only include SHA if it exists (for updating existing files)
       if (sha && sha.trim() !== '') {
         requestBody.sha = sha
       }
@@ -100,6 +120,7 @@ export class GitHubService {
         body: JSON.stringify(requestBody),
       })
 
+      this.invalidateFile(path, branch)
       return data.content.sha
     } catch (error) {
       throw new Error(`Failed to commit file: ${error}`)
@@ -124,12 +145,12 @@ export class GitHubService {
         method: 'PUT',
         body: JSON.stringify(requestBody),
       })
+      this.invalidateFile(path, branch)
       return { sha: data.content.sha, download_url: (data.content as any)?.download_url }
     } catch (error) {
       throw new Error(`Failed to commit binary file: ${error}`)
     }
   }
-
 
   async createBranch(newBranch: string, fromBranch: string = 'main'): Promise<void> {
     try {
@@ -161,7 +182,6 @@ export class GitHubService {
     try {
       const data = await this.request(`contents/${path}?ref=${branch}`)
 
-      // GitHub API returns array for directories, single object for files
       if (Array.isArray(data)) {
         return data.map((item: any) => ({
           name: item.name,
@@ -170,16 +190,15 @@ export class GitHubService {
           size: item.size,
           sha: item.sha
         }))
-      } else {
-        // Single file
-        return [{
-          name: data.name,
-          path: data.path,
-          type: 'file',
-          size: data.size,
-          sha: data.sha
-        }]
       }
+
+      return [{
+        name: data.name,
+        path: data.path,
+        type: 'file',
+        size: data.size,
+        sha: data.sha
+      }]
     } catch (error) {
       throw new Error(`Failed to list directory: ${error}`)
     }
