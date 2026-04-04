@@ -79,7 +79,7 @@ export const CLI: React.FC = () => {
       { cmd: '/help', desc: 'Show this help message' },
       { cmd: '/clear', desc: 'Clear terminal history' },
       { cmd: '/editor', desc: 'Switch to code editor mode' },
-      { cmd: '/tool', desc: 'Switch to file transfer tools' },
+      { cmd: '/tool', desc: 'Switch to file tools' },
       { cmd: '/config', desc: 'Open configuration panel' },
       { cmd: '/chat demo', desc: 'Open chat widget demo' },
       { cmd: '/open <path>', desc: 'Load file from GitHub' },
