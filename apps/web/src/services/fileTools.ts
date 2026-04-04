@@ -207,6 +207,11 @@ export function isTextPath(path: string, mimeType = ''): boolean {
     return true
   }
 
-  const extension = filename.split('.').pop()
-  return extension ? TEXT_FILE_EXTENSIONS.has(extension) : false
+  const dotIndex = filename.lastIndexOf('.')
+  if (dotIndex <= 0) {
+    return false
+  }
+
+  const extension = filename.slice(dotIndex + 1)
+  return TEXT_FILE_EXTENSIONS.has(extension)
 }
