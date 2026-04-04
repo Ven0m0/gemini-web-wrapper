@@ -1,6 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
 import { AIService } from '../services/ai'
+import {
+  ensureModelSelection,
+  ensureProviderSelection,
+  getFlattenedProviderModels,
+  getProviderById,
+} from '../services/providers'
 
 interface Message {
   id: string
@@ -12,13 +18,6 @@ interface Message {
   hasError?: boolean
   errorMessage?: string
 }
-
-const MODELS = [
-  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'gemini' },
-  { id: 'gemini-1.5-pro',       name: 'Gemini 1.5 Pro',   provider: 'gemini' },
-  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'anthropic' },
-  { id: 'claude-3-haiku-20240307',    name: 'Claude 3 Haiku',    provider: 'anthropic' },
-]
 
 const SUGGESTED = [
   'Explain quantum computing',
@@ -266,18 +265,27 @@ export const OpenRouterChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput]       = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp')
   const [enableJSONHealing, setEnableJSONHealing] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef    = useRef<HTMLTextAreaElement>(null)
-  const { config } = useStore()
+  const { config, setConfig } = useStore()
+  const providerOptions = getFlattenedProviderModels(config.providers)
+  const selectedProviderId = ensureProviderSelection(config.provider, config.providers)
+  const selectedModelId = ensureModelSelection(selectedProviderId, config.model, config.providers)
+  const selectedProvider = getProviderById(config.providers, selectedProviderId)
+  const selectedModelKey = `${selectedProviderId}::${selectedModelId}`
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => {
     const el = textareaRef.current
     if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 180) + 'px' }
   }, [input])
+  useEffect(() => {
+    if (selectedProviderId !== config.provider || selectedModelId !== config.model) {
+      setConfig({ provider: selectedProviderId, model: selectedModelId })
+    }
+  }, [config.model, config.provider, selectedModelId, selectedProviderId, setConfig])
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
@@ -293,18 +301,13 @@ export const OpenRouterChat: React.FC = () => {
     setIsLoading(true)
 
     try {
-      const selectedMeta = MODELS.find((m) => m.id === selectedModel)
-      // Derive the provider from the selected model entry; fall back to store config.
-      // config.provider already has a typed default so no extra magic string needed.
-      const resolvedProvider = selectedMeta?.provider ?? config.provider
-      const providerKey =
-        resolvedProvider === 'anthropic' ? config.anthropicKey : config.geminiKey
       const svc = new AIService(
         config.openaiKey || '',
-        selectedModel,
+        selectedModelId,
         config.temperature || 0.7,
-        resolvedProvider,
-        providerKey,
+        selectedProviderId,
+        selectedProvider?.apiKey,
+        selectedProvider?.baseUrl,
       )
 
       if (enableJSONHealing) {
@@ -389,12 +392,15 @@ export const OpenRouterChat: React.FC = () => {
 
           {/* Model selector */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              style={{
-                appearance: 'none',
-                background: 'var(--color-bg-surface)',
+              <select
+               value={selectedModelKey}
+               onChange={(e) => {
+                 const [providerId, modelId] = e.target.value.split('::')
+                 setConfig({ provider: providerId, model: modelId })
+               }}
+               style={{
+                 appearance: 'none',
+                 background: 'var(--color-bg-surface)',
                 border: '1px solid var(--color-border)',
                 borderRadius: 3,
                 color: 'var(--color-text-muted)',
@@ -405,10 +411,10 @@ export const OpenRouterChat: React.FC = () => {
                 outline: 'none',
               }}
             >
-              {MODELS.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+               {providerOptions.map((model) => (
+                 <option key={model.key} value={model.key}>{model.label}</option>
+               ))}
+             </select>
             <svg
               width="10" height="10"
               viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"

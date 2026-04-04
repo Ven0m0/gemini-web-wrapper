@@ -3,6 +3,7 @@ import pytest
 from affine.llm_core.factory import ProviderFactory
 from affine.llm_core.providers.anthropic import AnthropicProvider
 from affine.llm_core.providers.gemini import GeminiProvider
+from affine.llm_core.providers.openai_compatible import OpenAICompatibleProvider
 
 
 def test_provider_factory() -> None:
@@ -13,6 +14,12 @@ def test_provider_factory() -> None:
     anthropic = ProviderFactory.create("anthropic", api_key="test")
     assert isinstance(anthropic, AnthropicProvider)
     assert anthropic.name == "anthropic"
+
+    custom = ProviderFactory.create(
+        "myprovider", model="gpt-4o-mini", base_url="https://api.example.com/v1"
+    )
+    assert isinstance(custom, OpenAICompatibleProvider)
+    assert custom.name == "myprovider"
 
     with pytest.raises(ValueError):
         ProviderFactory.create("unknown")
@@ -67,4 +74,31 @@ def test_anthropic_provider_builds_request_body() -> None:
         ],
         "stream": True,
         "system": "system prompt",
+    }
+
+
+def test_openai_compatible_provider_builds_request_body() -> None:
+    provider = OpenAICompatibleProvider(
+        provider_name="myprovider",
+        model="gpt-4o-mini",
+        base_url="https://api.example.com/v1",
+    )
+
+    body = provider._build_request_body(
+        "hello",
+        system="system prompt",
+        history=[{"role": "assistant", "content": "prior"}],
+        stream=False,
+    )
+
+    assert body == {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": "system prompt"},
+            {"role": "assistant", "content": "prior"},
+            {"role": "user", "content": "hello"},
+        ],
+        "stream": False,
+        "max_tokens": 4096,
+        "temperature": 0.7,
     }

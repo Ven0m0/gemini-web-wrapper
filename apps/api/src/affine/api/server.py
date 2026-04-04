@@ -55,23 +55,35 @@ def verify_api_key(
 def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:
     """Return an LLMProvider for this request.
 
-    If the request carries ``x_provider`` + ``x_provider_api_key`` those take
-    precedence over the server-configured provider and keys.  Otherwise fall
+    If the request carries a valid provider override those settings take
+    precedence over the server-configured provider and keys. Otherwise fall
     back to the server environment configuration.
     """
-    if request.x_provider and request.x_provider_api_key:
-        # User-supplied provider: honour the requested model name as well.
-        return ProviderFactory.create(
-            request.x_provider,
-            api_key=request.x_provider_api_key,
-            model=request.model,
-        )
+    if request.x_provider:
+        provider_kwargs: dict[str, Any] = {"model": request.model}
+        if request.x_provider_api_key:
+            provider_kwargs["api_key"] = request.x_provider_api_key
+        if request.x_provider_base_url:
+            provider_kwargs["base_url"] = request.x_provider_base_url
+
+        if ProviderFactory.is_registered(request.x_provider):
+            if request.x_provider_api_key:
+                return ProviderFactory.create(request.x_provider, **provider_kwargs)
+            # Preserve the existing built-in behavior: without a user-supplied
+            # key the request falls back to the server-configured provider.
+        elif request.x_provider_base_url:
+            return ProviderFactory.create(request.x_provider, **provider_kwargs)
+        elif request.x_provider_api_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Custom providers require x_provider_base_url",
+            )
 
     # Server-configured fallback.
-    provider_kwargs: dict[str, Any] = {"api_key": settings.provider_api_key()}
+    server_provider_kwargs: dict[str, Any] = {"api_key": settings.provider_api_key()}
     if settings.model_name is not None:
-        provider_kwargs["model"] = settings.model_name
-    return ProviderFactory.create(settings.model_provider, **provider_kwargs)
+        server_provider_kwargs["model"] = settings.model_name
+    return ProviderFactory.create(settings.model_provider, **server_provider_kwargs)
 
 
 @app.get("/health")

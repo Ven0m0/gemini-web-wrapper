@@ -10,6 +10,7 @@ import { WebShell } from './components/WebShell'
 import { PythonRunner } from './components/PythonRunner'
 import { ChatDemo } from './components/ChatDemo'
 import { OpenRouterChat } from './components/OpenRouterChat'
+import { migrateSavedConfig } from './services/providers'
 import './App.css'
 
 /** Settings gear icon — extracted so it can be reused in both the sidebar
@@ -118,16 +119,7 @@ function App() {
     const savedConfig = localStorage.getItem('chat-github-config')
     if (savedConfig) {
       try {
-        const parsed = JSON.parse(savedConfig)
-        // Migrate: if no provider saved, default to 'gemini'
-        if (!parsed.provider) {
-          parsed.provider = 'gemini'
-        }
-        // Migrate: if model is a GPT model (from old config), reset to gemini default
-        if (typeof parsed.model === 'string' && parsed.model.startsWith('gpt-')) {
-          parsed.model = 'gemini-2.0-flash-exp'
-        }
-        setConfig(parsed)
+        setConfig(migrateSavedConfig(JSON.parse(savedConfig)))
       } catch {
         // silently ignore invalid config JSON in localStorage
       }

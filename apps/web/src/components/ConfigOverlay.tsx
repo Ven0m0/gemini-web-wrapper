@@ -1,19 +1,13 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store'
-import type { ProviderName } from '../store'
-
-const PROVIDER_MODELS: Record<ProviderName, { id: string; name: string }[]> = {
-  gemini: [
-    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Recommended)' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
-  ],
-  anthropic: [
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Recommended)' },
-    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
-    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
-  ],
-}
+import {
+  ensureModelSelection,
+  ensureProviderSelection,
+  getProviderById,
+  migrateProviderSelections,
+  migrateSavedConfig,
+  type ProviderConfig,
+} from '../services/providers'
 
 interface ConfigOverlayProps {
   /**
@@ -23,21 +17,99 @@ interface ConfigOverlayProps {
   inline?: boolean
 }
 
+function createProviderId(providers: ProviderConfig[]): string {
+  let counter = providers.filter((provider) => !provider.builtin).length + 1
+  let providerId = `custom-provider-${counter}`
+
+  while (providers.some((provider) => provider.id === providerId)) {
+    counter += 1
+    providerId = `custom-provider-${counter}`
+  }
+
+  return providerId
+}
+
 export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) => {
   const { config, setConfig, setShowConfig, showConfig } = useStore()
-  const [localConfig, setLocalConfig] = useState(config)
+  const [localConfig, setLocalConfig] = useState(() => migrateSavedConfig(config))
+  const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature))
   const [showTokens, setShowTokens] = useState(false)
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false)
 
+  useEffect(() => {
+    const migratedConfig = migrateSavedConfig(config)
+    setLocalConfig(migratedConfig)
+    setTemperatureInput(String(migratedConfig.temperature))
+  }, [config])
+
+  const selectedProvider = useMemo(
+    () => getProviderById(localConfig.providers, localConfig.provider),
+    [localConfig.provider, localConfig.providers]
+  )
+  const otherProviderIds = useMemo(
+    () => new Set(
+      localConfig.providers
+        .filter((provider) => provider.id !== selectedProvider?.id)
+        .map((provider) => provider.id)
+    ),
+    [localConfig.providers, selectedProvider?.id]
+  )
+
+  const setProviders = (providers: ProviderConfig[], nextProviderId = localConfig.provider, nextModelId = localConfig.model) => {
+    const provider = ensureProviderSelection(nextProviderId, providers)
+    const model = ensureModelSelection(provider, nextModelId, providers)
+    setLocalConfig({ ...localConfig, providers, provider, model })
+  }
+
+  const updateProvider = (providerId: string, updater: (provider: ProviderConfig) => ProviderConfig) => {
+    const providers = localConfig.providers.map((provider) =>
+      provider.id === providerId ? updater(provider) : provider
+    )
+    setProviders(providers)
+  }
+
+  const handleSelectProvider = (providerId: string) => {
+    const provider = getProviderById(localConfig.providers, providerId)
+    setProviders(localConfig.providers, providerId, provider?.models[0]?.id)
+  }
+
+  const handleAddProvider = () => {
+    const providerId = createProviderId(localConfig.providers)
+    const providers = [
+      ...localConfig.providers,
+      {
+        id: providerId,
+        name: `Custom Provider ${localConfig.providers.filter((provider) => !provider.builtin).length + 1}`,
+        apiKey: '',
+        baseUrl: '',
+        models: [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
+      },
+    ]
+    setProviders(providers, providerId, 'gpt-4o-mini')
+  }
+
+  const handleRemoveProvider = () => {
+    if (!selectedProvider || selectedProvider.builtin) {
+      return
+    }
+
+    if (!window.confirm(`Remove provider "${selectedProvider.name}"?`)) {
+      return
+    }
+
+    const providers = localConfig.providers.filter((provider) => provider.id !== selectedProvider.id)
+    setProviders(providers)
+  }
+
   const handleSave = () => {
-    setConfig(localConfig)
+    const normalized = migrateProviderSelections(localConfig)
+    setConfig(normalized)
 
     const hasCredentials =
-      localConfig.githubToken ||
-      localConfig.openaiKey ||
-      localConfig.geminiKey ||
-      localConfig.anthropicKey
+      normalized.githubToken ||
+      normalized.openaiKey ||
+      normalized.providers.some((provider) => provider.apiKey)
 
     if (hasCredentials) {
       const shouldSave = window.confirm(
@@ -47,16 +119,15 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
 
       if (shouldSave) {
         localStorage.setItem('chat-github-config', JSON.stringify({
-          githubToken: localConfig.githubToken,
-          openaiKey: localConfig.openaiKey,
-          geminiKey: localConfig.geminiKey,
-          anthropicKey: localConfig.anthropicKey,
-          provider: localConfig.provider,
-          owner: localConfig.owner,
-          repo: localConfig.repo,
-          branch: localConfig.branch,
-          model: localConfig.model,
-          temperature: localConfig.temperature,
+          githubToken: normalized.githubToken,
+          openaiKey: normalized.openaiKey,
+          providers: normalized.providers,
+          provider: normalized.provider,
+          owner: normalized.owner,
+          repo: normalized.repo,
+          branch: normalized.branch,
+          model: normalized.model,
+          temperature: normalized.temperature,
         }))
       }
     }
@@ -70,7 +141,9 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   }
 
   const handleCancel = () => {
-    setLocalConfig(config)
+    const migratedConfig = migrateSavedConfig(config)
+    setLocalConfig(migratedConfig)
+    setTemperatureInput(String(migratedConfig.temperature))
     if (!inline) {
       setShowConfig(false)
     }
@@ -80,8 +153,12 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     const saved = localStorage.getItem('chat-github-config')
     if (saved) {
       try {
-        const parsedConfig = JSON.parse(saved)
-        setLocalConfig({ ...localConfig, ...parsedConfig })
+        const parsedConfig = migrateSavedConfig({
+          ...localConfig,
+          ...JSON.parse(saved),
+        })
+        setLocalConfig(parsedConfig)
+        setTemperatureInput(String(parsedConfig.temperature))
       } catch {
         alert('Failed to load saved configuration')
       }
@@ -97,12 +174,10 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     }
   }
 
-  const availableModels = PROVIDER_MODELS[localConfig.provider] ?? PROVIDER_MODELS.gemini
+  const availableModels = selectedProvider?.models ?? []
 
-  // In modal mode, return nothing when the overlay is closed.
   if (!inline && !showConfig) return null
 
-  /** Shared form body used by both the modal and the inline settings view. */
   const formBody = (
     <div className="config-content">
       <div className="config-section">
@@ -164,68 +239,184 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
 
         <div className="config-field">
           <label>Provider</label>
-          <select
-            value={localConfig.provider}
-            onChange={(e) => {
-              const p = e.target.value as ProviderName
-              // Always reset model to the first option for the new provider
-              // to avoid carrying over an incompatible model from the prior provider.
-              const firstModel = PROVIDER_MODELS[p]?.[0]?.id ?? 'gemini-2.0-flash-exp'
-              setLocalConfig({ ...localConfig, provider: p, model: firstModel })
-            }}
-          >
-            <option value="gemini">Google Gemini</option>
-            <option value="anthropic">Anthropic Claude</option>
-          </select>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select
+              value={localConfig.provider}
+              onChange={(e) => handleSelectProvider(e.target.value)}
+              style={{ flex: 1 }}
+            >
+              {localConfig.providers.map((provider) => (
+                <option key={provider.id} value={provider.id}>{provider.name}</option>
+              ))}
+            </select>
+            <button type="button" onClick={handleAddProvider} className="config-action-btn">
+              Add Provider
+            </button>
+          </div>
+          <small>
+            Built-in providers use native adapters. Custom providers use OpenAI-compatible
+            <code style={{ marginLeft: 4 }}>/chat/completions</code>
+            endpoints, similar to OpenCode custom providers.
+          </small>
         </div>
 
-        {localConfig.provider === 'gemini' && (
-          <div className="config-field">
-            <label>Gemini API Key</label>
-            <input
-              type={showTokens ? 'text' : 'password'}
-              value={localConfig.geminiKey}
-              onChange={(e) => setLocalConfig({ ...localConfig, geminiKey: e.target.value })}
-              placeholder="AIza..."
-            />
-            <small>
-              Get a key at{' '}
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
-                aistudio.google.com/apikey
-              </a>
-            </small>
-          </div>
-        )}
+        {selectedProvider && (
+          <>
+            {!selectedProvider.builtin && (
+              <>
+                <div className="config-field">
+                  <label>Provider Name</label>
+                  <input
+                    type="text"
+                    value={selectedProvider.name}
+                    onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
+                      ...provider,
+                      name: e.target.value,
+                    }))}
+                    placeholder="My AI Provider"
+                  />
+                </div>
 
-        {localConfig.provider === 'anthropic' && (
-          <div className="config-field">
-            <label>Anthropic API Key</label>
-            <input
-              type={showTokens ? 'text' : 'password'}
-              value={localConfig.anthropicKey}
-              onChange={(e) => setLocalConfig({ ...localConfig, anthropicKey: e.target.value })}
-              placeholder="sk-ant-..."
-            />
-            <small>
-              Get a key at{' '}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">
-                console.anthropic.com
-              </a>
-            </small>
-          </div>
-        )}
+                <div className="config-field">
+                  <label>Provider ID</label>
+                  <input
+                    type="text"
+                    value={selectedProvider.id}
+                    onChange={(e) => {
+                      const nextId = e.target.value.trim()
+                      if (!nextId || otherProviderIds.has(nextId)) {
+                        return
+                      }
 
-        <div className="config-field">
-          <label>Model</label>
-          <select
-            value={localConfig.model}
-            onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
-          >
-            {availableModels.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-        </div>
+                      const providers = localConfig.providers.map((provider) =>
+                        provider.id === selectedProvider.id ? { ...provider, id: nextId } : provider
+                      )
+                      setProviders(providers, nextId)
+                    }}
+                    placeholder="myprovider"
+                  />
+                  <small>Used as the provider identifier sent to the backend.</small>
+                </div>
+              </>
+            )}
+
+            <div className="config-field">
+              <label>{selectedProvider.builtin ? 'Custom Base URL (optional)' : 'Base URL'}</label>
+              <input
+                type="text"
+                value={selectedProvider.baseUrl}
+                onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
+                  ...provider,
+                  baseUrl: e.target.value,
+                }))}
+                placeholder={selectedProvider.builtin ? 'https://proxy.example.com/v1' : 'https://api.myprovider.com/v1'}
+              />
+              <small>
+                {selectedProvider.builtin
+                  ? 'Leave blank to use the provider default endpoint.'
+                  : 'Required for custom OpenAI-compatible providers.'}
+              </small>
+            </div>
+
+            <div className="config-field">
+              <label>{selectedProvider.name} API Key</label>
+              <input
+                type={showTokens ? 'text' : 'password'}
+                value={selectedProvider.apiKey}
+                onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
+                  ...provider,
+                  apiKey: e.target.value,
+                }))}
+                placeholder={selectedProvider.builtin ? 'Provider API key' : 'Optional for local/open endpoints'}
+              />
+            </div>
+
+            <div className="config-field">
+              <label>Model</label>
+              <select
+                value={localConfig.model}
+                onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
+              >
+                {availableModels.map((model) => (
+                  <option key={model.id} value={model.id}>{model.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {!selectedProvider.builtin && (
+              <div className="config-field">
+                <label>Custom Models</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {selectedProvider.models.map((model, index) => (
+                    <div key={model.uid ?? `${selectedProvider.id}-${model.id}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={model.id}
+                        onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
+                          ...provider,
+                          models: provider.models.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, id: e.target.value } : entry
+                          ),
+                        }))}
+                        placeholder="model-id"
+                      />
+                      <input
+                        type="text"
+                        value={model.name}
+                        onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
+                          ...provider,
+                          models: provider.models.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, name: e.target.value } : entry
+                          ),
+                        }))}
+                        placeholder="Display name"
+                      />
+                      <button
+                        type="button"
+                        className="config-action-btn danger"
+                        onClick={() => updateProvider(selectedProvider.id, (provider) => {
+                          const models = provider.models.filter((_, entryIndex) => entryIndex !== index)
+                          return {
+                            ...provider,
+                            models: models.length > 0 ? models : [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
+                          }
+                        })}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="config-action-btn"
+                      onClick={() => updateProvider(selectedProvider.id, (provider) => ({
+                        ...provider,
+                        models: [
+                          ...provider.models,
+                          {
+                            id: `model-${provider.models.length + 1}`,
+                            name: `Model ${provider.models.length + 1}`,
+                            uid: crypto.randomUUID(),
+                          },
+                        ],
+                      }))}
+                    >
+                      Add Model
+                    </button>
+                    <button
+                      type="button"
+                      className="config-action-btn danger"
+                      onClick={handleRemoveProvider}
+                    >
+                      Remove Provider
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         <div className="config-field">
           <label>Temperature</label>
@@ -234,8 +425,21 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             min="0"
             max="2"
             step="0.1"
-            value={localConfig.temperature}
-            onChange={(e) => setLocalConfig({ ...localConfig, temperature: parseFloat(e.target.value) })}
+            value={temperatureInput}
+            onChange={(e) => {
+              const nextValue = e.target.value
+              setTemperatureInput(nextValue)
+              if (nextValue.trim() === '') {
+                return
+              }
+              const nextTemperature = Number.parseFloat(nextValue)
+              if (!Number.isNaN(nextTemperature)) {
+                setLocalConfig({
+                  ...localConfig,
+                  temperature: nextTemperature,
+                })
+              }
+            }}
           />
           <small>0 = deterministic, 2 = very creative</small>
         </div>
@@ -289,7 +493,6 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     </div>
   )
 
-  /* ── Inline / page mode ─────────────────────────────────────── */
   if (inline) {
     return (
       <div className="settings-view">
@@ -311,7 +514,6 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     )
   }
 
-  /* ── Modal / overlay mode (existing behaviour) ──────────────── */
   return (
     <div className="config-overlay">
       <div className="config-modal">
