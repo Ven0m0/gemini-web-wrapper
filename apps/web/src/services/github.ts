@@ -85,7 +85,7 @@ export class GitHubService {
 
       const data = await response.json()
       const binaryString = atob(data.content)
-      const bytes = Uint8Array.from(Array.from(binaryString, (char) => char.charCodeAt(0)))
+      const bytes = Uint8Array.from(binaryString, (char: string) => char.charCodeAt(0))
       const content = new TextDecoder('utf-8').decode(bytes)
       const file = { content, sha: data.sha }
       this.setCachedFile(path, branch, file)
@@ -120,7 +120,7 @@ export class GitHubService {
         body: JSON.stringify(requestBody),
       })
 
-      this.setCachedFile(path, branch, { content, sha: data.content.sha })
+      this.invalidateFile(path, branch)
       return data.content.sha
     } catch (error) {
       throw new Error(`Failed to commit file: ${error}`)

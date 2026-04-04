@@ -54,7 +54,9 @@ export function searchAnnotatedContent(content: string, pattern: string, context
   const regex = parseSearchPattern(pattern)
   const lines = content.split('\n')
   const matchIndexes = lines.flatMap((line, index) => {
-    regex.lastIndex = 0
+    if (regex.global || regex.sticky) {
+      regex.lastIndex = 0
+    }
     return regex.test(line) ? [index] : []
   })
 

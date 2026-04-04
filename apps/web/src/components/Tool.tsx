@@ -369,10 +369,7 @@ export const Tool: React.FC = () => {
       } else {
         try {
           const binaryString = atob(content)
-          const bytes = new Uint8Array(binaryString.length)
-          for (let i = 0; i < binaryString.length; i += 1) {
-            bytes[i] = binaryString.charCodeAt(i)
-          }
+          const bytes = Uint8Array.from(binaryString, (char: string) => char.charCodeAt(0))
           blob = new Blob([bytes], { type: 'application/octet-stream' })
         } catch {
           blob = new Blob([content], { type: 'text/plain' })
