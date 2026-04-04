@@ -134,3 +134,76 @@ export function repairJsonContent(content: string): { content: string; warnings:
 export function isJsonPath(path: string): boolean {
   return /\.json$/i.test(path.trim())
 }
+
+const TEXT_PATH_EXTENSIONS = new Set([
+  'c',
+  'cc',
+  'cpp',
+  'css',
+  'csv',
+  'gitignore',
+  'go',
+  'html',
+  'java',
+  'js',
+  'json',
+  'jsx',
+  'md',
+  'mjs',
+  'py',
+  'rb',
+  'rs',
+  'sh',
+  'sql',
+  'svg',
+  'toml',
+  'ts',
+  'tsx',
+  'txt',
+  'xml',
+  'yaml',
+  'yml',
+])
+
+const TEXT_MIME_TYPES = new Set([
+  'application/javascript',
+  'application/json',
+  'application/ld+json',
+  'application/sql',
+  'application/typescript',
+  'application/x-httpd-php',
+  'application/x-sh',
+  'application/xhtml+xml',
+  'application/xml',
+  'image/svg+xml',
+  'text/csv',
+  'text/html',
+  'text/javascript',
+  'text/markdown',
+  'text/plain',
+  'text/xml',
+])
+
+export function isTextPath(path: string, mimeType = ''): boolean {
+  const normalizedMimeType = mimeType.trim().toLowerCase()
+  if (normalizedMimeType.startsWith('text/')) {
+    return true
+  }
+
+  if (TEXT_MIME_TYPES.has(normalizedMimeType)) {
+    return true
+  }
+
+  const normalizedPath = path.trim().toLowerCase()
+  if (!normalizedPath) {
+    return false
+  }
+
+  const filename = normalizedPath.split('/').pop() || normalizedPath
+  if (!filename.includes('.')) {
+    return TEXT_PATH_EXTENSIONS.has(filename)
+  }
+
+  const extension = filename.split('.').pop()
+  return extension ? TEXT_PATH_EXTENSIONS.has(extension) : false
+}
