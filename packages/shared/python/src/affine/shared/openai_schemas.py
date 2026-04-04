@@ -4,6 +4,7 @@ from pydantic import BaseModel, model_validator
 
 from affine.shared.models import FinishReason, MessageRole
 
+
 class ChatMessage(BaseModel):
     role: MessageRole
     content: str | list[dict[str, Any]]
