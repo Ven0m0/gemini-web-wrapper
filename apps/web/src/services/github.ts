@@ -62,7 +62,7 @@ export class GitHubService {
     return response.json()
   }
 
-  async getFile(path: string, branch: string = 'main', force = false): Promise<GitHubFileResponse> {
+  async getFile(path: string, branch: string = 'main', force: boolean = false): Promise<GitHubFileResponse> {
     const cacheKey = this.cacheKey(path, branch)
     if (!force) {
       const cached = GitHubService.fileCache.get(cacheKey)

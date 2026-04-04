@@ -134,11 +134,3 @@ export function repairJsonContent(content: string): { content: string; warnings:
 export function isJsonPath(path: string): boolean {
   return /\.json$/i.test(path.trim())
 }
-fy(healed.data, null, 2),
-    warnings: healed.warnings || [],
-  }
-}
-
-export function isJsonPath(path: string): boolean {
-  return /\.json$/i.test(path.trim())
-}

@@ -838,7 +838,7 @@ export const Tool: React.FC = () => {
     </div>
   )
 }
-      Clear Log
+Log
         </button>
       </div>
     </div>
