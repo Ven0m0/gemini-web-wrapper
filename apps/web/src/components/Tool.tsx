@@ -65,7 +65,7 @@ export const Tool: React.FC = () => {
   const [wsUploadFilename, setWsUploadFilename] = useState('')
   const [wsDownloadFilename, setWsDownloadFilename] = useState('')
   const [wsUrlInput, setWsUrlInput] = useState('')
-  const [log, setLog] = useState<string[]>([])
+  const [log, setLog] = useState<Array<{ id: number; message: string }>>([])
   const [searchPattern, setSearchPattern] = useState('')
   const [searchContext, setSearchContext] = useState('2')
   const [searchResults, setSearchResults] = useState('')
@@ -83,6 +83,7 @@ export const Tool: React.FC = () => {
   const githubUploadInputRef = useRef<HTMLInputElement>(null)
   const wsFileInputRef = useRef<HTMLInputElement>(null)
   const wsServiceRef = useRef<WebSocketService | null>(null)
+  const nextLogIdRef = useRef(0)
 
   const {
     setMode,
@@ -125,7 +126,12 @@ export const Tool: React.FC = () => {
   }, [activeFilePath, selectedNodePath, selectedNodeType])
 
   const addLog = (message: string) => {
-    setLog((prev) => [...prev.slice(-19), `[${new Date().toLocaleTimeString()}] ${message}`])
+    const entry = {
+      id: nextLogIdRef.current,
+      message: `[${new Date().toLocaleTimeString()}] ${message}`,
+    }
+    nextLogIdRef.current += 1
+    setLog((prev) => [...prev.slice(-19), entry])
   }
 
   const getGitHubService = (): GitHubService | null => {
@@ -230,14 +236,14 @@ export const Tool: React.FC = () => {
       const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0))
       const blob = new Blob([bytes], { type: 'application/octet-stream' })
       const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = latest.filename || pendingDownload
-      anchor.style.display = 'none'
-      document.body.appendChild(anchor)
-      anchor.click()
+      const downloadLink = document.createElement('a')
+      downloadLink.href = url
+      downloadLink.download = latest.filename || pendingDownload
+      downloadLink.style.display = 'none'
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
       setTimeout(() => {
-        document.body.removeChild(anchor)
+        document.body.removeChild(downloadLink)
         URL.revokeObjectURL(url)
       }, 100)
       addLog(`Downloaded: ${latest.filename} (${formatFileSize(blob.size)})`)
@@ -441,17 +447,17 @@ export const Tool: React.FC = () => {
     try {
       const blob = new Blob([file.current], { type: 'text/plain;charset=utf-8' })
       const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = activeFilePath.split('/').pop() || 'download'
-      anchor.style.display = 'none'
-      document.body.appendChild(anchor)
-      anchor.click()
+      const downloadLink = document.createElement('a')
+      downloadLink.href = url
+      downloadLink.download = activeFilePath.split('/').pop() || 'download'
+      downloadLink.style.display = 'none'
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
       setTimeout(() => {
-        document.body.removeChild(anchor)
+        document.body.removeChild(downloadLink)
         URL.revokeObjectURL(url)
       }, 100)
-      addLog(`Downloaded ${anchor.download}`)
+      addLog(`Downloaded ${downloadLink.download}`)
     } catch (error) {
       addLog(`Download failed: ${error instanceof Error ? error.message : error}`)
     } finally {
@@ -924,8 +930,8 @@ export const Tool: React.FC = () => {
           {log.length === 0 ? (
             <div className="log-empty">No activity yet</div>
           ) : (
-            log.map((entry, index) => (
-              <div key={`${entry}-${index}`} className="log-entry">{entry}</div>
+            log.map((entry) => (
+              <div key={entry.id} className="log-entry">{entry.message}</div>
             ))
           )}
         </div>
