@@ -44,12 +44,15 @@ function UserBubble({ content }: { content: string }) {
     }}>
       <div style={{
         background: 'var(--color-bg-surface)',
-        border: '1px solid var(--color-border-hover)',
-        borderRadius: 4,
+        borderTop: '1px solid var(--color-border-hover)',
+        borderBottom: '1px solid var(--color-border)',
+        borderLeft: '2px solid var(--color-accent)',
+        borderRight: '1px solid var(--color-border)',
+        borderRadius: 0,
         padding: '8px 12px',
         fontSize: 13,
-        lineHeight: 1.55,
-        color: 'var(--color-text)',
+        lineHeight: 1.6,
+        color: 'var(--color-text-bright)',
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
       }}>
@@ -108,20 +111,22 @@ function AssistantBubble({ message }: { message: Message }) {
   }
 
   return (
-    <div style={{ alignSelf: 'flex-start', maxWidth: '80%', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+    <div style={{ alignSelf: 'flex-start', maxWidth: '84%', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
       {/* Icon */}
       <div style={{
-        width: 22,
-        height: 22,
-        borderRadius: 3,
+        width: 24,
+        height: 24,
+        borderRadius: 0,
         background: 'var(--color-bg-surface)',
         border: '1px solid var(--color-border)',
+        borderTop: '1px solid var(--color-bg-active)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
         marginTop: 2,
         color: 'var(--color-accent)',
+        boxShadow: '0 0 6px rgba(208, 162, 21, 0.15)',
       }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -130,10 +135,11 @@ function AssistantBubble({ message }: { message: Message }) {
       <div style={{
         background: 'var(--color-bg-elevated)',
         border: '1px solid var(--color-border)',
-        borderRadius: 4,
-        padding: '8px 12px',
+        borderLeft: '1px solid var(--color-border-subtle)',
+        borderRadius: 0,
+        padding: '9px 13px',
         fontSize: 13,
-        lineHeight: 1.55,
+        lineHeight: 1.65,
         color: 'var(--color-text)',
         flex: 1,
       }}>
@@ -145,17 +151,19 @@ function AssistantBubble({ message }: { message: Message }) {
 
 function TypingIndicator() {
   return (
-    <div style={{ alignSelf: 'flex-start', display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div style={{ alignSelf: 'flex-start', display: 'flex', gap: 10, alignItems: 'center' }}>
       <div style={{
-        width: 22,
-        height: 22,
-        borderRadius: 3,
+        width: 24,
+        height: 24,
+        borderRadius: 0,
         background: 'var(--color-bg-surface)',
         border: '1px solid var(--color-border)',
+        borderTop: '1px solid var(--color-bg-active)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: 'var(--color-accent)',
+        boxShadow: '0 0 6px rgba(208, 162, 21, 0.15)',
       }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -164,28 +172,29 @@ function TypingIndicator() {
       <div style={{
         background: 'var(--color-bg-elevated)',
         border: '1px solid var(--color-border)',
-        borderRadius: 4,
-        padding: '8px 12px',
+        borderRadius: 0,
+        padding: '9px 14px',
         display: 'flex',
-        gap: 4,
+        gap: 5,
         alignItems: 'center',
       }}>
         {[0, 1, 2].map((i) => (
           <span key={i} style={{
-            width: 5,
-            height: 5,
+            width: 4,
+            height: 4,
             borderRadius: '50%',
-            background: 'var(--color-text-subtle)',
+            background: 'var(--color-accent)',
             display: 'inline-block',
-            animation: 'typingDot 1.2s ease infinite',
-            animationDelay: `${i * 0.2}s`,
+            animation: 'typingDot 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite',
+            animationDelay: `${i * 0.18}s`,
+            opacity: 0.4,
           }} />
         ))}
       </div>
       <style>{`
         @keyframes typingDot {
-          0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-          30% { opacity: 1; transform: translateY(-3px); }
+          0%, 60%, 100% { opacity: 0.25; transform: translateY(0) scale(1); }
+          30% { opacity: 1; transform: translateY(-3px) scale(1.1); }
         }
       `}</style>
     </div>
@@ -200,57 +209,94 @@ function EmptyState({ onSelect }: { onSelect: (s: string) => void }) {
       alignItems: 'center',
       justifyContent: 'center',
       height: '100%',
-      gap: 24,
+      gap: 28,
       padding: '0 24px',
+      position: 'relative',
     }}>
-      <div style={{ textAlign: 'center' }}>
+      {/* Subtle grid background */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: `
+          linear-gradient(rgba(208, 162, 21, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(208, 162, 21, 0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '32px 32px',
+        maskImage: 'radial-gradient(ellipse 60% 60% at 50% 50%, black 30%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{ textAlign: 'center', position: 'relative' }}>
+        {/* Icon */}
         <div style={{
-          width: 40,
-          height: 40,
-          borderRadius: 4,
+          width: 52,
+          height: 52,
+          borderRadius: 0,
           background: 'var(--color-bg-surface)',
-          border: '1px solid var(--color-border)',
+          border: '1px solid var(--color-border-hover)',
+          borderTop: '2px solid var(--color-accent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          margin: '0 auto 12px',
+          margin: '0 auto 18px',
           color: 'var(--color-accent)',
+          boxShadow: '0 0 20px rgba(208, 162, 21, 0.12), 0 4px 16px rgba(0,0,0,0.4)',
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </div>
-        <p style={{ fontSize: 14, color: 'var(--color-text)', marginBottom: 4 }}>New conversation</p>
-        <p style={{ fontSize: 12, color: 'var(--color-text-subtle)' }}>
-          Ask anything — code, JSON healing, general questions
+        <p style={{
+          fontSize: 15,
+          fontWeight: 600,
+          color: 'var(--color-text-bright)',
+          marginBottom: 6,
+          letterSpacing: '-0.01em',
+        }}>New conversation</p>
+        <p style={{
+          fontSize: 12,
+          color: 'var(--color-text-subtle)',
+          fontFamily: 'var(--font-family-mono)',
+          letterSpacing: '0.01em',
+        }}>
+          code · json · analysis · anything
         </p>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 480 }}>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 520, position: 'relative' }}>
         {SUGGESTED.map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => onSelect(s)}
             style={{
-              padding: '4px 10px',
+              padding: '5px 12px',
               background: 'var(--color-bg-surface)',
               border: '1px solid var(--color-border)',
-              borderRadius: 3,
+              borderRadius: 0,
               color: 'var(--color-text-muted)',
               fontSize: 12,
               cursor: 'pointer',
               fontFamily: 'var(--font-family-mono)',
-              transition: 'all 100ms ease',
+              transition: 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-border-hover)'
-              e.currentTarget.style.color = 'var(--color-text)'
+              e.currentTarget.style.borderColor = 'var(--color-accent)'
+              e.currentTarget.style.color = 'var(--color-accent)'
+              e.currentTarget.style.background = 'rgba(208, 162, 21, 0.05)'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = 'var(--color-border)'
               e.currentTarget.style.color = 'var(--color-text-muted)'
+              e.currentTarget.style.background = 'var(--color-bg-surface)'
             }}
           >
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.5 }} aria-hidden="true">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
             {s}
           </button>
         ))}
@@ -346,19 +392,35 @@ export const OpenRouterChat: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 12px',
-        height: 36,
+        height: 38,
         borderBottom: '1px solid var(--color-border)',
         background: 'var(--color-bg-elevated)',
         flexShrink: 0,
+        gap: 8,
       }}>
         {/* Left: title + msg count */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-family-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--color-text-subtle)',
+            fontFamily: 'var(--font-family-mono)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}>
             Chat
           </span>
           {messages.length > 0 && (
-            <span style={{ fontSize: 11, color: 'var(--color-text-subtle)', fontFamily: 'var(--font-family-mono)' }}>
-              {messages.length} {messages.length === 1 ? 'message' : 'messages'}
+            <span style={{
+              fontSize: 10,
+              color: 'var(--color-text-subtle)',
+              fontFamily: 'var(--font-family-mono)',
+              background: 'var(--color-bg-surface)',
+              border: '1px solid var(--color-border)',
+              padding: '0 5px',
+              lineHeight: '16px',
+            }}>
+              {messages.length}
             </span>
           )}
         </div>
@@ -372,52 +434,54 @@ export const OpenRouterChat: React.FC = () => {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '2px 8px',
-              fontSize: 11,
+              fontSize: 10,
               fontFamily: 'var(--font-family-mono)',
-              background: enableJSONHealing ? 'var(--color-success)' : 'var(--color-bg-surface)',
+              background: enableJSONHealing ? 'rgba(135, 154, 57, 0.15)' : 'transparent',
               border: '1px solid',
               borderColor: enableJSONHealing ? 'var(--color-success)' : 'var(--color-border)',
-              borderRadius: 3,
-              color: enableJSONHealing ? '#fff' : 'var(--color-text-muted)',
+              borderRadius: 0,
+              color: enableJSONHealing ? 'var(--color-success)' : 'var(--color-text-subtle)',
               cursor: 'pointer',
-              transition: 'all 100ms ease',
+              transition: 'all 150ms ease',
+              letterSpacing: '0.02em',
             }}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="16 18 22 12 16 6" />
               <polyline points="8 6 2 12 8 18" />
             </svg>
-            JSON healing {enableJSONHealing ? 'on' : 'off'}
+            JSON
           </button>
 
           {/* Model selector */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <select
-               value={selectedModelKey}
-               onChange={(e) => {
-                 const [providerId, modelId] = e.target.value.split('::')
-                 setConfig({ provider: providerId, model: modelId })
-               }}
-               style={{
-                 appearance: 'none',
-                 background: 'var(--color-bg-surface)',
+            <select
+              value={selectedModelKey}
+              onChange={(e) => {
+                const [providerId, modelId] = e.target.value.split('::')
+                setConfig({ provider: providerId, model: modelId })
+              }}
+              style={{
+                appearance: 'none',
+                background: 'var(--color-bg-surface)',
                 border: '1px solid var(--color-border)',
-                borderRadius: 3,
+                borderRadius: 0,
                 color: 'var(--color-text-muted)',
-                fontSize: 11,
+                fontSize: 10,
                 fontFamily: 'var(--font-family-mono)',
                 padding: '2px 22px 2px 8px',
                 cursor: 'pointer',
                 outline: 'none',
+                letterSpacing: '0.01em',
               }}
             >
-               {providerOptions.map((model) => (
-                 <option key={model.key} value={model.key}>{model.label}</option>
-               ))}
-             </select>
+              {providerOptions.map((model) => (
+                <option key={model.key} value={model.key}>{model.label}</option>
+              ))}
+            </select>
             <svg
-              width="10" height="10"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              width="9" height="9"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
               style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: 'var(--color-text-subtle)' }}
               aria-hidden="true"
             >
@@ -432,21 +496,26 @@ export const OpenRouterChat: React.FC = () => {
               type="button"
               onClick={() => setMessages([])}
               style={{
-                display: 'flex', alignItems: 'center',
-                padding: '2px 6px',
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '2px 7px',
                 background: 'transparent',
                 border: '1px solid transparent',
-                borderRadius: 3,
+                borderRadius: 0,
                 color: 'var(--color-text-subtle)',
-                fontSize: 11,
+                fontSize: 10,
                 fontFamily: 'var(--font-family-mono)',
                 cursor: 'pointer',
-                transition: 'all 100ms ease',
+                transition: 'all 120ms ease',
+                letterSpacing: '0.02em',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-bg-hover)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-subtle)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-error)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.color = 'var(--color-text-subtle)' }}
               title="Clear conversation"
             >
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
               Clear
             </button>
           )}
@@ -457,10 +526,10 @@ export const OpenRouterChat: React.FC = () => {
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '16px 20px',
+        padding: '20px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
+        gap: 14,
       }}>
         {messages.length === 0 ? (
           <EmptyState onSelect={setInput} />
@@ -476,7 +545,8 @@ export const OpenRouterChat: React.FC = () => {
                   color: 'var(--color-text-subtle)',
                   fontFamily: 'var(--font-family-mono)',
                   alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  paddingLeft: msg.role === 'user' ? 0 : 30,
+                  paddingLeft: msg.role === 'user' ? 0 : 34,
+                  letterSpacing: '0.02em',
                 }}>
                   {formatTime(msg.timestamp)}
                 </span>
@@ -492,7 +562,7 @@ export const OpenRouterChat: React.FC = () => {
       <div style={{
         borderTop: '1px solid var(--color-border)',
         background: 'var(--color-bg-elevated)',
-        padding: '8px 12px',
+        padding: '10px 14px',
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
@@ -508,40 +578,47 @@ export const OpenRouterChat: React.FC = () => {
               flex: 1,
               background: 'var(--color-bg-surface)',
               border: '1px solid var(--color-border)',
-              borderRadius: 3,
+              borderRadius: 0,
               color: 'var(--color-text)',
               fontFamily: 'var(--font-family-sans)',
               fontSize: 13,
-              padding: '6px 10px',
+              padding: '8px 12px',
               resize: 'none',
               outline: 'none',
-              minHeight: 34,
+              minHeight: 36,
               maxHeight: 180,
-              lineHeight: 1.5,
+              lineHeight: 1.55,
               caretColor: 'var(--color-accent)',
-              transition: 'border-color 100ms ease',
+              transition: 'border-color 150ms ease, box-shadow 150ms ease',
             }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)' }}
-            onBlur={(e)  => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+              e.currentTarget.style.boxShadow = '0 0 0 1px rgba(208, 162, 21, 0.08) inset'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
           />
           <button
             type="button"
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
             style={{
-              width: 34,
-              height: 34,
+              width: 36,
+              height: 36,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: input.trim() && !isLoading ? 'var(--color-primary)' : 'var(--color-bg-surface)',
+              background: input.trim() && !isLoading ? 'var(--color-accent)' : 'var(--color-bg-surface)',
               border: '1px solid',
-              borderColor: input.trim() && !isLoading ? 'var(--color-primary)' : 'var(--color-border)',
-              borderRadius: 3,
-              color: input.trim() && !isLoading ? '#fff' : 'var(--color-text-subtle)',
+              borderColor: input.trim() && !isLoading ? 'var(--color-accent)' : 'var(--color-border)',
+              borderRadius: 0,
+              color: input.trim() && !isLoading ? 'var(--color-bg)' : 'var(--color-text-subtle)',
               cursor: input.trim() && !isLoading ? 'pointer' : 'not-allowed',
               flexShrink: 0,
-              transition: 'all 100ms ease',
+              transition: 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+              boxShadow: input.trim() && !isLoading ? '0 0 8px rgba(208, 162, 21, 0.2)' : 'none',
             }}
             aria-label="Send message"
           >
@@ -558,14 +635,17 @@ export const OpenRouterChat: React.FC = () => {
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
-          marginTop: 4,
+          marginTop: 5,
           fontSize: 10,
           color: 'var(--color-text-subtle)',
           fontFamily: 'var(--font-family-mono)',
+          letterSpacing: '0.02em',
         }}>
-          <span>{enableJSONHealing ? '⚡ json healing active' : ''}</span>
+          <span style={{ color: enableJSONHealing ? 'var(--color-success)' : 'transparent' }}>
+            ⚡ json healing active
+          </span>
           <span>
-            <kbd style={{ padding: '1px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 2, fontSize: 10 }}>Enter</kbd>
+            <kbd style={{ padding: '1px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 0, fontSize: 9 }}>Enter</kbd>
             {' '}send
           </span>
         </div>
