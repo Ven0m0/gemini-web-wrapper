@@ -135,13 +135,12 @@ export function isJsonPath(path: string): boolean {
   return /\.json$/i.test(path.trim())
 }
 
-const TEXT_PATH_EXTENSIONS = new Set([
+const TEXT_FILE_EXTENSIONS = new Set([
   'c',
   'cc',
   'cpp',
   'css',
   'csv',
-  'gitignore',
   'go',
   'html',
   'java',
@@ -163,6 +162,10 @@ const TEXT_PATH_EXTENSIONS = new Set([
   'xml',
   'yaml',
   'yml',
+])
+
+const TEXT_FILENAMES = new Set([
+  '.gitignore',
 ])
 
 const TEXT_MIME_TYPES = new Set([
@@ -200,10 +203,10 @@ export function isTextPath(path: string, mimeType = ''): boolean {
   }
 
   const filename = normalizedPath.split('/').pop() || normalizedPath
-  if (!filename.includes('.')) {
-    return TEXT_PATH_EXTENSIONS.has(filename)
+  if (TEXT_FILENAMES.has(filename)) {
+    return true
   }
 
   const extension = filename.split('.').pop()
-  return extension ? TEXT_PATH_EXTENSIONS.has(extension) : false
+  return extension ? TEXT_FILE_EXTENSIONS.has(extension) : false
 }
