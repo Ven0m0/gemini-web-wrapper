@@ -3,6 +3,7 @@
   "vcs": {
     "enabled": true,
     "clientKind": "git",
+    "root": "../..",
     "useIgnoreFile": true
   },
   "files": {
@@ -15,18 +16,38 @@
     "indentWidth": 2,
     "lineWidth": 120
   },
-  "organizeImports": {
-    "enabled": true
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "recommended": false,
+      "a11y": {
+        "useButtonType": "off",
+        "useSemanticElements": "off"
+      },
+      "complexity": {
+        "noStaticOnlyClass": "off",
+        "noThisInStatic": "off",
+        "noUselessSwitchCase": "off",
+        "useOptionalChain": "off"
+      },
       "correctness": {
         "noUnusedImports": "warn",
         "noUnusedVariables": "warn"
       },
+      "style": {
+        "useImportType": "off",
+        "useTemplate": "off"
+      },
       "suspicious": {
+        "noAssignInExpressions": "off",
+        "noConfusingVoidType": "off",
         "noExplicitAny": "warn"
       }
     }

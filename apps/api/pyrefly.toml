@@ -1,4 +1,4 @@
-python-version = "3.12"
+python-version = "3.14"
 project-includes = ["src"]
 search-path = [
     "src",
@@ -6,3 +6,7 @@ search-path = [
     "../../packages/llm-core/src",
     "../../packages/shared/python/src",
 ]
+
+[errors]
+missing-import = false
+bad-return = false

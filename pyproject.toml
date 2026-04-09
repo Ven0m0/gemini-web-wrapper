@@ -2,7 +2,7 @@
 name = "affine-workstation"
 version = "0.1.0"
 description = "Affine AI Coding Workstation"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
     "affine-api",
     "affine-shared",
