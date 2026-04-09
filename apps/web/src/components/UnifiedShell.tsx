@@ -15,7 +15,7 @@ export const UnifiedShell: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ShellTab>('terminal')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Tab bar */}
       <div style={{
         display: 'flex',
@@ -29,7 +29,7 @@ export const UnifiedShell: React.FC = () => {
             onClick={() => setActiveTab(tab)}
             style={{
               padding: '6px 16px',
-              fontSize: 13,
+              fontSize: '13px',
               fontWeight: activeTab === tab ? 600 : 400,
               background: activeTab === tab
                 ? 'var(--color-bg, #121212)'
