@@ -98,12 +98,15 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.venv/
 .pytest_cache/
 .coverage
 htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+*.egg-info/
+pyrefly.toml
 *.tsbuildinfo
 *.db
 

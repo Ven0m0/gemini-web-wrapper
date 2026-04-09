@@ -18,6 +18,7 @@ def test_settings_parse_cors_origins_and_provider_api_key() -> None:
     ]
     assert settings.provider_api_key() == "anthropic-key"
     assert settings.frontend_dist_dir == Path("apps/web/dist")
+    assert settings.repo_index_db_path == Path(".cache/repo-index.db")
 
 
 def test_settings_gateway_provider_metadata() -> None:

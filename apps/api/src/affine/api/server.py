@@ -16,6 +16,7 @@ from affine.shared.openai_schemas import (
     ChatCompletionRequest,
     ChatCompletionResponse,
 )
+from affine.api.repo_index import router as repo_index_router
 
 app = FastAPI(title="Affine AI Workstation API")
 settings = get_settings()
@@ -143,6 +144,9 @@ def verify_api_key(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return credentials
+
+
+app.include_router(repo_index_router, dependencies=[Depends(verify_api_key)])
 
 
 def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:

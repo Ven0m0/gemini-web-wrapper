@@ -1,0 +1,8 @@
+python-version = "3.12"
+project-includes = ["src"]
+search-path = [
+    "src",
+    "../../packages/config/src",
+    "../../packages/llm-core/src",
+    "../../packages/shared/python/src",
+]

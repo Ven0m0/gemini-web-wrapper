@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { GitHubService, type GitHubDirectoryItem } from '../services/github'
 import {
+  RepoIndexService,
+  type RepoIndexStatus,
+  type RepoSearchResult,
+} from '../services/repoIndex'
+import {
   WebSocketService,
   getActiveWebSocketService,
   setActiveWebSocketService,
@@ -69,6 +74,11 @@ export const Tool: React.FC = () => {
   const [searchPattern, setSearchPattern] = useState('')
   const [searchContext, setSearchContext] = useState('2')
   const [searchResults, setSearchResults] = useState('')
+  const [repoSearchQuery, setRepoSearchQuery] = useState('')
+  const [repoSearchResults, setRepoSearchResults] = useState<RepoSearchResult[]>([])
+  const [repoIndexStatus, setRepoIndexStatus] = useState<RepoIndexStatus | null>(null)
+  const [indexingRepository, setIndexingRepository] = useState(false)
+  const [searchingRepository, setSearchingRepository] = useState(false)
   const [editStartLine, setEditStartLine] = useState('')
   const [editEndLine, setEditEndLine] = useState('')
   const [editCode, setEditCode] = useState('')
@@ -102,6 +112,10 @@ export const Tool: React.FC = () => {
       ? new GitHubService(config.githubToken, config.owner, config.repo)
       : null),
     [config.githubToken, config.owner, config.repo],
+  )
+  const repoIndexService = useMemo(
+    () => (config.owner && config.repo ? new RepoIndexService(config.openaiKey || '') : null),
+    [config.openaiKey, config.owner, config.repo],
   )
 
   const activeFilePath = config.path.trim()
@@ -141,6 +155,21 @@ export const Tool: React.FC = () => {
     }
     return githubService
   }
+
+  const refreshRepoIndexStatus = useCallback(async () => {
+    if (!repoIndexService || !config.owner || !config.repo) {
+      setRepoIndexStatus(null)
+      setRepoSearchResults([])
+      return
+    }
+
+    try {
+      const status = await repoIndexService.getStatus(config.owner, config.repo, config.branch)
+      setRepoIndexStatus(status)
+    } catch (error) {
+      addLog(`Repo index status failed: ${error instanceof Error ? error.message : error}`)
+    }
+  }, [config.branch, config.owner, config.repo, repoIndexService])
 
   const readFileAsBase64 = (selectedFile: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -200,11 +229,18 @@ export const Tool: React.FC = () => {
       setExpandedDirectories([ROOT_PATH])
       setSelectedNodePath('')
       setSelectedNodeType('root')
+      setRepoIndexStatus(null)
+      setRepoSearchResults([])
       return
     }
 
     void loadDirectory(ROOT_PATH, { silent: true })
   }, [hasGitHubConfig, loadDirectory])
+
+  useEffect(() => {
+    if (!hasGitHubConfig) return
+    void refreshRepoIndexStatus()
+  }, [config.branch, hasGitHubConfig, refreshRepoIndexStatus])
 
   useEffect(() => {
     setWsUrlInput(websocket.url)
@@ -322,6 +358,67 @@ export const Tool: React.FC = () => {
     } catch (error) {
       addLog(`Search failed: ${error instanceof Error ? error.message : error}`)
     }
+  }
+
+  const handleIndexRepository = async () => {
+    if (!repoIndexService || !config.owner || !config.repo || !config.githubToken) {
+      addLog('Configure GitHub and gateway settings before indexing')
+      return
+    }
+
+    setIndexingRepository(true)
+    try {
+      const status = await repoIndexService.indexRepository(
+        config.owner,
+        config.repo,
+        config.branch,
+        config.githubToken,
+      )
+      setRepoIndexStatus(status)
+      setRepoSearchResults([])
+      addLog(`Indexed ${status.indexed_files} file${status.indexed_files === 1 ? '' : 's'} with ${status.symbol_count} symbol${status.symbol_count === 1 ? '' : 's'}`)
+    } catch (error) {
+      addLog(`Repo index failed: ${error instanceof Error ? error.message : error}`)
+    } finally {
+      setIndexingRepository(false)
+    }
+  }
+
+  const handleRepoSearch = async () => {
+    if (!repoIndexService || !config.owner || !config.repo) {
+      addLog('Configure GitHub and gateway settings before searching the repo')
+      return
+    }
+    if (!repoSearchQuery.trim()) {
+      addLog('Enter a repo search query')
+      return
+    }
+
+    setSearchingRepository(true)
+    try {
+      const response = await repoIndexService.searchRepository(
+        config.owner,
+        config.repo,
+        config.branch,
+        repoSearchQuery.trim(),
+      )
+      setRepoSearchResults(response.results)
+      if (!response.indexed) {
+        addLog('Run repo indexing before searching')
+      } else {
+        addLog(`Repo search returned ${response.results.length} result${response.results.length === 1 ? '' : 's'}`)
+      }
+    } catch (error) {
+      addLog(`Repo search failed: ${error instanceof Error ? error.message : error}`)
+    } finally {
+      setSearchingRepository(false)
+    }
+  }
+
+  const handleOpenRepoSearchResult = async (result: RepoSearchResult) => {
+    await handleLoadFile(result.path)
+    setSearchResults(result.snippet)
+    addLog(`Opened ${result.path} (${result.start_line}-${result.end_line}) from repo index`)
   }
 
   const handleApplyEdit = () => {
@@ -783,6 +880,83 @@ export const Tool: React.FC = () => {
               </div>
 
               <div className="workspace-tools-column">
+                <div className="workspace-panel">
+                  <div className="workspace-panel-header">Repo index</div>
+                  <div className="workspace-caption">
+                    {repoIndexStatus
+                      ? `${repoIndexStatus.status} · ${repoIndexStatus.indexed_files} files · ${repoIndexStatus.symbol_count} symbols`
+                      : 'Index this repo for structural symbol search.'}
+                  </div>
+                  {repoIndexStatus?.last_error && (
+                    <div className="workspace-caption workspace-error-text">{repoIndexStatus.last_error}</div>
+                  )}
+                  <div className="workspace-inline-actions">
+                    <button
+                      type="button"
+                      className="download-btn"
+                      onClick={() => void refreshRepoIndexStatus()}
+                      disabled={!hasGitHubConfig}
+                    >
+                      Refresh status
+                    </button>
+                    <button
+                      type="button"
+                      className="upload-btn"
+                      onClick={() => void handleIndexRepository()}
+                      disabled={!hasGitHubConfig || indexingRepository}
+                    >
+                      {indexingRepository ? 'Indexing…' : 'Index repo'}
+                    </button>
+                  </div>
+                  <div className="workspace-caption">
+                    LSP detected: {repoIndexStatus
+                      ? Object.entries(repoIndexStatus.lsp_servers)
+                        .filter(([, enabled]) => enabled)
+                        .map(([language]) => language)
+                        .join(', ') || 'none'
+                      : 'unknown'}
+                  </div>
+                  <div className="form-group">
+                    <input
+                      type="text"
+                      value={repoSearchQuery}
+                      onChange={(event) => setRepoSearchQuery(event.target.value)}
+                      placeholder="greet function or auth middleware"
+                      className="text-input"
+                      disabled={!repoIndexStatus || repoIndexStatus.status !== 'indexed'}
+                    />
+                  </div>
+                  <div className="workspace-inline-actions">
+                    <button
+                      type="button"
+                      className="download-btn"
+                      onClick={() => void handleRepoSearch()}
+                      disabled={!repoIndexStatus || repoIndexStatus.status !== 'indexed' || searchingRepository}
+                    >
+                      {searchingRepository ? 'Searching…' : 'Search repo'}
+                    </button>
+                  </div>
+                  <div className="workspace-search-results">
+                    {repoSearchResults.length === 0 ? (
+                      <div className="workspace-empty-state workspace-empty-compact">No repo search run yet.</div>
+                    ) : repoSearchResults.map((result) => (
+                      <button
+                        key={`${result.path}:${result.start_line}:${result.name}`}
+                        type="button"
+                        className="workspace-search-result"
+                        onClick={() => void handleOpenRepoSearchResult(result)}
+                      >
+                        <div className="workspace-search-result-header">
+                          <span>{result.path}</span>
+                          <span>{result.kind} · {result.start_line}-{result.end_line}</span>
+                        </div>
+                        <div className="workspace-search-result-name">{result.name} · score {result.score.toFixed(1)}</div>
+                        <pre className="workspace-search-result-snippet">{result.snippet}</pre>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="workspace-panel">
                   <div className="workspace-panel-header">Search</div>
                   <div className="form-group">
