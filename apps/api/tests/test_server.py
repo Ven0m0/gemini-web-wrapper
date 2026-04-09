@@ -90,7 +90,7 @@ def test_chat_completions_requires_auth_when_key_configured(
 ) -> None:
     resp = client_with_key.post(
         "/v1/chat/completions",
-        json={"model": "gemini-2.0-flash-exp", "messages": VALID_MESSAGES},
+        json={"model": "gemini-2.5-flash", "messages": VALID_MESSAGES},
     )
     assert resp.status_code == 401
 
@@ -103,7 +103,7 @@ def test_chat_completions_open_mode_no_auth_required(
         resp = client_open.post(
             "/v1/chat/completions",
             json={
-                "model": "gemini-2.0-flash-exp",
+                "model": "gemini-2.5-flash",
                 "messages": VALID_MESSAGES,
                 "x_provider": "gemini",
                 "x_provider_api_key": "user-gemini-key",
@@ -126,7 +126,7 @@ def test_chat_completions_uses_server_provider_when_no_request_keys(
         resp = client_with_key.post(
             "/v1/chat/completions",
             headers=AUTH,
-            json={"model": "gemini-2.0-flash-exp", "messages": VALID_MESSAGES},
+            json={"model": "gemini-2.5-flash", "messages": VALID_MESSAGES},
         )
 
     assert resp.status_code == 200
@@ -152,7 +152,7 @@ def test_chat_completions_uses_request_provider_when_supplied(
             "/v1/chat/completions",
             headers=AUTH,
             json={
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "claude-sonnet-4-6",
                 "messages": VALID_MESSAGES,
                 "x_provider": "anthropic",
                 "x_provider_api_key": "user-anthropic-key",
@@ -165,7 +165,7 @@ def test_chat_completions_uses_request_provider_when_supplied(
     assert call_args[0][0] == "anthropic"
     assert call_args[1].get("api_key") == "user-anthropic-key"
     # model from request should be forwarded to the provider
-    assert call_args[1].get("model") == "claude-3-5-sonnet-20241022"
+    assert call_args[1].get("model") == "claude-sonnet-4-6"
 
 
 def test_chat_completions_request_gemini_key_overrides_server(
@@ -178,7 +178,7 @@ def test_chat_completions_request_gemini_key_overrides_server(
             "/v1/chat/completions",
             headers=AUTH,
             json={
-                "model": "gemini-2.0-flash-exp",
+                "model": "gemini-2.5-flash",
                 "messages": VALID_MESSAGES,
                 "x_provider": "gemini",
                 "x_provider_api_key": "AIza-user-gemini-key",
@@ -202,7 +202,7 @@ def test_chat_completions_missing_api_key_falls_back_to_server(
             "/v1/chat/completions",
             headers=AUTH,
             json={
-                "model": "gemini-2.0-flash-exp",
+                "model": "gemini-2.5-flash",
                 "messages": VALID_MESSAGES,
                 "x_provider": "gemini",
                 # no x_provider_api_key → falls back to server config
@@ -273,13 +273,13 @@ def test_chat_completions_response_shape(client_with_key: TestClient) -> None:
         resp = client_with_key.post(
             "/v1/chat/completions",
             headers=AUTH,
-            json={"model": "gemini-2.0-flash-exp", "messages": VALID_MESSAGES},
+            json={"model": "gemini-2.5-flash", "messages": VALID_MESSAGES},
         )
 
     assert resp.status_code == 200
     body = resp.json()
     assert body["object"] == "chat.completion"
-    assert body["model"] == "gemini-2.0-flash-exp"
+    assert body["model"] == "gemini-2.5-flash"
     assert len(body["choices"]) == 1
     assert body["choices"][0]["message"]["content"] == "response text"
 
@@ -315,5 +315,6 @@ def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> No
 
     assert resp.status_code == 200
     model_ids = {item["id"] for item in resp.json()["data"]}
-    assert "opencode/gpt-5.3-codex" in model_ids
+    assert "opencode/gpt-5.4" in model_ids
+    assert "kilo-auto/frontier" in model_ids
     assert "kilo-auto/balanced" in model_ids

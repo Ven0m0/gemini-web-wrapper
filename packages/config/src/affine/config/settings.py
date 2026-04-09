@@ -61,12 +61,12 @@ class Settings(BaseSettings):
 
     def provider_default_model(self) -> str:
         if self.model_provider == "anthropic":
-            return "claude-3-5-sonnet-20241022"
+            return "claude-sonnet-4-6"
         if self.model_provider == "opencode-zen":
-            return "opencode/gpt-5.3-codex"
+            return "opencode/gpt-5.4"
         if self.model_provider == "kilo-gateway":
             return "kilo-auto/balanced"
-        return "gemini-2.0-flash-exp"
+        return "gemini-2.5-flash"
 
 
 @lru_cache

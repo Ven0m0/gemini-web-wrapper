@@ -89,8 +89,8 @@ PORT=9000
 
 ### Model Support
 
-- **Google Gemini**: gemini-2.5-flash, gemini-2.5-pro, gemini-3.0-pro
-- **Anthropic Claude**: claude-3-5-sonnet-20241022
+- **Google Gemini**: gemini-2.5-flash, gemini-2.5-pro, gemini-2.5-flash-lite
+- **Anthropic Claude**: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5
 - **OpenAI Compatible**: drop-in replacement for GPT models
 
 ## Deployment

@@ -37,7 +37,7 @@ export class AIService {
 
   constructor(
     apiKey: string,
-    model: string = 'gemini-2.0-flash-exp',
+    model: string = 'gemini-2.5-flash',
     temperature: number = 0.3,
     provider?: string,
     providerKey?: string,
