@@ -8,16 +8,16 @@
     "apps/web"
   ],
   "scripts": {
-    "dev": "bun run --filter=@affine/web dev & bun run --filter=@affine/api dev",
-    "dev:web": "bun run --filter=@affine/web dev",
-    "dev:api": "bun run --filter=@affine/api dev",
+    "dev": "bun run dev:web & bun run dev:api",
+    "dev:web": "cd apps/web && bun run dev",
+    "dev:api": "cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload",
     "dev:all": "bun run dev",
-    "build": "bun run --filter=@affine/web build",
-    "build:api": "bun run --filter=@affine/api build",
-    "typecheck": "bun run --filter=@affine/web typecheck && bun run --filter=@affine/api typecheck",
-    "lint": "bun run --filter=@affine/web lint && bun run --filter=@affine/api lint",
-    "format": "bun run --filter=@affine/web format && bun run --filter=@affine/api format",
-    "test": "bun run --filter=@affine/web test && bun run --filter=@affine/api test"
+    "build": "cd apps/web && bun run build",
+    "build:api": "cd apps/api && PYTHONPATH=src:../../packages/config/src uv run python -m compileall src",
+    "typecheck": "cd apps/web && bun run typecheck && cd ../api && PYTHONPATH=src:../../packages/config/src uv run pyrefly check",
+    "lint": "cd apps/web && bun run lint && cd ../api && PYTHONPATH=src:../../packages/config/src uv run ruff check",
+    "format": "cd apps/web && bun run format && cd ../api && PYTHONPATH=src:../../packages/config/src uv run ruff format",
+    "test": "cd apps/web && bun run test && cd ../api && PYTHONPATH=src:../../packages/config/src uv run pytest"
   },
   "trustedDependencies": [
     "@affine/web"
