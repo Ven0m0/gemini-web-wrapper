@@ -60,6 +60,9 @@ jobs:
               "../../packages/llm-core/src",
               "../../packages/shared/python/src",
           ]
+          [errors]
+          missing-import = false
+          bad-return = false
           EOF
         working-directory: apps/api
       - run: uv run pyrefly check

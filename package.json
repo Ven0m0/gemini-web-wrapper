@@ -5,9 +5,7 @@
   "type": "module",
   "description": "Affine AI Coding Workstation - Monorepo",
   "workspaces": [
-    "apps/web",
-    "apps/api",
-    "packages/*"
+    "apps/web"
   ],
   "scripts": {
     "dev": "bun run --filter=@affine/web dev & bun run --filter=@affine/api dev",
@@ -22,12 +20,7 @@
     "test": "bun run --filter=@affine/web test && bun run --filter=@affine/api test"
   },
   "trustedDependencies": [
-    "@affine/api",
-    "@affine/config",
-    "@affine/shared",
-    "@affine/llm-core",
-    "@affine/agent-runtime",
-    "@affine/observability"
+    "@affine/web"
   ],
   "devDependencies": {
     "typescript": "^6.0.2"

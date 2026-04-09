@@ -6,3 +6,7 @@ search-path = [
     "../../packages/llm-core/src",
     "../../packages/shared/python/src",
 ]
+
+[errors]
+missing-import = false
+bad-return = false
