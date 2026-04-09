@@ -29,9 +29,9 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
     baseUrl: '',
     builtin: true,
     models: [
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Recommended)' },
-      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
-      { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite' },
+      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Recommended)' },
+      { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
+      { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash-Lite' },
     ],
   },
   {
@@ -44,6 +44,18 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
       { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Recommended)' },
       { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
       { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5' },
+    ],
+  },
+  {
+    id: 'copilot',
+    name: 'GitHub Copilot',
+    apiKey: '',
+    baseUrl: 'https://api.githubcopilot.com',
+    builtin: true,
+    models: [
+      { id: 'gpt-5.4', name: 'GPT-5.4 (Recommended)' },
+      { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6' },
+      { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
     ],
   },
   {
@@ -74,7 +86,7 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
 
 export const DEFAULT_PROVIDER_ID = 'gemini'
 export const DEFAULT_MODEL_ID =
-  BUILTIN_PROVIDER_DEFINITIONS[0]?.models[0]?.id ?? 'gemini-2.5-flash'
+  BUILTIN_PROVIDER_DEFINITIONS[0]?.models[0]?.id ?? 'gemini-3.1-pro-preview'
 
 function cloneProvider(provider: ProviderConfig): ProviderConfig {
   return {

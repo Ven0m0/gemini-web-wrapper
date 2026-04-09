@@ -31,6 +31,17 @@ def test_settings_gateway_provider_metadata() -> None:
     assert settings.provider_default_model() == "kilo-auto/balanced"
 
 
+def test_settings_copilot_provider_metadata() -> None:
+    settings = Settings(
+        model_provider="copilot",
+        copilot_api_key="copilot-key",
+    )
+
+    assert settings.provider_api_key() == "copilot-key"
+    assert settings.provider_base_url() == "https://api.githubcopilot.com"
+    assert settings.provider_default_model() == "gpt-5.4"
+
+
 def test_get_settings_is_cached() -> None:
     get_settings.cache_clear()
 

@@ -22,22 +22,40 @@ settings = get_settings()
 
 MODEL_CATALOG = [
     {
-        "id": "gemini-2.5-flash",
+        "id": "gemini-3.1-pro-preview",
         "object": "model",
         "created": 1677610602,
         "owned_by": "google",
     },
     {
-        "id": "gemini-2.5-pro",
+        "id": "gemini-3-flash-preview",
         "object": "model",
         "created": 1677610602,
         "owned_by": "google",
     },
     {
-        "id": "gemini-2.5-flash-lite",
+        "id": "gemini-3.1-flash-lite-preview",
         "object": "model",
         "created": 1677610602,
         "owned_by": "google",
+    },
+    {
+        "id": "gpt-5.4",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "copilot",
+    },
+    {
+        "id": "claude-sonnet-4.6",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "copilot",
+    },
+    {
+        "id": "gemini-3.1-pro",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "copilot",
     },
     {
         "id": "claude-sonnet-4-6",

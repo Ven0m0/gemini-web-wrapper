@@ -32,6 +32,7 @@ def make_settings(**kwargs: object) -> Settings:
         api_key="server-gate-key",
         google_api_key="server-google-key",
         anthropic_api_key="server-anthropic-key",
+        copilot_api_key="server-copilot-key",
         model_provider="gemini",
         model_name=None,
     )
@@ -90,7 +91,7 @@ def test_chat_completions_requires_auth_when_key_configured(
 ) -> None:
     resp = client_with_key.post(
         "/v1/chat/completions",
-        json={"model": "gemini-2.5-flash", "messages": VALID_MESSAGES},
+        json={"model": "gemini-3.1-pro-preview", "messages": VALID_MESSAGES},
     )
     assert resp.status_code == 401
 
@@ -103,7 +104,7 @@ def test_chat_completions_open_mode_no_auth_required(
         resp = client_open.post(
             "/v1/chat/completions",
             json={
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3.1-pro-preview",
                 "messages": VALID_MESSAGES,
                 "x_provider": "gemini",
                 "x_provider_api_key": "user-gemini-key",
@@ -126,7 +127,7 @@ def test_chat_completions_uses_server_provider_when_no_request_keys(
         resp = client_with_key.post(
             "/v1/chat/completions",
             headers=AUTH,
-            json={"model": "gemini-2.5-flash", "messages": VALID_MESSAGES},
+            json={"model": "gemini-3.1-pro-preview", "messages": VALID_MESSAGES},
         )
 
     assert resp.status_code == 200
@@ -178,7 +179,7 @@ def test_chat_completions_request_gemini_key_overrides_server(
             "/v1/chat/completions",
             headers=AUTH,
             json={
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3.1-pro-preview",
                 "messages": VALID_MESSAGES,
                 "x_provider": "gemini",
                 "x_provider_api_key": "AIza-user-gemini-key",
@@ -202,7 +203,7 @@ def test_chat_completions_missing_api_key_falls_back_to_server(
             "/v1/chat/completions",
             headers=AUTH,
             json={
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3.1-pro-preview",
                 "messages": VALID_MESSAGES,
                 "x_provider": "gemini",
                 # no x_provider_api_key → falls back to server config
@@ -273,13 +274,13 @@ def test_chat_completions_response_shape(client_with_key: TestClient) -> None:
         resp = client_with_key.post(
             "/v1/chat/completions",
             headers=AUTH,
-            json={"model": "gemini-2.5-flash", "messages": VALID_MESSAGES},
+            json={"model": "gemini-3.1-pro-preview", "messages": VALID_MESSAGES},
         )
 
     assert resp.status_code == 200
     body = resp.json()
     assert body["object"] == "chat.completion"
-    assert body["model"] == "gemini-2.5-flash"
+    assert body["model"] == "gemini-3.1-pro-preview"
     assert len(body["choices"]) == 1
     assert body["choices"][0]["message"]["content"] == "response text"
 
@@ -310,11 +311,39 @@ def test_chat_completions_uses_gateway_provider_defaults(
     assert call_args[1].get("model") == "kilo-auto/balanced"
 
 
+def test_chat_completions_uses_copilot_provider_defaults(
+    client_with_key: TestClient,
+) -> None:
+    app.dependency_overrides[get_settings] = lambda: make_settings(
+        model_provider="copilot",
+        model_name=None,
+        copilot_api_key="copilot-key",
+    )
+
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _mock_provider("copilot response")
+
+        resp = client_with_key.post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={"model": "ignored-by-server-fallback", "messages": VALID_MESSAGES},
+        )
+
+    assert resp.status_code == 200
+    call_args = mock_create.call_args
+    assert call_args[0][0] == "copilot"
+    assert call_args[1].get("api_key") == "copilot-key"
+    assert call_args[1].get("base_url") == "https://api.githubcopilot.com"
+    assert call_args[1].get("model") == "gpt-5.4"
+
+
 def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> None:
     resp = client_with_key.get("/v1/models", headers=AUTH)
 
     assert resp.status_code == 200
     model_ids = {item["id"] for item in resp.json()["data"]}
+    assert "gemini-3.1-pro-preview" in model_ids
+    assert "gpt-5.4" in model_ids
     assert "opencode/gpt-5.4" in model_ids
     assert "kilo-auto/frontier" in model_ids
     assert "kilo-auto/balanced" in model_ids

@@ -2,6 +2,7 @@ import pytest
 
 from affine.llm_core.factory import ProviderFactory
 from affine.llm_core.providers.anthropic import AnthropicProvider
+from affine.llm_core.providers.copilot import CopilotProvider
 from affine.llm_core.providers.gemini import GeminiProvider
 from affine.llm_core.providers.openai_compatible import OpenAICompatibleProvider
 
@@ -14,6 +15,10 @@ def test_provider_factory() -> None:
     anthropic = ProviderFactory.create("anthropic", api_key="test")
     assert isinstance(anthropic, AnthropicProvider)
     assert anthropic.name == "anthropic"
+
+    copilot = ProviderFactory.create("copilot", api_key="test")
+    assert isinstance(copilot, CopilotProvider)
+    assert copilot.name == "copilot"
 
     custom = ProviderFactory.create(
         "myprovider", model="gpt-4o-mini", base_url="https://api.example.com/v1"
@@ -31,6 +36,9 @@ def test_provider_factory_requires_explicit_api_key() -> None:
 
     with pytest.raises(ValueError, match="Anthropic API key"):
         ProviderFactory.create("anthropic")
+
+    with pytest.raises(ValueError, match="GitHub Copilot API key"):
+        ProviderFactory.create("copilot")
 
 
 def test_gemini_provider_builds_request_body() -> None:
