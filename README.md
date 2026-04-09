@@ -19,8 +19,8 @@ A mobile-first Progressive Web App (PWA) for AI-assisted development with GitHub
 
 ### Prerequisites
 
-- Node.js 18+, Bun, and uv
-- Python 3.10+
+- Node.js 24 LTS+, Bun 1.3.11+, and uv
+- Python 3.14+
 - Git
 
 ### 1. Clone & Setup

@@ -1,6 +1,7 @@
 [project]
 name = "affine-config"
 version = "0.1.0"
+requires-python = ">=3.14"
 dependencies = ["pydantic>=2.0.0", "pydantic-settings>=2.0.0"]
 
 [dependency-groups]

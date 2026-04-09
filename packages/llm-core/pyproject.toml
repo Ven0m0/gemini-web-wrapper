@@ -1,6 +1,7 @@
 [project]
 name = "affine-llm-core"
 version = "0.1.0"
+requires-python = ">=3.14"
 dependencies = ["httpx>=0.24.0", "affine-shared", "affine-config"]
 
 [dependency-groups]

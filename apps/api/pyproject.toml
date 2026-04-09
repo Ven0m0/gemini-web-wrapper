@@ -1,6 +1,7 @@
 [project]
 name = "affine-api"
 version = "0.1.0"
+requires-python = ">=3.14"
 dependencies = [
     "ast-grep-py>=0.42.1",
     "fastapi>=0.100.0",

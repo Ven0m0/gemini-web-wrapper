@@ -6,7 +6,7 @@
 root = "."
 
 # Python version to target
-python_version = "3.12"
+python_version = "3.14"
 
 # Search paths for imports - include all package source directories
 search_paths = [
@@ -27,7 +27,7 @@ exclude = [
 
 [project.typeshed]
 # Use typeshed from the environment
-path = ".venv/lib/python3.12/site-packages"
+path = ".venv/lib/python3.14/site-packages"
 
 [[project.module_mapping]]
 # Map module names to their source directories

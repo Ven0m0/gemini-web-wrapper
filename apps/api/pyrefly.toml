@@ -1,4 +1,4 @@
-python-version = "3.12"
+python-version = "3.14"
 project-includes = ["src"]
 search-path = [
     "src",
