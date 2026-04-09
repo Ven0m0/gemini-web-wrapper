@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     port: int = 9000
     cors_allow_origins: list[str] = ["*"]
     frontend_dist_dir: Path = Path("apps/web/dist")
+    repo_index_enabled: bool = True
+    repo_index_db_path: Path = Path(".cache/repo-index.db")
+    repo_index_turso_sync_url: str | None = None
+    repo_index_turso_auth_token: str | None = None
+    repo_index_max_files: int = 1000
+    repo_index_max_file_bytes: int = 262_144
+    repo_index_bash_lsp_command: str = "bash-language-server"
+    repo_index_python_lsp_command: str = "pylsp"
+    repo_index_rust_lsp_command: str = "rust-analyzer"
 
     @field_validator("cors_allow_origins", mode="before")
     @classmethod

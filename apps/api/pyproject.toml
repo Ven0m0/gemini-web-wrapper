@@ -2,13 +2,19 @@
 name = "affine-api"
 version = "0.1.0"
 dependencies = [
+    "ast-grep-py>=0.42.1",
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.20.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "httpx>=0.24.0",
+    "libsql>=0.1.11",
     "python-multipart>=0.0.6",
     "orjson>=3.9.0",
+    "tree-sitter>=0.25.2",
+    "tree-sitter-bash>=0.25.1",
+    "tree-sitter-python>=0.25.0",
+    "tree-sitter-rust>=0.24.2",
     "affine-shared",
     "affine-llm-core",
     "affine-config"
