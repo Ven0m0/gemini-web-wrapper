@@ -50,6 +50,10 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "overrides": {
-    "minimatch": "^10.2.1"
+    "minimatch": "^10.2.1",
+    "serialize-javascript": "^7.0.4",
+    "vite-plugin-pwa": {
+      "vite": "$vite"
+    }
   }
 }
