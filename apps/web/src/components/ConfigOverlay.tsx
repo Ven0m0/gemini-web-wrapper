@@ -254,7 +254,8 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             </button>
           </div>
           <small>
-            Built-in providers use native adapters. Custom providers use OpenAI-compatible
+            Built-in providers include native adapters plus preset gateway endpoints like OpenCode Zen and
+            Kilo Gateway. Custom providers use OpenAI-compatible
             <code style={{ marginLeft: 4 }}>/chat/completions</code>
             endpoints, similar to OpenCode custom providers.
           </small>

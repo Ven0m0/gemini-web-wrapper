@@ -46,6 +46,30 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
       { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
     ],
   },
+  {
+    id: 'opencode-zen',
+    name: 'OpenCode Zen',
+    apiKey: '',
+    baseUrl: 'http://localhost:4096/zen/v1',
+    builtin: true,
+    models: [
+      { id: 'opencode/gpt-5.3-codex', name: 'GPT-5.3 Codex' },
+      { id: 'opencode/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
+      { id: 'opencode/minimax-m2.5-free', name: 'MiniMax M2.5 Free' },
+    ],
+  },
+  {
+    id: 'kilo-gateway',
+    name: 'Kilo Gateway',
+    apiKey: '',
+    baseUrl: 'https://api.kilo.ai/api/gateway',
+    builtin: true,
+    models: [
+      { id: 'kilo-auto/balanced', name: 'Kilo Auto Balanced' },
+      { id: 'anthropic/claude-sonnet-4.6', name: 'Claude Sonnet 4.6' },
+      { id: 'google/gemini-3-pro-preview', name: 'Gemini 3 Pro Preview' },
+    ],
+  },
 ]
 
 export const DEFAULT_PROVIDER_ID = 'gemini'

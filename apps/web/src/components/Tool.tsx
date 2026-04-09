@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { GitHubService, type GitHubDirectoryItem } from '../services/github'
 import {
@@ -9,7 +9,6 @@ import {
 import {
   applyLineRangeEdit,
   isJsonPath,
-  isTextPath,
   readAnnotatedContent,
   repairJsonContent,
   searchAnnotatedContent,
@@ -17,27 +16,56 @@ import {
 
 type ToolMode = 'github' | 'websocket'
 
-interface LoadedGitHubFile {
-  path: string
-  sha: string
-  original: string
-  current: string
+type TreeNodeType = 'file' | 'dir' | 'root'
+
+const ROOT_PATH = ''
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+function joinPath(parent: string, child: string): string {
+  return parent ? `${parent}/${child}` : child
+}
+
+function getParentPath(path: string): string {
+  const segments = path.split('/').filter(Boolean)
+  segments.pop()
+  return segments.join('/')
+}
+
+function getAncestorDirectories(path: string): string[] {
+  const segments = path.split('/').filter(Boolean)
+  const directories: string[] = [ROOT_PATH]
+
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    directories.push(segments.slice(0, index + 1).join('/'))
+  }
+
+  return directories
+}
+
+function sortTreeItems(items: GitHubDirectoryItem[]): GitHubDirectoryItem[] {
+  return [...items].sort((left, right) => {
+    if (left.type !== right.type) {
+      return left.type === 'dir' ? -1 : 1
+    }
+    return left.name.localeCompare(right.name)
+  })
 }
 
 export const Tool: React.FC = () => {
   const [toolMode, setToolMode] = useState<ToolMode>('github')
   const [uploading, setUploading] = useState(false)
   const [downloading, setDownloading] = useState(false)
-  const [uploadPath, setUploadPath] = useState('')
-  const [downloadPath, setDownloadPath] = useState('')
   const [wsUploadFilename, setWsUploadFilename] = useState('')
   const [wsDownloadFilename, setWsDownloadFilename] = useState('')
   const [wsUrlInput, setWsUrlInput] = useState('')
-  const [log, setLog] = useState<string[]>([])
-  const [directoryPath, setDirectoryPath] = useState('')
-  const [directoryItems, setDirectoryItems] = useState<GitHubDirectoryItem[]>([])
-  const [inspectPath, setInspectPath] = useState('')
-  const [loadedFile, setLoadedFile] = useState<LoadedGitHubFile | null>(null)
+  const [log, setLog] = useState<Array<{ id: number; message: string }>>([])
   const [searchPattern, setSearchPattern] = useState('')
   const [searchContext, setSearchContext] = useState('2')
   const [searchResults, setSearchResults] = useState('')
@@ -45,19 +73,30 @@ export const Tool: React.FC = () => {
   const [editEndLine, setEditEndLine] = useState('')
   const [editCode, setEditCode] = useState('')
   const [saving, setSaving] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [pendingDownload, setPendingDownload] = useState<string | null>(null)
+  const [directoryEntries, setDirectoryEntries] = useState<Record<string, GitHubDirectoryItem[]>>({})
+  const [expandedDirectories, setExpandedDirectories] = useState<string[]>([ROOT_PATH])
+  const [loadingDirectories, setLoadingDirectories] = useState<string[]>([])
+  const [selectedNodePath, setSelectedNodePath] = useState('')
+  const [selectedNodeType, setSelectedNodeType] = useState<TreeNodeType>('root')
+
+  const githubUploadInputRef = useRef<HTMLInputElement>(null)
+  const wsFileInputRef = useRef<HTMLInputElement>(null)
   const wsServiceRef = useRef<WebSocketService | null>(null)
+  const nextLogIdRef = useRef(0)
 
   const {
     setMode,
     config,
+    setConfig,
+    file,
+    setFile,
     websocket,
     addWebSocketMessage,
     clearWebSocketMessages,
     setWebSocket,
   } = useStore()
 
-  const [pendingDownload, setPendingDownload] = useState<string | null>(null)
   const githubService = useMemo(
     () => (config.githubToken && config.owner && config.repo
       ? new GitHubService(config.githubToken, config.owner, config.repo)
@@ -65,57 +104,34 @@ export const Tool: React.FC = () => {
     [config.githubToken, config.owner, config.repo],
   )
 
-  useEffect(() => {
-    setWsUrlInput(websocket.url)
-  }, [websocket.url])
+  const activeFilePath = config.path.trim()
+  const rootItems = directoryEntries[ROOT_PATH] ?? []
+  const expandedDirectoriesSet = useMemo(() => new Set(expandedDirectories), [expandedDirectories])
+  const loadingDirectoriesSet = useMemo(() => new Set(loadingDirectories), [loadingDirectories])
+  const hasGitHubConfig = Boolean(githubService)
+  const annotatedContent = activeFilePath ? readAnnotatedContent(file.current) : ''
+  const hasUnsavedChanges = Boolean(activeFilePath) && file.original !== file.current
 
-  useEffect(() => {
-    return () => {
-      wsServiceRef.current?.disconnect()
-      wsServiceRef.current = null
-      setActiveWebSocketService(null)
+  const currentDirectoryPath = useMemo(() => {
+    if (selectedNodeType === 'dir') {
+      return selectedNodePath
     }
-  }, [])
-
-  useEffect(() => {
-    if (!pendingDownload) return
-    const latest = websocket.messages[websocket.messages.length - 1]
-    if (!latest || latest.type !== 'file_data' || latest.filename !== pendingDownload) return
-
-    try {
-      const binaryString = latest.isBase64 ? atob(latest.data) : latest.data
-      const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0))
-      const blob = new Blob([bytes], { type: 'application/octet-stream' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = latest.filename || pendingDownload
-      a.style.display = 'none'
-      document.body.appendChild(a)
-      a.click()
-      setTimeout(() => {
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }, 100)
-      addLog(`Downloaded: ${latest.filename} (${formatFileSize(blob.size)})`)
-    } catch (err) {
-      addLog(`Failed to save file: ${err instanceof Error ? err.message : err}`)
-    } finally {
-      setPendingDownload(null)
-      setDownloading(false)
+    if (selectedNodeType === 'file' && selectedNodePath) {
+      return getParentPath(selectedNodePath)
     }
-  }, [websocket.messages, pendingDownload])
+    if (activeFilePath) {
+      return getParentPath(activeFilePath)
+    }
+    return ROOT_PATH
+  }, [activeFilePath, selectedNodePath, selectedNodeType])
 
   const addLog = (message: string) => {
-    setLog(prev => [...prev.slice(-19), `[${new Date().toLocaleTimeString()}] ${message}`])
-  }
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+    const entry = {
+      id: nextLogIdRef.current,
+      message: `[${new Date().toLocaleTimeString()}] ${message}`,
+    }
+    nextLogIdRef.current += 1
+    setLog((prev) => [...prev.slice(-19), entry])
   }
 
   const getGitHubService = (): GitHubService | null => {
@@ -126,7 +142,7 @@ export const Tool: React.FC = () => {
     return githubService
   }
 
-  const readFileAsBase64 = (file: File): Promise<string> =>
+  const readFileAsBase64 = (selectedFile: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => {
@@ -141,27 +157,129 @@ export const Tool: React.FC = () => {
       reader.onerror = () => {
         reject(reader.error ?? new Error('Failed to read file'))
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(selectedFile)
     })
 
-  const handleListDirectory = async (path = directoryPath) => {
-    const github = getGitHubService()
-    if (!github) return
+  const loadDirectory = useCallback(async (path: string = ROOT_PATH, options?: { silent?: boolean }) => {
+    const github = githubService
+    if (!github) return []
+
+    setLoadingDirectories((prev) => (prev.includes(path) ? prev : [...prev, path]))
 
     try {
-      const items = await github.listDirectory(path.trim(), config.branch)
-      setDirectoryItems(items)
-      setDirectoryPath(path.trim())
-      addLog(`Listed ${path.trim() || '/'} (${items.length} item${items.length === 1 ? '' : 's'})`)
+      const items = sortTreeItems(await github.listDirectory(path, config.branch))
+      setDirectoryEntries((prev) => ({ ...prev, [path]: items }))
+      if (!options?.silent) {
+        addLog(`Loaded ${path || '/'} (${items.length} item${items.length === 1 ? '' : 's'})`)
+      }
+      return items
     } catch (error) {
-      addLog(`List failed: ${error instanceof Error ? error.message : error}`)
+      addLog(`Tree load failed: ${error instanceof Error ? error.message : error}`)
+      return []
+    } finally {
+      setLoadingDirectories((prev) => prev.filter((entry) => entry !== path))
+    }
+  }, [config.branch, githubService])
+
+  const ensureTreePathVisible = useCallback(async (path: string) => {
+    if (!path || !githubService) return
+
+    const directories = getAncestorDirectories(path)
+    for (const directory of directories) {
+      if (!directoryEntries[directory]) {
+        await loadDirectory(directory, { silent: true })
+      }
+    }
+
+    setExpandedDirectories((prev) => Array.from(new Set([...prev, ...directories])))
+  }, [directoryEntries, githubService, loadDirectory])
+
+  useEffect(() => {
+    if (!hasGitHubConfig) {
+      setDirectoryEntries({})
+      setExpandedDirectories([ROOT_PATH])
+      setSelectedNodePath('')
+      setSelectedNodeType('root')
+      return
+    }
+
+    void loadDirectory(ROOT_PATH, { silent: true })
+  }, [hasGitHubConfig, loadDirectory])
+
+  useEffect(() => {
+    setWsUrlInput(websocket.url)
+  }, [websocket.url])
+
+  useEffect(() => {
+    return () => {
+      wsServiceRef.current?.disconnect()
+      wsServiceRef.current = null
+      setActiveWebSocketService(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!activeFilePath) return
+
+    setSelectedNodePath(activeFilePath)
+    setSelectedNodeType('file')
+    void ensureTreePathVisible(activeFilePath)
+  }, [activeFilePath, ensureTreePathVisible])
+
+  useEffect(() => {
+    if (!pendingDownload) return
+    const latest = websocket.messages[websocket.messages.length - 1]
+    if (!latest || latest.type !== 'file_data' || latest.filename !== pendingDownload) return
+
+    try {
+      const binaryString = latest.isBase64 ? atob(latest.data) : latest.data
+      const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0))
+      const blob = new Blob([bytes], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const downloadLink = document.createElement('a')
+      downloadLink.href = url
+      downloadLink.download = latest.filename || pendingDownload
+      downloadLink.style.display = 'none'
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+      setTimeout(() => {
+        document.body.removeChild(downloadLink)
+        URL.revokeObjectURL(url)
+      }, 100)
+      addLog(`Downloaded: ${latest.filename} (${formatFileSize(blob.size)})`)
+    } catch (error) {
+      addLog(`Failed to save file: ${error instanceof Error ? error.message : error}`)
+    } finally {
+      setPendingDownload(null)
+      setDownloading(false)
+    }
+  }, [pendingDownload, websocket.messages])
+
+  const handleToggleDirectory = async (path: string) => {
+    if (expandedDirectoriesSet.has(path)) {
+      setExpandedDirectories((prev) => prev.filter((entry) => entry !== path))
+      return
+    }
+
+    if (!directoryEntries[path]) {
+      await loadDirectory(path)
+    }
+
+    setExpandedDirectories((prev) => Array.from(new Set([...prev, path])))
+  }
+
+  const handleSelectDirectory = async (path: string) => {
+    setSelectedNodePath(path)
+    setSelectedNodeType('dir')
+    if (!directoryEntries[path]) {
+      await loadDirectory(path)
     }
   }
 
-  const handleLoadFile = async (path = inspectPath) => {
+  const handleLoadFile = async (path: string) => {
     const targetPath = path.trim()
     if (!targetPath) {
-      addLog('Please enter a file path')
+      addLog('Select a file from the tree first')
       return
     }
 
@@ -170,18 +288,21 @@ export const Tool: React.FC = () => {
 
     try {
       const { content, sha } = await github.getFile(targetPath, config.branch)
-      setInspectPath(targetPath)
-      setLoadedFile({ path: targetPath, sha, original: content, current: content })
+      setConfig({ path: targetPath })
+      setFile({ original: content, current: content, sha, dirty: false })
+      setSelectedNodePath(targetPath)
+      setSelectedNodeType('file')
       setSearchResults('')
-      addLog(`Loaded ${targetPath} (${content.split('\n').length} lines)`)
+      await ensureTreePathVisible(targetPath)
+      addLog(`Opened ${targetPath} (${content.split('\n').length} lines)`)
     } catch (error) {
       addLog(`Load failed: ${error instanceof Error ? error.message : error}`)
     }
   }
 
   const handleSearchLoadedFile = () => {
-    if (!loadedFile) {
-      addLog('Load a file first')
+    if (!activeFilePath) {
+      addLog('Open a file first')
       return
     }
 
@@ -192,20 +313,20 @@ export const Tool: React.FC = () => {
 
     try {
       const results = searchAnnotatedContent(
-        loadedFile.current,
+        file.current,
         searchPattern,
         Number.parseInt(searchContext, 10) || 2,
       )
       setSearchResults(results)
-      addLog(results.startsWith('No matches') ? results : `Searched ${loadedFile.path}`)
+      addLog(results.startsWith('No matches') ? results : `Searched ${activeFilePath}`)
     } catch (error) {
       addLog(`Search failed: ${error instanceof Error ? error.message : error}`)
     }
   }
 
   const handleApplyEdit = () => {
-    if (!loadedFile) {
-      addLog('Load a file first')
+    if (!activeFilePath) {
+      addLog('Open a file first')
       return
     }
 
@@ -218,37 +339,37 @@ export const Tool: React.FC = () => {
     }
 
     try {
-      const current = applyLineRangeEdit(loadedFile.current, startLine, endLine, editCode)
-      setLoadedFile({ ...loadedFile, current })
-      addLog(`Applied edit to ${loadedFile.path} (${startLine}-${endLine})`)
+      const current = applyLineRangeEdit(file.current, startLine, endLine, editCode)
+      setFile({ current, dirty: current !== file.original })
+      addLog(`Applied edit to ${activeFilePath} (${startLine}-${endLine})`)
     } catch (error) {
       addLog(`Edit failed: ${error instanceof Error ? error.message : error}`)
     }
   }
 
   const handleRepairJson = () => {
-    if (!loadedFile) {
-      addLog('Load a file first')
+    if (!activeFilePath) {
+      addLog('Open a file first')
       return
     }
 
-    if (!isJsonPath(loadedFile.path)) {
+    if (!isJsonPath(activeFilePath)) {
       addLog('JSON repair is available for .json files')
       return
     }
 
     try {
-      const repaired = repairJsonContent(loadedFile.current)
-      setLoadedFile({ ...loadedFile, current: repaired.content })
-      addLog(repaired.warnings[0] || `Repaired JSON in ${loadedFile.path}`)
+      const repaired = repairJsonContent(file.current)
+      setFile({ current: repaired.content, dirty: repaired.content !== file.original })
+      addLog(repaired.warnings[0] || `Repaired JSON in ${activeFilePath}`)
     } catch (error) {
       addLog(`JSON repair failed: ${error instanceof Error ? error.message : error}`)
     }
   }
 
   const handleSaveLoadedFile = async () => {
-    if (!loadedFile) {
-      addLog('Load a file first')
+    if (!activeFilePath) {
+      addLog('Open a file first')
       return
     }
 
@@ -258,14 +379,15 @@ export const Tool: React.FC = () => {
     setSaving(true)
     try {
       const sha = await github.updateFile(
-        loadedFile.path,
-        loadedFile.current,
-        loadedFile.sha,
-        `Update ${loadedFile.path} via Files tool`,
+        activeFilePath,
+        file.current,
+        file.sha,
+        `Update ${activeFilePath} via Files tool`,
         config.branch,
       )
-      setLoadedFile({ ...loadedFile, sha, original: loadedFile.current })
-      addLog(`Saved ${loadedFile.path}`)
+      setFile({ sha, original: file.current, dirty: false })
+      await loadDirectory(currentDirectoryPath, { silent: true })
+      addLog(`Saved ${activeFilePath}`)
     } catch (error) {
       addLog(`Save failed: ${error instanceof Error ? error.message : error}`)
     } finally {
@@ -273,113 +395,69 @@ export const Tool: React.FC = () => {
     }
   }
 
-  const handleGithubUpload = async () => {
-    if (!uploadPath.trim()) {
-      addLog('Please enter upload path')
-      return
-    }
-
+  const handleGithubUpload = async (selectedFile: File) => {
     const github = getGitHubService()
     if (!github) return
 
-    if (!fileInputRef.current?.files?.length) {
-      addLog('Please select a file')
-      return
-    }
-
-    const selectedFile = fileInputRef.current.files[0]
+    const targetPath = joinPath(currentDirectoryPath, selectedFile.name)
     setUploading(true)
 
     try {
-      addLog(`Uploading ${selectedFile.name} (${formatFileSize(selectedFile.size)})`)
-
-      const isTextFile = isTextPath(selectedFile.name, selectedFile.type)
+      addLog(`Uploading ${selectedFile.name} → ${targetPath}`)
 
       let existingSha = ''
       try {
-        // Bypass the read cache here so we use the latest SHA before attempting the write.
-        const existing = await github.getFile(uploadPath, config.branch, true)
+        const existing = await github.getFile(targetPath, config.branch, true)
         existingSha = existing.sha
       } catch {
         addLog('Creating new file')
       }
 
-      const newSha = isTextFile
-        ? await github.updateFile(
-            uploadPath,
-            await selectedFile.text(),
-            existingSha,
-            `Upload ${selectedFile.name} via Files tool`,
-            config.branch,
-          )
-        : (
-            await github.updateFileBase64(
-              uploadPath,
-              await readFileAsBase64(selectedFile),
-              existingSha,
-              `Upload ${selectedFile.name} via Files tool`,
-              config.branch,
-            )
-          ).sha
+      const uploadSha = await github.updateFileBase64(
+        targetPath,
+        await readFileAsBase64(selectedFile),
+        existingSha,
+        `Upload ${selectedFile.name} via Files tool`,
+        config.branch,
+      )
 
-      addLog(`Upload successful (${newSha.substring(0, 7)})`)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-      setUploadPath('')
+      const directoriesToRefresh = Array.from(new Set([ROOT_PATH, currentDirectoryPath, getParentPath(targetPath)]))
+      await Promise.all(directoriesToRefresh.map((path) => loadDirectory(path, { silent: true })))
+      setSelectedNodePath(targetPath)
+      setSelectedNodeType('file')
+      addLog(`Upload successful (${uploadSha.sha.substring(0, 7)})`)
     } catch (error) {
       addLog(`Upload failed: ${error instanceof Error ? error.message : error}`)
     } finally {
       setUploading(false)
+      if (githubUploadInputRef.current) {
+        githubUploadInputRef.current.value = ''
+      }
     }
   }
 
-  const handleGithubDownload = async () => {
-    if (!downloadPath.trim()) {
-      addLog('Please enter download path')
+  const handleDownloadCurrentFile = async () => {
+    if (!activeFilePath) {
+      addLog('Open a file first')
       return
     }
-
-    const github = getGitHubService()
-    if (!github) return
 
     setDownloading(true)
 
     try {
-      addLog(`Downloading ${downloadPath}`)
-
-      const { content, sha } = await github.getFile(downloadPath, config.branch)
-
-      const isTextFile = isTextPath(downloadPath)
-
-      let blob: Blob
-      if (isTextFile) {
-        blob = new Blob([content], { type: 'text/plain' })
-      } else {
-        try {
-          const binaryString = atob(content)
-          const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0))
-          blob = new Blob([bytes], { type: 'application/octet-stream' })
-        } catch {
-          blob = new Blob([content], { type: 'text/plain' })
-        }
-      }
-
+      const blob = new Blob([file.current], { type: 'text/plain;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const downloadLink = document.createElement('a')
       downloadLink.href = url
-      downloadLink.download = downloadPath.split('/').pop() || 'download'
+      downloadLink.download = activeFilePath.split('/').pop() || 'download'
       downloadLink.style.display = 'none'
       document.body.appendChild(downloadLink)
       downloadLink.click()
-
       setTimeout(() => {
         document.body.removeChild(downloadLink)
         URL.revokeObjectURL(url)
       }, 100)
-
-      addLog(`Download complete: ${downloadLink.download} (${sha.substring(0, 7)})`)
-      setDownloadPath('')
+      addLog(`Downloaded ${downloadLink.download}`)
     } catch (error) {
       addLog(`Download failed: ${error instanceof Error ? error.message : error}`)
     } finally {
@@ -451,7 +529,7 @@ export const Tool: React.FC = () => {
       return
     }
 
-    if (!fileInputRef.current?.files?.length) {
+    if (!wsFileInputRef.current?.files?.length) {
       addLog('Please select a file')
       return
     }
@@ -462,7 +540,7 @@ export const Tool: React.FC = () => {
       return
     }
 
-    const selectedFile = fileInputRef.current.files[0]
+    const selectedFile = wsFileInputRef.current.files[0]
     setUploading(true)
 
     try {
@@ -480,7 +558,7 @@ export const Tool: React.FC = () => {
 
       addLog(`Sent ${targetFilename} via WebSocket`)
       setWsUploadFilename('')
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      if (wsFileInputRef.current) wsFileInputRef.current.value = ''
     } catch (error) {
       addLog(`Upload failed: ${error instanceof Error ? error.message : error}`)
     } finally {
@@ -526,13 +604,63 @@ export const Tool: React.FC = () => {
     }
   }
 
-  const annotatedContent = loadedFile ? readAnnotatedContent(loadedFile.current) : ''
-  const hasUnsavedChanges = loadedFile ? loadedFile.original !== loadedFile.current : false
+  const renderTree = (path: string = ROOT_PATH, depth = 0): React.ReactNode => {
+    const items = directoryEntries[path] ?? []
+
+    return items.map((item) => {
+      const isDirectory = item.type === 'dir'
+      const isExpanded = expandedDirectoriesSet.has(item.path)
+      const isSelected = selectedNodePath === item.path || (item.type === 'file' && activeFilePath === item.path)
+      const isLoading = loadingDirectoriesSet.has(item.path)
+
+      return (
+        <div key={item.path}>
+          <div
+            className={`tree-node ${isSelected ? 'selected' : ''}`}
+            style={{ paddingLeft: `${depth * 14 + 8}px` }}
+          >
+            {isDirectory ? (
+              <button
+                type="button"
+                className="tree-node-toggle"
+                onClick={() => void handleToggleDirectory(item.path)}
+                aria-label={isExpanded ? 'Collapse directory' : 'Expand directory'}
+              >
+                <span>{isExpanded ? '▾' : '▸'}</span>
+              </button>
+            ) : (
+              <span className="tree-node-toggle tree-node-toggle-placeholder" aria-hidden="true" />
+            )}
+
+            <button
+              type="button"
+              className="tree-node-label"
+              onClick={() => {
+                if (isDirectory) {
+                  void handleSelectDirectory(item.path)
+                  return
+                }
+                void handleLoadFile(item.path)
+              }}
+            >
+              <span className="tree-node-icon" aria-hidden="true">{isDirectory ? '📁' : '📄'}</span>
+              <span className="tree-node-name">{item.name}</span>
+              {isDirectory && isLoading && <span className="tree-node-meta">…</span>}
+            </button>
+          </div>
+          {isDirectory && isExpanded && renderTree(item.path, depth + 1)}
+        </div>
+      )
+    })
+  }
 
   return (
     <div className="tool-container">
       <div className="tool-header">
-        <h2>File Tools</h2>
+        <div>
+          <h2>Workspace</h2>
+          <p className="tool-subtitle">Browse your repo like a lightweight editor.</p>
+        </div>
         <div className="tool-mode-switch">
           <button
             className={toolMode === 'github' ? 'active' : ''}
@@ -549,204 +677,179 @@ export const Tool: React.FC = () => {
             WebSocket
           </button>
         </div>
-        <button onClick={() => setMode('cli')} className="back-btn">
-          ← CLI
-        </button>
       </div>
 
       {toolMode === 'github' && (
-        <div className="tool-section" style={{ display: 'grid', gap: 16 }}>
-          <h3>GitHub file workflow</h3>
-
-          <div className="download-section">
-            <h4>Browse repository</h4>
-            <div className="form-group">
-              <label>Directory path:</label>
-              <input
-                type="text"
-                value={directoryPath}
-                onChange={(e) => setDirectoryPath(e.target.value)}
-                placeholder="src"
-                className="text-input"
-              />
-            </div>
-            <button onClick={() => handleListDirectory()} className="download-btn">
-              List directory
-            </button>
-            {directoryItems.length > 0 && (
-              <div className="log-content" style={{ maxHeight: 180 }}>
-                {directoryItems.map((item) => (
-                  <div key={item.path} className="log-entry" style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <span>{item.type === 'dir' ? '📁' : '📄'} {item.path}</span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {item.type === 'dir' ? (
-                        <button onClick={() => handleListDirectory(item.path)}>Open</button>
-                      ) : (
-                        <button onClick={() => handleLoadFile(item.path)}>Load</button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="upload-section">
-            <h4>Inspect and edit file</h4>
-            <div className="form-group">
-              <label>File path:</label>
-              <input
-                type="text"
-                value={inspectPath}
-                onChange={(e) => setInspectPath(e.target.value)}
-                placeholder="src/App.tsx"
-                className="text-input"
-              />
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={() => handleLoadFile()} className="download-btn">Load file</button>
-              <button
-                onClick={handleRepairJson}
-                className="download-btn"
-                disabled={!loadedFile || !isJsonPath(loadedFile.path)}
-              >
-                Repair JSON
-              </button>
-              <button
-                onClick={() => loadedFile && setLoadedFile({ ...loadedFile, current: loadedFile.original })}
-                className="download-btn"
-                disabled={!loadedFile || !hasUnsavedChanges}
-              >
-                Revert buffer
-              </button>
-              <button
-                onClick={handleSaveLoadedFile}
-                className="upload-btn"
-                disabled={!loadedFile || !hasUnsavedChanges || saving}
-              >
-                {saving ? 'Saving...' : 'Save to GitHub'}
-              </button>
-            </div>
-            {loadedFile && (
-              <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                <div style={{ fontFamily: 'var(--font-family-mono)', fontSize: 12, color: 'var(--color-text-subtle)' }}>
-                  {loadedFile.path} · {loadedFile.current.split('\n').length} lines · {hasUnsavedChanges ? 'unsaved changes' : 'saved'}
+        <div className="workspace-layout">
+          <aside className="workspace-sidebar">
+            <div className="workspace-sidebar-header">
+              <div>
+                <h3>Explorer</h3>
+                <div className="workspace-caption">
+                  {config.owner && config.repo ? `${config.owner}/${config.repo}` : 'Configure GitHub access'}
+                  {config.branch ? ` · ${config.branch}` : ''}
                 </div>
+              </div>
+              <div className="workspace-sidebar-actions">
+                <button
+                  type="button"
+                  className="download-btn"
+                  onClick={() => void loadDirectory(currentDirectoryPath || ROOT_PATH)}
+                  disabled={!hasGitHubConfig}
+                >
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  className="upload-btn"
+                  onClick={() => githubUploadInputRef.current?.click()}
+                  disabled={!hasGitHubConfig || uploading}
+                >
+                  {uploading ? 'Uploading…' : 'Upload'}
+                </button>
+                <input
+                  ref={githubUploadInputRef}
+                  type="file"
+                  className="file-input-hidden"
+                  onChange={(event) => {
+                    const selectedFile = event.target.files?.[0]
+                    if (selectedFile) {
+                      void handleGithubUpload(selectedFile)
+                    }
+                  }}
+                />
+              </div>
+            </div>
 
-                <div className="form-group">
-                  <label>Search pattern:</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
+            <div className="workspace-target">Uploads go to {currentDirectoryPath || '/'}</div>
+
+            <div className="workspace-tree">
+              {!hasGitHubConfig ? (
+                <div className="workspace-empty-state">Add your GitHub token, owner, and repo in Settings to load the tree.</div>
+              ) : rootItems.length === 0 && loadingDirectoriesSet.has(ROOT_PATH) ? (
+                <div className="workspace-empty-state">Loading repository tree…</div>
+              ) : rootItems.length === 0 ? (
+                <div className="workspace-empty-state">No files found at the repository root.</div>
+              ) : (
+                renderTree()
+              )}
+            </div>
+          </aside>
+
+          <section className="workspace-main">
+            <div className="workspace-editor-header">
+              <div>
+                <div className="workspace-file-path">{activeFilePath || 'No file selected'}</div>
+                <div className="workspace-caption">
+                  {activeFilePath
+                    ? `${file.current.split('\n').length} lines · ${hasUnsavedChanges ? 'unsaved changes' : 'saved'}`
+                    : 'Select a file in the explorer to inspect or edit it.'}
+                </div>
+              </div>
+              <div className="workspace-toolbar">
+                <button type="button" className="download-btn" onClick={() => setMode('editor')} disabled={!activeFilePath}>
+                  Open in Editor
+                </button>
+                <button type="button" className="download-btn" onClick={handleRepairJson} disabled={!activeFilePath || !isJsonPath(activeFilePath)}>
+                  Repair JSON
+                </button>
+                <button
+                  type="button"
+                  className="download-btn"
+                  onClick={() => setFile({ current: file.original, dirty: false })}
+                  disabled={!activeFilePath || !hasUnsavedChanges}
+                >
+                  Revert
+                </button>
+                <button type="button" className="download-btn" onClick={handleDownloadCurrentFile} disabled={!activeFilePath || downloading}>
+                  {downloading ? 'Downloading…' : 'Download'}
+                </button>
+                <button type="button" className="upload-btn" onClick={() => void handleSaveLoadedFile()} disabled={!activeFilePath || !hasUnsavedChanges || saving}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+
+            <div className="workspace-main-grid">
+              <div className="workspace-panel">
+                <div className="workspace-panel-header">Buffer</div>
+                <textarea
+                  value={file.current}
+                  onChange={(event) => setFile({ current: event.target.value, dirty: event.target.value !== file.original })}
+                  className="workspace-buffer"
+                  placeholder="Select a file from the explorer to start editing."
+                  disabled={!activeFilePath}
+                />
+              </div>
+
+              <div className="workspace-tools-column">
+                <div className="workspace-panel">
+                  <div className="workspace-panel-header">Search</div>
+                  <div className="form-group">
                     <input
                       type="text"
                       value={searchPattern}
-                      onChange={(e) => setSearchPattern(e.target.value)}
+                      onChange={(event) => setSearchPattern(event.target.value)}
                       placeholder="TODO or /TODO/i"
                       className="text-input"
+                      disabled={!activeFilePath}
                     />
+                  </div>
+                  <div className="workspace-inline-actions">
                     <input
                       type="number"
                       value={searchContext}
-                      onChange={(e) => setSearchContext(e.target.value)}
+                      onChange={(event) => setSearchContext(event.target.value)}
                       placeholder="2"
-                      className="text-input"
-                      style={{ width: 96 }}
+                      className="text-input workspace-small-input"
+                      disabled={!activeFilePath}
                     />
-                    <button onClick={handleSearchLoadedFile} className="download-btn">Search</button>
+                    <button type="button" className="download-btn" onClick={handleSearchLoadedFile} disabled={!activeFilePath}>
+                      Search
+                    </button>
                   </div>
+                  <pre className="workspace-output">{searchResults || 'No search run yet'}</pre>
                 </div>
 
-                <div className="form-group">
-                  <label>Line-range edit:</label>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                <div className="workspace-panel">
+                  <div className="workspace-panel-header">Line edit</div>
+                  <div className="workspace-inline-actions">
                     <input
                       type="number"
                       value={editStartLine}
-                      onChange={(e) => setEditStartLine(e.target.value)}
+                      onChange={(event) => setEditStartLine(event.target.value)}
                       placeholder="start"
-                      className="text-input"
-                      style={{ width: 120 }}
+                      className="text-input workspace-small-input"
+                      disabled={!activeFilePath}
                     />
                     <input
                       type="number"
                       value={editEndLine}
-                      onChange={(e) => setEditEndLine(e.target.value)}
+                      onChange={(event) => setEditEndLine(event.target.value)}
                       placeholder="end"
-                      className="text-input"
-                      style={{ width: 120 }}
+                      className="text-input workspace-small-input"
+                      disabled={!activeFilePath}
                     />
-                    <button onClick={handleApplyEdit} className="upload-btn">Apply edit</button>
+                    <button type="button" className="upload-btn" onClick={handleApplyEdit} disabled={!activeFilePath}>
+                      Apply
+                    </button>
                   </div>
                   <textarea
                     value={editCode}
-                    onChange={(e) => setEditCode(e.target.value)}
-                    placeholder="Replacement text. Use start=end+1 to insert before a line, or leave blank to delete."
-                    className="text-input"
-                    style={{ minHeight: 100, width: '100%' }}
+                    onChange={(event) => setEditCode(event.target.value)}
+                    placeholder="Replacement text"
+                    className="workspace-snippet-editor"
+                    disabled={!activeFilePath}
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>Editable buffer:</label>
-                  <textarea
-                    value={loadedFile.current}
-                    onChange={(e) => setLoadedFile({ ...loadedFile, current: e.target.value })}
-                    className="text-input"
-                    style={{ minHeight: 180, width: '100%', fontFamily: 'var(--font-family-mono)' }}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Annotated read view:</label>
-                  <pre className="log-content" style={{ maxHeight: 240, margin: 0 }}>{annotatedContent || 'Empty file'}</pre>
-                </div>
-
-                <div className="form-group">
-                  <label>Search results:</label>
-                  <pre className="log-content" style={{ maxHeight: 180, margin: 0 }}>{searchResults || 'No search run yet'}</pre>
+                <div className="workspace-panel workspace-panel-grow">
+                  <div className="workspace-panel-header">Annotated view</div>
+                  <pre className="workspace-output workspace-output-grow">{annotatedContent || 'Empty file'}</pre>
                 </div>
               </div>
-            )}
-          </div>
-
-          <div className="upload-section">
-            <h4>Upload file</h4>
-            <div className="form-group">
-              <label>Select File:</label>
-              <input ref={fileInputRef} type="file" className="file-input" disabled={uploading} />
             </div>
-            <div className="form-group">
-              <label>GitHub Path:</label>
-              <input
-                type="text"
-                value={uploadPath}
-                onChange={(e) => setUploadPath(e.target.value)}
-                placeholder="assets/image.png"
-                className="text-input"
-                disabled={uploading}
-              />
-            </div>
-            <button onClick={handleGithubUpload} disabled={uploading} className="upload-btn">
-              {uploading ? 'Uploading...' : 'Upload to GitHub'}
-            </button>
-          </div>
-
-          <div className="download-section">
-            <h4>Download file</h4>
-            <div className="form-group">
-              <label>GitHub Path:</label>
-              <input
-                type="text"
-                value={downloadPath}
-                onChange={(e) => setDownloadPath(e.target.value)}
-                placeholder="src/App.tsx"
-                className="text-input"
-                disabled={downloading}
-              />
-            </div>
-            <button onClick={handleGithubDownload} disabled={downloading} className="download-btn">
-              {downloading ? 'Downloading...' : 'Download from GitHub'}
-            </button>
-          </div>
+          </section>
         </div>
       )}
 
@@ -764,14 +867,14 @@ export const Tool: React.FC = () => {
             <input
               type="text"
               value={wsUrlInput}
-              onChange={(e) => setWsUrlInput(e.target.value)}
+              onChange={(event) => setWsUrlInput(event.target.value)}
               placeholder="ws://localhost:8080"
               className="text-input"
               disabled={websocket.status === 'connecting'}
             />
           </div>
           <div className="tool-mode-switch">
-            <button onClick={handleWebSocketConnect} disabled={websocket.status === 'connecting' || websocket.connected}>
+            <button onClick={() => void handleWebSocketConnect()} disabled={websocket.status === 'connecting' || websocket.connected}>
               {websocket.status === 'connecting' ? 'Connecting...' : 'Connect'}
             </button>
             <button onClick={handleWebSocketDisconnect} disabled={!websocket.connected}>
@@ -783,20 +886,20 @@ export const Tool: React.FC = () => {
             <h4>Upload File</h4>
             <div className="form-group">
               <label>Select File:</label>
-              <input ref={fileInputRef} type="file" className="file-input" disabled={uploading || !websocket.connected} />
+              <input ref={wsFileInputRef} type="file" className="file-input" disabled={uploading || !websocket.connected} />
             </div>
             <div className="form-group">
               <label>Filename:</label>
               <input
                 type="text"
                 value={wsUploadFilename}
-                onChange={(e) => setWsUploadFilename(e.target.value)}
+                onChange={(event) => setWsUploadFilename(event.target.value)}
                 placeholder="document.pdf"
                 className="text-input"
                 disabled={uploading || !websocket.connected}
               />
             </div>
-            <button onClick={handleWebSocketUpload} disabled={uploading || !websocket.connected} className="upload-btn">
+            <button onClick={() => void handleWebSocketUpload()} disabled={uploading || !websocket.connected} className="upload-btn">
               {uploading ? 'Uploading...' : 'Upload via WebSocket'}
             </button>
           </div>
@@ -808,7 +911,7 @@ export const Tool: React.FC = () => {
               <input
                 type="text"
                 value={wsDownloadFilename}
-                onChange={(e) => setWsDownloadFilename(e.target.value)}
+                onChange={(event) => setWsDownloadFilename(event.target.value)}
                 placeholder="data.json"
                 className="text-input"
                 disabled={downloading || !websocket.connected}
@@ -827,8 +930,8 @@ export const Tool: React.FC = () => {
           {log.length === 0 ? (
             <div className="log-empty">No activity yet</div>
           ) : (
-            log.map((entry, index) => (
-              <div key={index} className="log-entry">{entry}</div>
+            log.map((entry) => (
+              <div key={entry.id} className="log-entry">{entry.message}</div>
             ))
           )}
         </div>

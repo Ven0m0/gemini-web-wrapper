@@ -282,3 +282,38 @@ def test_chat_completions_response_shape(client_with_key: TestClient) -> None:
     assert body["model"] == "gemini-2.0-flash-exp"
     assert len(body["choices"]) == 1
     assert body["choices"][0]["message"]["content"] == "response text"
+
+
+def test_chat_completions_uses_gateway_provider_defaults(
+    client_with_key: TestClient,
+) -> None:
+    app.dependency_overrides[get_settings] = lambda: make_settings(
+        model_provider="kilo-gateway",
+        model_name=None,
+        kilo_api_key="kilo-key",
+    )
+
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _mock_provider("gateway response")
+
+        resp = client_with_key.post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={"model": "ignored-by-server-fallback", "messages": VALID_MESSAGES},
+        )
+
+    assert resp.status_code == 200
+    call_args = mock_create.call_args
+    assert call_args[0][0] == "kilo-gateway"
+    assert call_args[1].get("api_key") == "kilo-key"
+    assert call_args[1].get("base_url") == "https://api.kilo.ai/api/gateway"
+    assert call_args[1].get("model") == "kilo-auto/balanced"
+
+
+def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> None:
+    resp = client_with_key.get("/v1/models", headers=AUTH)
+
+    assert resp.status_code == 200
+    model_ids = {item["id"] for item in resp.json()["data"]}
+    assert "opencode/gpt-5.3-codex" in model_ids
+    assert "kilo-auto/balanced" in model_ids

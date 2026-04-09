@@ -455,6 +455,355 @@
 .diff-added   { color: var(--color-success); font-weight: 600; }
 .diff-removed { color: var(--color-error); font-weight: 600; }
 
+/* ─── Workspace / File Tools ──────────────────────────────────────── */
+.tool-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--color-bg);
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+}
+
+.tool-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.tool-subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-subtle);
+}
+
+.tool-mode-switch {
+  display: flex;
+  gap: 8px;
+}
+
+.tool-mode-switch button,
+.upload-btn,
+.download-btn,
+.clear-log-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tool-mode-switch button:hover,
+.upload-btn:hover,
+.download-btn:hover,
+.clear-log-btn:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text);
+  border-color: var(--color-border-hover);
+}
+
+.tool-mode-switch button.active,
+.upload-btn {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.tool-mode-switch button:disabled,
+.upload-btn:disabled,
+.download-btn:disabled,
+.clear-log-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+}
+
+.workspace-sidebar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-sidebar-header h3,
+.workspace-panel-header,
+.tool-log h4,
+.tool-section h3,
+.upload-section h4,
+.download-section h4 {
+  margin: 0;
+  font-size: 11px;
+  font-family: var(--font-family-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-subtle);
+}
+
+.workspace-caption,
+.workspace-target,
+.ws-status,
+.ws-url,
+.log-empty {
+  font-size: 11px;
+  color: var(--color-text-subtle);
+  font-family: var(--font-family-mono);
+}
+
+.workspace-sidebar-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.workspace-target {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background-color: var(--color-bg);
+}
+
+.workspace-tree {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 0 16px;
+}
+
+.workspace-empty-state {
+  padding: 16px 12px;
+  color: var(--color-text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+}
+
+.tree-node.selected {
+  background-color: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.tree-node-toggle,
+.tree-node-label {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.tree-node-toggle {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+}
+
+.tree-node-toggle-placeholder {
+  display: inline-block;
+}
+
+.tree-node-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding-right: 12px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tree-node-label:hover {
+  color: var(--color-text);
+}
+
+.tree-node-icon {
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.tree-node-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: var(--font-family-mono);
+}
+
+.tree-node-meta {
+  font-size: 10px;
+  color: var(--color-text-subtle);
+}
+
+.workspace-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workspace-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-file-path {
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.workspace-toolbar,
+.workspace-inline-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workspace-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr);
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+}
+
+.workspace-tools-column {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.workspace-panel,
+.upload-section,
+.download-section,
+.tool-section,
+.tool-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+}
+
+.workspace-panel-grow {
+  min-height: 0;
+}
+
+.workspace-buffer,
+.workspace-snippet-editor,
+.text-input,
+.file-input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  font-family: var(--font-family-mono);
+  border-radius: var(--border-radius-sm);
+}
+
+.workspace-buffer,
+.workspace-snippet-editor {
+  resize: vertical;
+  padding: 10px 12px;
+}
+
+.workspace-buffer {
+  min-height: 320px;
+  flex: 1;
+}
+
+.workspace-snippet-editor {
+  min-height: 96px;
+}
+
+.text-input,
+.file-input {
+  padding: 8px 10px;
+}
+
+.workspace-small-input {
+  width: 96px;
+}
+
+.workspace-output,
+.log-content {
+  margin: 0;
+  padding: 10px 12px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-family: var(--font-family-mono);
+  white-space: pre-wrap;
+  overflow: auto;
+}
+
+.workspace-output-grow {
+  flex: 1;
+  min-height: 0;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.tool-section,
+.tool-log {
+  margin: 16px;
+}
+
+.log-entry {
+  padding: 2px 0;
+}
+
 /* ─── Config Overlay (modal) ───────────────────────────────────── */
 .config-overlay {
   position: fixed;
@@ -1032,5 +1381,26 @@ pre code {
   /* ── Settings inline view adjustments ─────────────────── */
   .settings-view-body {
     max-width: 100%;
+  }
+
+  .workspace-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-sidebar {
+    min-height: 240px;
+    max-height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .workspace-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-editor-header,
+  .tool-header {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
