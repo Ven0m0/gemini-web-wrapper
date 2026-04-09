@@ -1,8 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useStore } from '../store'
+import React, { useEffect, useRef, useState } from 'react'
 
 export const PythonRunner: React.FC = () => {
-  const { setMode } = useStore()
   const [code, setCode] = useState<string>("print('Hello from Python!')\n")
   const [stdout, setStdout] = useState<string>('')
   const [stderr, setStderr] = useState<string>('')
@@ -72,7 +70,6 @@ export const PythonRunner: React.FC = () => {
         <div className="tool-mode-switch">
           <button onClick={run} disabled={!ready || loading}>{loading ? 'Running…' : 'Run'}</button>
           <button onClick={clear}>Clear Output</button>
-          <button className="back-btn" onClick={() => setMode('cli')}>Back to CLI</button>
         </div>
       </div>
       <div className="tool-section" style={{display: 'flex', gap: '12px', alignItems: 'stretch'}}>

@@ -178,7 +178,7 @@ export const Editor: React.FC = () => {
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
           <button
-            onClick={() => setMode('cli')}
+            onClick={() => setMode('shell')}
             className="mode-btn"
             title="Switch to CLI"
           >

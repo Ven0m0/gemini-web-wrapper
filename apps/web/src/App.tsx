@@ -1,13 +1,11 @@
 import { useEffect } from 'react'
 import { useStore } from './store'
 import type { AppMode } from './store'
-import { CLI } from './components/CLI'
+import { UnifiedShell } from './components/UnifiedShell'
 import { Editor } from './components/Editor'
 import { Tool } from './components/Tool'
 import { ConfigOverlay } from './components/ConfigOverlay'
 import { InstallPrompt } from './components/InstallPrompt'
-import { WebShell } from './components/WebShell'
-import { PythonRunner } from './components/PythonRunner'
 import { ChatDemo } from './components/ChatDemo'
 import { OpenRouterChat } from './components/OpenRouterChat'
 import { migrateSavedConfig } from './services/providers'
@@ -42,8 +40,8 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    id: 'cli',
-    label: 'Terminal',
+    id: 'shell',
+    label: 'Shell',
     mobileVisible: true,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
@@ -74,39 +72,13 @@ const NAV_ITEMS: NavItem[] = [
       </svg>
     ),
   },
-  {
-    id: 'python',
-    label: 'Python',
-    mobileVisible: true,
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-    ),
-  },
-  {
-    id: 'wsh',
-    label: 'Shell',
-    mobileVisible: true,
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-        <line x1="8" y1="21" x2="16" y2="21" />
-        <line x1="12" y1="17" x2="12" y2="21" />
-      </svg>
-    ),
-  },
 ]
 
 const MODE_LABELS: Record<AppMode, string> = {
   chat: 'chat',
-  cli: 'terminal',
+  shell: 'shell',
   editor: 'editor',
   tool: 'files',
-  python: 'python',
-  wsh: 'shell',
   'chat-demo': 'chat-demo',
   settings: 'settings',
 }
@@ -128,11 +100,9 @@ function App() {
 
   const renderContent = () => {
     switch (mode) {
-      case 'cli':        return <CLI />
+      case 'shell':       return <UnifiedShell />
       case 'editor':     return <Editor />
       case 'tool':       return <Tool />
-      case 'wsh':        return <WebShell />
-      case 'python':     return <PythonRunner />
       case 'chat-demo':  return <ChatDemo />
       case 'settings':   return <ConfigOverlay inline />
       case 'chat':

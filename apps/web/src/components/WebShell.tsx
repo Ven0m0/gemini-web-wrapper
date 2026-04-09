@@ -134,11 +134,7 @@ const GitClonePanel: React.FC<GitClonePanelProps> = ({ githubToken, onPrepare })
 export const WebShell: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [iframeLoaded, setIframeLoaded] = useState(false)
-  const { setMode, webShell, setWebShell, config } = useStore()
-
-  const handleBack = useCallback(() => {
-    setMode('cli')
-  }, [setMode])
+  const { webShell, setWebShell, config } = useStore()
 
   const handleCopy = useCallback(async () => {
     if (!webShell.prepared) return
@@ -176,7 +172,6 @@ export const WebShell: React.FC = () => {
         <div className="tool-mode-switch">
           <button onClick={() => window.open('https://webassembly.sh/', '_blank', 'noopener,noreferrer')}>Open in New Tab</button>
           <button onClick={handleCopy}>Copy Commands</button>
-          <button className="back-btn" onClick={handleBack}>Back to CLI</button>
         </div>
       </div>
 
