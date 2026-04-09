@@ -22,40 +22,82 @@ settings = get_settings()
 
 MODEL_CATALOG = [
     {
-        "id": "gemini-2.0-flash-exp",
+        "id": "gemini-3.1-pro-preview",
         "object": "model",
         "created": 1677610602,
         "owned_by": "google",
     },
     {
-        "id": "gemini-1.5-pro",
+        "id": "gemini-3-flash-preview",
         "object": "model",
         "created": 1677610602,
         "owned_by": "google",
     },
     {
-        "id": "claude-3-5-sonnet-20241022",
+        "id": "gemini-3.1-flash-lite-preview",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "google",
+    },
+    {
+        "id": "gpt-5.4",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "copilot",
+    },
+    {
+        "id": "claude-sonnet-4.6",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "copilot",
+    },
+    {
+        "id": "gemini-3.1-pro",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "copilot",
+    },
+    {
+        "id": "claude-sonnet-4-6",
         "object": "model",
         "created": 1677610602,
         "owned_by": "anthropic",
     },
     {
-        "id": "claude-3-haiku-20240307",
+        "id": "claude-opus-4-6",
         "object": "model",
         "created": 1677610602,
         "owned_by": "anthropic",
     },
     {
-        "id": "opencode/gpt-5.3-codex",
+        "id": "claude-haiku-4-5",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "anthropic",
+    },
+    {
+        "id": "opencode/gpt-5.4",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
     },
     {
-        "id": "opencode/claude-sonnet-4.5",
+        "id": "opencode/claude-opus-4-6",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
+    },
+    {
+        "id": "opencode/gemini-3.1-pro",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "opencode",
+    },
+    {
+        "id": "kilo-auto/frontier",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "kilo",
     },
     {
         "id": "kilo-auto/balanced",
@@ -64,7 +106,7 @@ MODEL_CATALOG = [
         "owned_by": "kilo",
     },
     {
-        "id": "anthropic/claude-sonnet-4.6",
+        "id": "kilo-auto/free",
         "object": "model",
         "created": 1677610602,
         "owned_by": "kilo",

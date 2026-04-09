@@ -8,7 +8,7 @@ import httpx
 from affine.llm_core.interfaces import LLMProvider
 from affine.shared.models import TextMessage
 
-DEFAULT_MODEL = "gemini-2.0-flash-exp"
+DEFAULT_MODEL = "gemini-3.1-pro-preview"
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_MAX_OUTPUT_TOKENS = 8192
 DEFAULT_TEMPERATURE = 0.7

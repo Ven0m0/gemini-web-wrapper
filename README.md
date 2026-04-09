@@ -82,15 +82,17 @@ File transfer and GitHub repository management
 ```bash
 GOOGLE_API_KEY=your_google_api_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here  # Optional
-MODEL_PROVIDER=gemini  # or anthropic
-MODEL_NAME=gemini-2.5-flash
+COPILOT_API_KEY=your_github_copilot_token_here  # Optional
+MODEL_PROVIDER=gemini  # or anthropic or copilot
+MODEL_NAME=gemini-3.1-pro-preview
 PORT=9000
 ```
 
 ### Model Support
 
-- **Google Gemini**: gemini-2.5-flash, gemini-2.5-pro, gemini-3.0-pro
-- **Anthropic Claude**: claude-3-5-sonnet-20241022
+- **Google Gemini**: gemini-3.1-pro-preview, gemini-3-flash-preview, gemini-3.1-flash-lite-preview
+- **Anthropic Claude**: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5
+- **GitHub Copilot**: gpt-5.4, claude-sonnet-4.6, gemini-3.1-pro
 - **OpenAI Compatible**: drop-in replacement for GPT models
 
 ## Deployment

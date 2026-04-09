@@ -20,8 +20,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 cat > apps/api/.env << 'EOF'
 GOOGLE_API_KEY=your_google_api_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
+COPILOT_API_KEY=your_github_copilot_token_here
 MODEL_PROVIDER=gemini
-MODEL_NAME=gemini-2.0-flash-exp
+MODEL_NAME=gemini-3.1-pro-preview
 PORT=8000
 EOF
 ```
@@ -106,6 +107,7 @@ services:
     environment:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      COPILOT_API_KEY: ${COPILOT_API_KEY}
       MODEL_PROVIDER: ${MODEL_PROVIDER}
       MODEL_NAME: ${MODEL_NAME}
       PORT: 8000
@@ -122,8 +124,9 @@ services:
 |----------|----------|---------|-------------|
 | `GOOGLE_API_KEY` | Yes* | - | Google Gemini API key |
 | `ANTHROPIC_API_KEY` | Yes* | - | Anthropic Claude API key |
-| `MODEL_PROVIDER` | Yes | `gemini` | `gemini` or `anthropic` |
-| `MODEL_NAME` | Yes | `gemini-2.0-flash-exp` | Model identifier |
+| `COPILOT_API_KEY` | Yes* | - | GitHub Copilot token |
+| `MODEL_PROVIDER` | Yes | `gemini` | `gemini`, `anthropic`, or `copilot` |
+| `MODEL_NAME` | Yes | `gemini-3.1-pro-preview` | Model identifier |
 | `PORT` | No | `8000` | Server port |
 
 *At least one API key required for chosen provider.
@@ -135,5 +138,5 @@ curl https://your-api-url.com/health
 
 curl -X POST https://your-api-url.com/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"gemini-2.0-flash-exp","messages":[{"role":"user","content":"Hello"}]}'
+  -d '{"model":"gemini-3.1-pro-preview","messages":[{"role":"user","content":"Hello"}]}'
 ```

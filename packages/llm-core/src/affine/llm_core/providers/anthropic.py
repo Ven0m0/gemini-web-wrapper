@@ -8,7 +8,7 @@ import httpx
 from affine.llm_core.interfaces import LLMProvider
 from affine.shared.models import TextMessage
 
-DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_BASE_URL = "https://api.anthropic.com/v1"
 DEFAULT_MAX_TOKENS = 4096
 REQUEST_TIMEOUT_SECONDS = 120.0
