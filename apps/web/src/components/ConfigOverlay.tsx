@@ -24,7 +24,7 @@ function formatRepositoryInput(owner: string, repo: string): string {
 function parseRepositoryInput(value: string): { owner: string; repo: string } {
   const normalized = value
     .trim()
-    .replace(/^https?:\/\/github\.com\//, '')
+    .replace(/^(?:https?:\/\/)?(?:www\.)?github\.com\//, '')
     .replace(/\.git$/, '')
     .replace(/^\/+|\/+$/g, '')
 

@@ -63,6 +63,10 @@ function sortTreeItems(items: GitHubDirectoryItem[]): GitHubDirectoryItem[] {
   })
 }
 
+function canAutoIndex(status: RepoIndexStatus | null, hasGitHubToken: boolean): boolean {
+  return status?.status !== 'indexed' && status?.status !== 'indexing' && hasGitHubToken
+}
+
 export const Tool: React.FC = () => {
   const [toolMode, setToolMode] = useState<ToolMode>('github')
   const [uploading, setUploading] = useState(false)
@@ -157,11 +161,6 @@ export const Tool: React.FC = () => {
     }
     return githubService
   }
-
-  const canAutoIndex = (
-    status: RepoIndexStatus | null,
-    hasGitHubToken: boolean,
-  ) => status?.status !== 'indexed' && status?.status !== 'indexing' && hasGitHubToken
 
   const refreshRepoIndexStatus = useCallback(async (): Promise<RepoIndexStatus | null> => {
     if (!repoIndexService || !config.owner || !config.repo) {

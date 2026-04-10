@@ -30,6 +30,24 @@ function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+function buildRepoContext(options: {
+  repoLabel: string
+  branch: string
+  path: string
+  repoIndexStatus: ReturnType<typeof useStore.getState>['repoIndexStatus']
+}): string {
+  if (!options.repoLabel) {
+    return 'You are a concise, helpful assistant. Answer clearly and stay practical.'
+  }
+
+  const fileContext = options.path ? `Active file: ${options.path}.` : 'No file is currently open.'
+  const indexContext = options.repoIndexStatus
+    ? `Repo index status: ${options.repoIndexStatus.status}, ${options.repoIndexStatus.indexed_files} indexed files, ${options.repoIndexStatus.symbol_count} symbols.`
+    : 'Repo index status is not available yet.'
+
+  return `You are helping inside the ${options.repoLabel} repository on branch ${options.branch}. ${indexContext} ${fileContext} Keep responses concise, practical, and grounded in the active workspace context when relevant.`
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function UserBubble({ content }: { content: string }) {
@@ -336,16 +354,12 @@ export const OpenRouterChat: React.FC = () => {
   const selectedModelKey = `${selectedProviderId}::${selectedModelId}`
   const repoLabel = config.owner && config.repo ? `${config.owner}/${config.repo}` : ''
   const repoContext = useMemo(() => {
-    if (!repoLabel) {
-      return 'You are a concise, helpful assistant. Answer clearly and stay practical.'
-    }
-
-    const branch = config.branch || 'main'
-    const fileContext = config.path ? `Active file: ${config.path}.` : 'No file is currently open.'
-    const indexContext = repoIndexStatus
-      ? `Repo index status: ${repoIndexStatus.status}, ${repoIndexStatus.indexed_files} indexed files, ${repoIndexStatus.symbol_count} symbols.`
-      : 'Repo index status is not available yet.'
-    return `You are helping inside the ${repoLabel} repository on branch ${branch}. ${indexContext} ${fileContext} Keep responses concise, practical, and grounded in the active workspace context when relevant.`
+    return buildRepoContext({
+      repoLabel,
+      branch: config.branch || 'main',
+      path: config.path,
+      repoIndexStatus,
+    })
   }, [config.branch, config.path, repoIndexStatus, repoLabel])
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -417,7 +431,7 @@ export const OpenRouterChat: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--color-bg)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', height: '100%', background: 'var(--color-bg)' }}>
 
       {/* ── Header bar ───────────────────────────────────────────────── */}
       <div style={{
