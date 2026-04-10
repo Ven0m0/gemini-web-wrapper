@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "bun run dev:web & bun run dev:api",
     "dev:web": "cd apps/web && bun run dev",
-    "dev:api": "cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload",
+    "dev:api": "cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload --port 9000",
     "dev:all": "bun run dev",
     "build": "cd apps/web && bun run build",
     "build:api": "cd apps/api && PYTHONPATH=src:../../packages/config/src uv run python -m compileall src",

@@ -18,11 +18,7 @@
       "dest": "apps/api/src/affine/api/server.py"
     },
     {
-      "src": "/v1/models",
-      "dest": "apps/api/src/affine/api/server.py"
-    },
-    {
-      "src": "/v1/chat/completions",
+      "src": "/v1/(.*)",
       "dest": "apps/api/src/affine/api/server.py"
     },
     {

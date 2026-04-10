@@ -23,7 +23,7 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 COPILOT_API_KEY=your_github_copilot_token_here
 MODEL_PROVIDER=gemini
 MODEL_NAME=gemini-3.1-pro-preview
-PORT=8000
+PORT=9000
 EOF
 ```
 
@@ -34,7 +34,7 @@ Backend:
 cd apps/api
 uv sync --all-extras
 export PYTHONPATH=src:../../packages/config/src
-uv run uvicorn affine.api.server:app --reload --port 8000
+uv run uvicorn affine.api.server:app --reload --port 9000
 ```
 
 Frontend:
@@ -93,7 +93,7 @@ WORKDIR /app
 COPY . .
 RUN cd apps/api && uv sync --all-extras
 ENV PYTHONPATH=apps/api/src:packages/config/src
-CMD ["uv", "run", "--directory", "apps/api", "uvicorn", "affine.api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--directory", "apps/api", "uvicorn", "affine.api.server:app", "--host", "0.0.0.0", "--port", "9000"]
 ```
 
 ### Self-Hosted - Docker Compose
@@ -103,14 +103,14 @@ version: '3.8'
 services:
   api:
     build: .
-    ports: ["8000:8000"]
+    ports: ["9000:9000"]
     environment:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       COPILOT_API_KEY: ${COPILOT_API_KEY}
       MODEL_PROVIDER: ${MODEL_PROVIDER}
       MODEL_NAME: ${MODEL_NAME}
-      PORT: 8000
+      PORT: 9000
   web:
     image: nginx:alpine
     ports: ["80:80"]
@@ -127,7 +127,7 @@ services:
 | `COPILOT_API_KEY` | Yes* | - | GitHub Copilot token |
 | `MODEL_PROVIDER` | Yes | `gemini` | `gemini`, `anthropic`, or `copilot` |
 | `MODEL_NAME` | Yes | `gemini-3.1-pro-preview` | Model identifier |
-| `PORT` | No | `8000` | Server port |
+| `PORT` | No | `9000` | Server port |
 
 *At least one API key required for chosen provider.
 
