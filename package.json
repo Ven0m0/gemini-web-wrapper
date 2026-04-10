@@ -23,6 +23,8 @@
     "@affine/web"
   ],
   "devDependencies": {
+    "@biomejs/biome": "^2.4.11",
+    "oxlint": "^1.59.0",
     "typescript": "^6.0.2"
   },
   "overrides": {

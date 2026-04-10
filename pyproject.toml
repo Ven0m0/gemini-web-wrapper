@@ -19,6 +19,14 @@ affine-shared = { workspace = true }
 affine-llm-core = { workspace = true }
 affine-config = { workspace = true }
 
+[dependency-groups]
+dev = [
+    "mypy",
+    "prek",
+    "pytest",
+    "ruff",
+]
+
 [tool.pytest.ini_options]
 pythonpath = [
     "apps/api/src",
