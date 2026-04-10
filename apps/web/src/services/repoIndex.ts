@@ -63,11 +63,17 @@ export class RepoIndexService {
     return response.json()
   }
 
-  async indexRepository(owner: string, repo: string, branch: string, githubToken: string): Promise<RepoIndexStatus> {
+  async indexRepository(
+    owner: string,
+    repo: string,
+    branch: string,
+    githubToken: string,
+    force = true,
+  ): Promise<RepoIndexStatus> {
     const response = await fetch(`${this.apiBase}/index`, {
       method: 'POST',
       headers: this.headers(),
-      body: JSON.stringify({ owner, repo, branch, github_token: githubToken, force: true }),
+      body: JSON.stringify({ owner, repo, branch, github_token: githubToken, force }),
     })
 
     if (!response.ok) {

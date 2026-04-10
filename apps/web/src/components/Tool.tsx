@@ -63,6 +63,10 @@ function sortTreeItems(items: GitHubDirectoryItem[]): GitHubDirectoryItem[] {
   })
 }
 
+function canAutoIndex(status: RepoIndexStatus | null, hasGitHubToken: boolean): boolean {
+  return status?.status !== 'indexed' && status?.status !== 'indexing' && hasGitHubToken
+}
+
 export const Tool: React.FC = () => {
   const [toolMode, setToolMode] = useState<ToolMode>('github')
   const [uploading, setUploading] = useState(false)
@@ -76,7 +80,6 @@ export const Tool: React.FC = () => {
   const [searchResults, setSearchResults] = useState('')
   const [repoSearchQuery, setRepoSearchQuery] = useState('')
   const [repoSearchResults, setRepoSearchResults] = useState<RepoSearchResult[]>([])
-  const [repoIndexStatus, setRepoIndexStatus] = useState<RepoIndexStatus | null>(null)
   const [indexingRepository, setIndexingRepository] = useState(false)
   const [searchingRepository, setSearchingRepository] = useState(false)
   const [editStartLine, setEditStartLine] = useState('')
@@ -94,6 +97,7 @@ export const Tool: React.FC = () => {
   const wsFileInputRef = useRef<HTMLInputElement>(null)
   const wsServiceRef = useRef<WebSocketService | null>(null)
   const nextLogIdRef = useRef(0)
+  const autoIndexKeyRef = useRef('')
 
   const {
     setMode,
@@ -101,6 +105,8 @@ export const Tool: React.FC = () => {
     setConfig,
     file,
     setFile,
+    repoIndexStatus,
+    setRepoIndexStatus,
     websocket,
     addWebSocketMessage,
     clearWebSocketMessages,
@@ -156,18 +162,20 @@ export const Tool: React.FC = () => {
     return githubService
   }
 
-  const refreshRepoIndexStatus = useCallback(async () => {
+  const refreshRepoIndexStatus = useCallback(async (): Promise<RepoIndexStatus | null> => {
     if (!repoIndexService || !config.owner || !config.repo) {
       setRepoIndexStatus(null)
       setRepoSearchResults([])
-      return
+      return null
     }
 
     try {
       const status = await repoIndexService.getStatus(config.owner, config.repo, config.branch)
       setRepoIndexStatus(status)
+      return status
     } catch (error) {
       addLog(`Repo index status failed: ${error instanceof Error ? error.message : error}`)
+      return null
     }
   }, [config.branch, config.owner, config.repo, repoIndexService])
 
@@ -225,6 +233,7 @@ export const Tool: React.FC = () => {
 
   useEffect(() => {
     if (!hasGitHubConfig) {
+      autoIndexKeyRef.current = ''
       setDirectoryEntries({})
       setExpandedDirectories([ROOT_PATH])
       setSelectedNodePath('')
@@ -238,9 +247,70 @@ export const Tool: React.FC = () => {
   }, [hasGitHubConfig, loadDirectory])
 
   useEffect(() => {
-    if (!hasGitHubConfig) return
-    void refreshRepoIndexStatus()
-  }, [config.branch, hasGitHubConfig, refreshRepoIndexStatus])
+    if (!hasGitHubConfig || !config.owner || !config.repo) {
+      autoIndexKeyRef.current = ''
+      return
+    }
+
+    let cancelled = false
+    const repoKey = `${config.owner}/${config.repo}@${config.branch}`
+
+    const syncRepoIndex = async () => {
+      const status = await refreshRepoIndexStatus()
+      if (cancelled) return
+
+      if (!canAutoIndex(status, Boolean(config.githubToken))) {
+        return
+      }
+
+      if (autoIndexKeyRef.current === repoKey) {
+        return
+      }
+
+      autoIndexKeyRef.current = repoKey
+      addLog(`Auto-indexing ${config.owner}/${config.repo}...`)
+      setIndexingRepository(true)
+
+      try {
+        const nextStatus = await repoIndexService?.indexRepository(
+          config.owner,
+          config.repo,
+          config.branch,
+          config.githubToken,
+          false,
+        )
+        if (!cancelled && nextStatus) {
+          setRepoIndexStatus(nextStatus)
+          setRepoSearchResults([])
+          addLog(`Repo index ready · ${nextStatus.indexed_files} files · ${nextStatus.symbol_count} symbols`)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          autoIndexKeyRef.current = ''
+          addLog(`Auto index failed: ${error instanceof Error ? error.message : error}`)
+        }
+      } finally {
+        if (!cancelled) {
+          setIndexingRepository(false)
+        }
+      }
+    }
+
+    void syncRepoIndex()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    config.branch,
+    config.githubToken,
+    config.owner,
+    config.repo,
+    hasGitHubConfig,
+    refreshRepoIndexStatus,
+    repoIndexService,
+    setRepoIndexStatus,
+  ])
 
   useEffect(() => {
     setWsUrlInput(websocket.url)
@@ -373,6 +443,7 @@ export const Tool: React.FC = () => {
         config.repo,
         config.branch,
         config.githubToken,
+        true,
       )
       setRepoIndexStatus(status)
       setRepoSearchResults([])
@@ -753,12 +824,12 @@ export const Tool: React.FC = () => {
 
   return (
     <div className="tool-container">
-      <div className="tool-header">
-        <div>
-          <h2>Workspace</h2>
-          <p className="tool-subtitle">Browse your repo like a lightweight editor.</p>
-        </div>
-        <div className="tool-mode-switch">
+        <div className="tool-header">
+          <div>
+            <h2>Workspace</h2>
+            <p className="tool-subtitle">Browse, edit, and auto-index your repo like a lightweight coding workspace.</p>
+          </div>
+          <div className="tool-mode-switch">
           <button
             className={toolMode === 'github' ? 'active' : ''}
             onClick={() => setToolMode('github')}

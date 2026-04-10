@@ -84,7 +84,15 @@ const MODE_LABELS: Record<AppMode, string> = {
 }
 
 function App() {
-  const { mode, setMode, setConfig } = useStore()
+  const { mode, setMode, setConfig, config, repoIndexStatus } = useStore()
+  const repoLabel = config.owner && config.repo ? `${config.owner}/${config.repo}` : ''
+  const repoIndexClassName = repoIndexStatus?.status === 'indexed'
+    ? 'success'
+    : repoIndexStatus?.status === 'error'
+      ? 'error'
+      : repoIndexStatus?.status === 'indexing'
+        ? 'primary'
+        : ''
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark')
@@ -187,6 +195,22 @@ function App() {
           <div className="status-item">
             {MODE_LABELS[mode as AppMode] ?? mode}
           </div>
+          {repoLabel && (
+            <>
+              <div className="status-divider" />
+              <div className="status-item">
+                {repoLabel} · {config.branch}
+              </div>
+            </>
+          )}
+          {repoIndexStatus && (
+            <>
+              <div className="status-divider" />
+              <div className={`status-item ${repoIndexClassName}`.trim()}>
+                index {repoIndexStatus.status} · {repoIndexStatus.indexed_files} files
+              </div>
+            </>
+          )}
           <div className="status-spacer" />
           <div className="status-item">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

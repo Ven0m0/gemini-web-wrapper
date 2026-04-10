@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { AIService } from '../services/ai'
 import {
@@ -19,7 +19,7 @@ interface Message {
   errorMessage?: string
 }
 
-const SUGGESTED = [
+const DEFAULT_SUGGESTED = [
   'Explain quantum computing',
   'Generate a JSON response',
   'Write a haiku about code',
@@ -28,6 +28,24 @@ const SUGGESTED = [
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function buildRepoContext(options: {
+  repoLabel: string
+  branch: string
+  path: string
+  repoIndexStatus: ReturnType<typeof useStore.getState>['repoIndexStatus']
+}): string {
+  if (!options.repoLabel) {
+    return 'You are a concise, helpful assistant. Answer clearly and stay practical.'
+  }
+
+  const fileContext = options.path ? `Active file: ${options.path}.` : 'No file is currently open.'
+  const indexContext = options.repoIndexStatus
+    ? `Repo index status: ${options.repoIndexStatus.status}, ${options.repoIndexStatus.indexed_files} indexed files, ${options.repoIndexStatus.symbol_count} symbols.`
+    : 'Repo index status is not available yet.'
+
+  return `You are helping inside the ${options.repoLabel} repository on branch ${options.branch}. ${indexContext} ${fileContext} Keep responses concise, practical, and grounded in the active workspace context when relevant.`
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -202,6 +220,19 @@ function TypingIndicator() {
 }
 
 function EmptyState({ onSelect }: { onSelect: (s: string) => void }) {
+  const { config } = useStore()
+  const repoLabel = config.owner && config.repo ? `${config.owner}/${config.repo}` : ''
+  const suggestions = useMemo(() => (
+    repoLabel
+      ? [
+          `Summarize ${repoLabel}`,
+          config.path ? `Explain ${config.path}` : `Map the main entry points in ${repoLabel}`,
+          'What should I inspect first?',
+          'Help me plan the next change',
+        ]
+      : DEFAULT_SUGGESTED
+  ), [config.path, repoLabel])
+
   return (
     <div style={{
       display: 'flex',
@@ -259,12 +290,12 @@ function EmptyState({ onSelect }: { onSelect: (s: string) => void }) {
           fontFamily: 'var(--font-family-mono)',
           letterSpacing: '0.01em',
         }}>
-          code · json · analysis · anything
+          {repoLabel ? `${repoLabel} · workspace-aware chat` : 'code · json · analysis · anything'}
         </p>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 520, position: 'relative' }}>
-        {SUGGESTED.map((s) => (
+        {suggestions.map((s) => (
           <button
             key={s}
             type="button"
@@ -315,12 +346,21 @@ export const OpenRouterChat: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef    = useRef<HTMLTextAreaElement>(null)
-  const { config, setConfig } = useStore()
+  const { config, setConfig, repoIndexStatus } = useStore()
   const providerOptions = getFlattenedProviderModels(config.providers)
   const selectedProviderId = ensureProviderSelection(config.provider, config.providers)
   const selectedModelId = ensureModelSelection(selectedProviderId, config.model, config.providers)
   const selectedProvider = getProviderById(config.providers, selectedProviderId)
   const selectedModelKey = `${selectedProviderId}::${selectedModelId}`
+  const repoLabel = config.owner && config.repo ? `${config.owner}/${config.repo}` : ''
+  const repoContext = useMemo(() => {
+    return buildRepoContext({
+      repoLabel,
+      branch: config.branch || 'main',
+      path: config.path,
+      repoIndexStatus,
+    })
+  }, [config.branch, config.path, repoIndexStatus, repoLabel])
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => {
@@ -355,16 +395,23 @@ export const OpenRouterChat: React.FC = () => {
         selectedProvider?.apiKey,
         selectedProvider?.baseUrl,
       )
+      const conversationMessages = [
+        { role: 'system', content: repoContext },
+        ...messages
+          .filter((message) => message.role !== 'system' && !message.hasError)
+          .map((message) => ({ role: message.role, content: message.content })),
+        { role: 'user', content: userMsg.content },
+      ]
 
       if (enableJSONHealing) {
-        const healed = await svc.chatCompletionJSON([{ role: 'user', content: userMsg.content }])
+        const healed = await svc.chatCompletionJSON(conversationMessages)
         setMessages((p) => [...p, {
           id: `a-${Date.now()}`, role: 'assistant', content: healed.original, timestamp: Date.now(),
           isJSON: healed.success, healedData: healed.data,
           hasError: !healed.success, errorMessage: healed.errors?.join(', '),
         }])
       } else {
-        const response = await svc.transformFile(userMsg.content, 'Please respond conversationally.')
+        const response = await svc.chatCompletion(conversationMessages)
         setMessages((p) => [...p, {
           id: `a-${Date.now()}`, role: 'assistant', content: response, timestamp: Date.now(),
         }])
@@ -384,57 +431,113 @@ export const OpenRouterChat: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--color-bg)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', height: '100%', background: 'var(--color-bg)' }}>
 
       {/* ── Header bar ───────────────────────────────────────────────── */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
-        padding: '0 12px',
-        height: 38,
+        padding: '10px 14px',
         borderBottom: '1px solid var(--color-border)',
         background: 'var(--color-bg-elevated)',
         flexShrink: 0,
         gap: 8,
+        flexWrap: 'wrap',
       }}>
         {/* Left: title + msg count */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'var(--color-text-subtle)',
-            fontFamily: 'var(--font-family-mono)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}>
-            Chat
-          </span>
-          {messages.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{
-              fontSize: 10,
+              fontSize: 11,
+              fontWeight: 600,
               color: 'var(--color-text-subtle)',
               fontFamily: 'var(--font-family-mono)',
-              background: 'var(--color-bg-surface)',
-              border: '1px solid var(--color-border)',
-              padding: '0 5px',
-              lineHeight: '16px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
             }}>
-              {messages.length}
+              Chat
             </span>
-          )}
+            {messages.length > 0 && (
+              <span style={{
+                fontSize: 10,
+                color: 'var(--color-text-subtle)',
+                fontFamily: 'var(--font-family-mono)',
+                background: 'var(--color-bg-surface)',
+                border: '1px solid var(--color-border)',
+                padding: '0 5px',
+                lineHeight: '16px',
+              }}>
+                {messages.length}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{
+              padding: '4px 8px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-surface)',
+              color: repoLabel ? 'var(--color-text)' : 'var(--color-text-subtle)',
+              fontSize: 11,
+              fontFamily: 'var(--font-family-mono)',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {repoLabel ? `${repoLabel} · ${config.branch}` : 'No repository attached'}
+            </span>
+            {config.path && (
+              <span style={{
+                padding: '4px 8px',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-bg)',
+                color: 'var(--color-text-subtle)',
+                fontSize: 11,
+                fontFamily: 'var(--font-family-mono)',
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {config.path}
+              </span>
+            )}
+            {repoIndexStatus && (
+              <span style={{
+                padding: '4px 8px',
+                border: '1px solid',
+                borderColor: repoIndexStatus.status === 'indexed'
+                  ? 'color-mix(in srgb, var(--color-success) 40%, transparent)'
+                  : repoIndexStatus.status === 'error'
+                    ? 'color-mix(in srgb, var(--color-error) 40%, transparent)'
+                    : 'var(--color-border)',
+                background: 'var(--color-bg)',
+                color: repoIndexStatus.status === 'indexed'
+                  ? 'var(--color-success)'
+                  : repoIndexStatus.status === 'error'
+                    ? 'var(--color-error)'
+                    : 'var(--color-text-subtle)',
+                fontSize: 11,
+                fontFamily: 'var(--font-family-mono)',
+              }}>
+                index {repoIndexStatus.status}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Right: controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {/* JSON healing toggle */}
           <button
             type="button"
             onClick={() => setEnableJSONHealing((v) => !v)}
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              padding: '2px 8px',
-              fontSize: 10,
+              minHeight: 32,
+              padding: '6px 10px',
+              fontSize: 11,
               fontFamily: 'var(--font-family-mono)',
               background: enableJSONHealing ? 'rgba(135, 154, 57, 0.15)' : 'transparent',
               border: '1px solid',
@@ -462,17 +565,18 @@ export const OpenRouterChat: React.FC = () => {
                 setConfig({ provider: providerId, model: modelId })
               }}
               style={{
-                appearance: 'none',
-                background: 'var(--color-bg-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 0,
-                color: 'var(--color-text-muted)',
-                fontSize: 10,
-                fontFamily: 'var(--font-family-mono)',
-                padding: '2px 22px 2px 8px',
-                cursor: 'pointer',
-                outline: 'none',
-                letterSpacing: '0.01em',
+              appearance: 'none',
+              background: 'var(--color-bg-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 0,
+              color: 'var(--color-text-muted)',
+              minHeight: 32,
+              fontSize: 11,
+              fontFamily: 'var(--font-family-mono)',
+              padding: '6px 28px 6px 10px',
+              cursor: 'pointer',
+              outline: 'none',
+              letterSpacing: '0.01em',
               }}
             >
               {providerOptions.map((model) => (
@@ -497,12 +601,13 @@ export const OpenRouterChat: React.FC = () => {
               onClick={() => setMessages([])}
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                padding: '2px 7px',
+                minHeight: 32,
+                padding: '6px 10px',
                 background: 'transparent',
                 border: '1px solid transparent',
                 borderRadius: 0,
                 color: 'var(--color-text-subtle)',
-                fontSize: 10,
+                fontSize: 11,
                 fontFamily: 'var(--font-family-mono)',
                 cursor: 'pointer',
                 transition: 'all 120ms ease',
@@ -526,7 +631,7 @@ export const OpenRouterChat: React.FC = () => {
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '20px 20px',
+        padding: '16px clamp(12px, 3vw, 20px)',
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
@@ -560,9 +665,11 @@ export const OpenRouterChat: React.FC = () => {
 
       {/* ── Input area ───────────────────────────────────────────────── */}
       <div style={{
+        position: 'sticky',
+        bottom: 0,
         borderTop: '1px solid var(--color-border)',
         background: 'var(--color-bg-elevated)',
-        padding: '10px 14px',
+        padding: '10px 14px calc(10px + env(safe-area-inset-bottom, 0px))',
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
@@ -585,7 +692,7 @@ export const OpenRouterChat: React.FC = () => {
               padding: '8px 12px',
               resize: 'none',
               outline: 'none',
-              minHeight: 36,
+              minHeight: 44,
               maxHeight: 180,
               lineHeight: 1.55,
               caretColor: 'var(--color-accent)',
@@ -605,8 +712,8 @@ export const OpenRouterChat: React.FC = () => {
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
             style={{
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
