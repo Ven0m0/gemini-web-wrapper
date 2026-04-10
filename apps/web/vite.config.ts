@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     proxy: {
       // Proxy API requests to the backend API server
-      '/v1/chat/completions': {
+      '/v1': {
         target: process.env.API_URL || 'http://localhost:9000',
         changeOrigin: true,
       },
