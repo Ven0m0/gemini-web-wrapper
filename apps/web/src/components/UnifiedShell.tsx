@@ -1,13 +1,11 @@
 import React, { useState } from 'react'
 import { CLI } from './CLI'
-import { PythonRunner } from './PythonRunner'
 import { WebShell } from './WebShell'
 
-type ShellTab = 'terminal' | 'python' | 'wasm'
+type ShellTab = 'terminal' | 'wasm'
 
 const TAB_LABELS: Record<ShellTab, string> = {
   terminal: '⌨ Terminal',
-  python: '🐍 Python',
   wasm: '🧪 WASM Shell',
 }
 
@@ -51,12 +49,9 @@ export const UnifiedShell: React.FC = () => {
         ))}
       </div>
 
-      {/* Tab content — keep all panels mounted to preserve state (e.g. Pyodide runtime) */}
+      {/* Tab content — keep all panels mounted to preserve state */}
       <div style={{ flex: 1, overflow: 'hidden', display: activeTab === 'terminal' ? 'flex' : 'none', flexDirection: 'column' }}>
         <CLI />
-      </div>
-      <div style={{ flex: 1, overflow: 'hidden', display: activeTab === 'python' ? 'flex' : 'none', flexDirection: 'column' }}>
-        <PythonRunner />
       </div>
       <div style={{ flex: 1, overflow: 'hidden', display: activeTab === 'wasm' ? 'flex' : 'none', flexDirection: 'column' }}>
         <WebShell />
