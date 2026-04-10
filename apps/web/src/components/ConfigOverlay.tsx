@@ -17,6 +17,21 @@ interface ConfigOverlayProps {
   inline?: boolean
 }
 
+function formatRepositoryInput(owner: string, repo: string): string {
+  return [owner.trim(), repo.trim()].filter(Boolean).join('/')
+}
+
+function parseRepositoryInput(value: string): { owner: string; repo: string } {
+  const normalized = value
+    .trim()
+    .replace(/^https?:\/\/github\.com\//, '')
+    .replace(/\.git$/, '')
+    .replace(/^\/+|\/+$/g, '')
+
+  const [owner = '', repo = ''] = normalized.split('/').filter(Boolean)
+  return { owner, repo }
+}
+
 function createProviderId(providers: ProviderConfig[]): string {
   let counter = providers.filter((provider) => !provider.builtin).length + 1
   let providerId = `custom-provider-${counter}`
@@ -33,14 +48,18 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   const { config, setConfig, setShowConfig, showConfig } = useStore()
   const [localConfig, setLocalConfig] = useState(() => migrateSavedConfig(config))
   const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature))
+  const [repoInput, setRepoInput] = useState(() => formatRepositoryInput(config.owner, config.repo))
   const [showTokens, setShowTokens] = useState(false)
+  const [rememberCredentials, setRememberCredentials] = useState(() => Boolean(localStorage.getItem('chat-github-config')))
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false)
+  const [storageMessage, setStorageMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     const migratedConfig = migrateSavedConfig(config)
     setLocalConfig(migratedConfig)
     setTemperatureInput(String(migratedConfig.temperature))
+    setRepoInput(formatRepositoryInput(migratedConfig.owner, migratedConfig.repo))
   }, [config])
 
   const selectedProvider = useMemo(
@@ -103,34 +122,42 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   }
 
   const handleSave = () => {
-    const normalized = migrateProviderSelections(localConfig)
+    const parsedRepo = parseRepositoryInput(repoInput)
+    if (repoInput.trim() && (!parsedRepo.owner || !parsedRepo.repo)) {
+      setStorageMessage({ tone: 'error', text: 'Enter the repository as owner/repo before saving.' })
+      return
+    }
+
+    const normalized = migrateProviderSelections({
+      ...localConfig,
+      owner: parsedRepo.owner,
+      repo: parsedRepo.repo,
+      branch: localConfig.branch.trim() || 'main',
+    })
     setConfig(normalized)
 
-    const hasCredentials =
-      normalized.githubToken ||
-      normalized.openaiKey ||
-      normalized.providers.some((provider) => provider.apiKey)
-
-    if (hasCredentials) {
-      const shouldSave = window.confirm(
-        'Save credentials to localStorage for future sessions? ' +
-        '(Not recommended on shared devices)'
-      )
-
-      if (shouldSave) {
-        localStorage.setItem('chat-github-config', JSON.stringify({
-          githubToken: normalized.githubToken,
-          openaiKey: normalized.openaiKey,
-          providers: normalized.providers,
-          provider: normalized.provider,
-          owner: normalized.owner,
-          repo: normalized.repo,
-          branch: normalized.branch,
-          model: normalized.model,
-          temperature: normalized.temperature,
-        }))
-      }
+    if (rememberCredentials) {
+      localStorage.setItem('chat-github-config', JSON.stringify({
+        githubToken: normalized.githubToken,
+        openaiKey: normalized.openaiKey,
+        providers: normalized.providers,
+        provider: normalized.provider,
+        owner: normalized.owner,
+        repo: normalized.repo,
+        branch: normalized.branch,
+        model: normalized.model,
+        temperature: normalized.temperature,
+      }))
+    } else {
+      localStorage.removeItem('chat-github-config')
     }
+
+    setStorageMessage({
+      tone: 'success',
+      text: normalized.owner && normalized.repo
+        ? `Saved ${normalized.owner}/${normalized.repo}. The file tree and repo index will refresh automatically.`
+        : 'Configuration saved for this session.',
+    })
 
     if (inline) {
       setShowSavedMessage(true)
@@ -144,6 +171,8 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     const migratedConfig = migrateSavedConfig(config)
     setLocalConfig(migratedConfig)
     setTemperatureInput(String(migratedConfig.temperature))
+    setRepoInput(formatRepositoryInput(migratedConfig.owner, migratedConfig.repo))
+    setStorageMessage(null)
     if (!inline) {
       setShowConfig(false)
     }
@@ -159,19 +188,21 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
         })
         setLocalConfig(parsedConfig)
         setTemperatureInput(String(parsedConfig.temperature))
+        setRepoInput(formatRepositoryInput(parsedConfig.owner, parsedConfig.repo))
+        setRememberCredentials(true)
+        setStorageMessage({ tone: 'success', text: 'Loaded saved configuration from local storage.' })
       } catch {
-        alert('Failed to load saved configuration')
+        setStorageMessage({ tone: 'error', text: 'Failed to load the saved configuration.' })
       }
     } else {
-      alert('No saved configuration found')
+      setStorageMessage({ tone: 'error', text: 'No saved configuration found in local storage.' })
     }
   }
 
   const handleClearStorage = () => {
-    if (window.confirm('Clear all saved configuration?')) {
-      localStorage.removeItem('chat-github-config')
-      alert('Configuration cleared from storage')
-    }
+    localStorage.removeItem('chat-github-config')
+    setRememberCredentials(false)
+    setStorageMessage({ tone: 'success', text: 'Cleared the saved configuration from local storage.' })
   }
 
   const availableModels = selectedProvider?.models ?? []
@@ -183,6 +214,29 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
       <div className="config-section">
         <h3>GitHub Settings</h3>
         <div className="config-field">
+          <label>Repository</label>
+          <input
+            type="text"
+            value={repoInput}
+            onChange={(e) => setRepoInput(e.target.value)}
+            placeholder="owner/repository"
+          />
+          <small>Pick a repo once and the workspace will load its tree and start indexing automatically.</small>
+        </div>
+
+        <div className="config-field-row">
+          <div className="config-field">
+            <label>Branch</label>
+            <input
+              type="text"
+              value={localConfig.branch}
+              onChange={(e) => setLocalConfig({ ...localConfig, branch: e.target.value })}
+              placeholder="main"
+            />
+          </div>
+        </div>
+
+        <div className="config-field">
           <label>GitHub Token</label>
           <input
             type={showTokens ? 'text' : 'password'}
@@ -190,36 +244,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             onChange={(e) => setLocalConfig({ ...localConfig, githubToken: e.target.value })}
             placeholder="ghp_xxxx... (fine-grained token with contents:write)"
           />
-        </div>
-
-        <div className="config-field">
-          <label>Owner</label>
-          <input
-            type="text"
-            value={localConfig.owner}
-            onChange={(e) => setLocalConfig({ ...localConfig, owner: e.target.value })}
-            placeholder="username or organization"
-          />
-        </div>
-
-        <div className="config-field">
-          <label>Repository</label>
-          <input
-            type="text"
-            value={localConfig.repo}
-            onChange={(e) => setLocalConfig({ ...localConfig, repo: e.target.value })}
-            placeholder="repository-name"
-          />
-        </div>
-
-        <div className="config-field">
-          <label>Branch</label>
-          <input
-            type="text"
-            value={localConfig.branch}
-            onChange={(e) => setLocalConfig({ ...localConfig, branch: e.target.value })}
-            placeholder="main"
-          />
+          <small>Needed for browsing private repos and for backend indexing through the GitHub API.</small>
         </div>
       </div>
 
@@ -465,6 +490,16 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
           <label>
             <input
               type="checkbox"
+              checked={rememberCredentials}
+              onChange={(e) => setRememberCredentials(e.target.checked)}
+            />
+            Remember credentials in local storage on this device
+          </label>
+        </div>
+        <div className="config-field">
+          <label>
+            <input
+              type="checkbox"
               checked={showTokens}
               onChange={(e) => setShowTokens(e.target.checked)}
             />
@@ -480,6 +515,11 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             Clear Storage
           </button>
         </div>
+        {storageMessage && (
+          <div className={`config-status ${storageMessage.tone}`}>
+            {storageMessage.text}
+          </div>
+        )}
       </div>
 
       <div className="config-help">

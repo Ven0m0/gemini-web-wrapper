@@ -2,7 +2,8 @@
 .app {
   display: flex;
   flex-direction: row;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
   background-color: var(--color-bg);
   color: var(--color-text);
@@ -142,6 +143,9 @@
   cursor: default;
   transition: background-color var(--transition-fast);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-item:hover {
@@ -985,6 +989,12 @@
   gap: 4px;
 }
 
+.config-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .config-field label {
   font-size: 11px;
   font-weight: 500;
@@ -1052,6 +1062,25 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.config-status {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.config-status.success {
+  border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
+  color: var(--color-success);
+}
+
+.config-status.error {
+  border-color: color-mix(in srgb, var(--color-error) 35%, transparent);
+  color: var(--color-error);
 }
 
 .config-action-btn {
@@ -1370,7 +1399,7 @@ pre code {
     align-items: stretch;
     background-color: var(--color-bg-elevated);
     border-top: 1px solid var(--color-border);
-    overflow-x: auto;
+    overflow: hidden;
     /* Respect iOS safe-area (home indicator) */
     padding-bottom: env(safe-area-inset-bottom, 0px);
     flex-shrink: 0;
@@ -1378,7 +1407,8 @@ pre code {
   }
 
   .mobile-nav-btn {
-    flex: 0 0 72px;
+    flex: 1 1 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1394,7 +1424,7 @@ pre code {
     line-height: 1;
     transition: color var(--transition-fast), background-color var(--transition-fast);
     /* Minimum tap target size */
-    min-height: 48px;
+    min-height: 56px;
     position: relative;
   }
 
@@ -1444,6 +1474,10 @@ pre code {
     max-width: 100%;
   }
 
+  .config-field-row {
+    grid-template-columns: 1fr;
+  }
+
   .workspace-layout {
     grid-template-columns: 1fr;
   }
@@ -1463,5 +1497,23 @@ pre code {
   .tool-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .tool-mode-switch,
+  .workspace-sidebar-actions,
+  .workspace-toolbar,
+  .workspace-inline-actions,
+  .config-actions {
+    width: 100%;
+  }
+
+  .tool-mode-switch button,
+  .workspace-sidebar-actions button,
+  .workspace-toolbar button,
+  .workspace-inline-actions button,
+  .config-actions button,
+  .settings-view-footer .config-btn {
+    flex: 1 1 calc(50% - 8px);
+    min-height: 40px;
   }
 }

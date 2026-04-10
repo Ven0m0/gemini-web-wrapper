@@ -5,6 +5,7 @@ import {
   DEFAULT_PROVIDER_ID,
   type ProviderConfig,
 } from './services/providers'
+import type { RepoIndexStatus } from './services/repoIndex'
 
 export interface FileState {
   original: string
@@ -56,6 +57,7 @@ export interface AppState {
   file: FileState
   ai: AIState
   config: ConfigState
+  repoIndexStatus: RepoIndexStatus | null
   history: string[]
   showConfig: boolean
   websocket: WebSocketState
@@ -69,6 +71,7 @@ interface AppStore extends AppState {
   setFile: (file: Partial<FileState>) => void
   setAI: (ai: Partial<AIState>) => void
   setConfig: (config: Partial<ConfigState>) => void
+  setRepoIndexStatus: (status: RepoIndexStatus | null) => void
   addHistory: (message: string) => void
   clearHistory: () => void
   setShowConfig: (show: boolean) => void
@@ -117,6 +120,7 @@ export const useStore = create<AppStore>((set) => ({
   file: initialFile,
   ai: initialAI,
   config: initialConfig,
+  repoIndexStatus: null,
   history: [],
   showConfig: false,
   websocket: initialWebSocket,
@@ -135,6 +139,8 @@ export const useStore = create<AppStore>((set) => ({
   setConfig: (config) => set((state) => ({
     config: { ...state.config, ...config }
   })),
+
+  setRepoIndexStatus: (repoIndexStatus) => set({ repoIndexStatus }),
 
   addHistory: (message) => set((state) => ({
     history: [...state.history, message]

@@ -140,6 +140,42 @@ Note: Preserve proper character encoding and formatting for all text content.`
     return Math.ceil(text.length / 4)
   }
 
+  async chatCompletion(
+    messages: Array<{ role: string; content: string }>,
+    options?: {
+      temperature?: number
+      maxTokens?: number
+    }
+  ): Promise<string> {
+    try {
+      const response = await fetch(`${this.apiBase}/chat/completions`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          model: this.model,
+          messages,
+          temperature: options?.temperature ?? this.temperature,
+          max_tokens: options?.maxTokens ?? 4000,
+          ...this.providerFields(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (!data.choices || data.choices.length === 0) {
+        throw new Error('No response from AI')
+      }
+
+      return data.choices[0].message.content.trim()
+    } catch (error) {
+      throw new Error(`Failed to get chat completion: ${error}`)
+    }
+  }
+
   /**
    * Transform file with JSON response healing
    * Automatically heals malformed JSON responses from AI models
