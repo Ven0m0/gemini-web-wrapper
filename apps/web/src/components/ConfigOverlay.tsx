@@ -124,7 +124,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   const handleSave = () => {
     const parsedRepo = parseRepositoryInput(repoInput)
     if (repoInput.trim() && (!parsedRepo.owner || !parsedRepo.repo)) {
-      setStorageMessage({ tone: 'error', text: 'Enter the repository as owner/repo before saving.' })
+      setStorageMessage({ tone: 'error', text: 'Invalid repository format. Expected owner/repo, for example facebook/react.' })
       return
     }
 

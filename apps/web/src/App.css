@@ -3,7 +3,6 @@
   display: flex;
   flex-direction: row;
   height: 100dvh;
-  min-height: 100dvh;
   overflow: hidden;
   background-color: var(--color-bg);
   color: var(--color-text);

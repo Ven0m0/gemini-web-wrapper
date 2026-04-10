@@ -158,6 +158,11 @@ export const Tool: React.FC = () => {
     return githubService
   }
 
+  const shouldSkipAutoIndex = (
+    status: RepoIndexStatus | null,
+    hasGitHubToken: boolean,
+  ) => status?.status === 'indexed' || status?.status === 'indexing' || !hasGitHubToken
+
   const refreshRepoIndexStatus = useCallback(async (): Promise<RepoIndexStatus | null> => {
     if (!repoIndexService || !config.owner || !config.repo) {
       setRepoIndexStatus(null)
@@ -255,7 +260,7 @@ export const Tool: React.FC = () => {
       const status = await refreshRepoIndexStatus()
       if (cancelled) return
 
-      if (status?.status === 'indexed' || status?.status === 'indexing' || !config.githubToken) {
+      if (shouldSkipAutoIndex(status, Boolean(config.githubToken))) {
         return
       }
 
