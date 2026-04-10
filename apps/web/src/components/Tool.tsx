@@ -268,7 +268,7 @@ export const Tool: React.FC = () => {
       }
 
       autoIndexKeyRef.current = repoKey
-      addLog(`Auto-indexing ${config.owner}/${config.repo}…`)
+      addLog(`Auto-indexing ${config.owner}/${config.repo}...`)
       setIndexingRepository(true)
 
       try {
