@@ -1,5 +1,7 @@
 {
   "name": "@affine/workspace",
+  "author": "Ven0m0",
+  "license": "MIT",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -24,7 +26,9 @@
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
+    "oxfmt": "*",
     "oxlint": "^1.59.0",
+    "@types/bun": "*",
     "typescript": "^6.0.2"
   },
   "overrides": {
