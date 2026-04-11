@@ -1,6 +1,6 @@
 {
   "recommendations": [
-    "biomejs.biome", 
+    "biomejs.biome",
     "oxc.oxc-vscode",
     "detachhead.basedpyright",
     "charliermarsh.ruff",
