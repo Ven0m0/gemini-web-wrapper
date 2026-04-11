@@ -26,7 +26,6 @@
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
-    "oxfmt": "*",
     "oxlint": "^1.59.0",
     "@types/bun": "*",
     "typescript": "^6.0.2"
