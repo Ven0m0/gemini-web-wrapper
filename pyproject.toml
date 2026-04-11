@@ -21,10 +21,9 @@ affine-config = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "mypy",
-    "prek",
     "pytest",
     "ruff",
+    "pyrefly",
 ]
 
 [tool.pytest.ini_options]
