@@ -43,6 +43,20 @@ class OpenAICompatibleProvider(LLMProvider):
             self._client = httpx.AsyncClient()
         return self._client
 
+    async def close(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+
+    async def __aenter__(self) -> OpenAICompatibleProvider:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        await self.close()
     @property
     def name(self) -> str:
         return self.provider_name
