@@ -225,29 +225,41 @@ async def chat_completions(
     if request.stream:
 
         async def event_generator():
-            async for chunk in provider.stream(prompt, system=system, history=history):
-                data = ChatCompletionChunk(
+            try:
+                async for chunk in provider.stream(
+                    prompt, system=system, history=history
+                ):
+                    data = ChatCompletionChunk(
+                        id=request_id,
+                        created=created,
+                        model=model_name,
+                        choices=[
+                            {
+                                "index": 0,
+                                "delta": {"content": chunk},
+                                "finish_reason": None,
+                            }
+                        ],
+                    )
+                    yield f"data: {data.model_dump_json()}\n\n"
+
+                final_chunk = ChatCompletionChunk(
                     id=request_id,
                     created=created,
                     model=model_name,
-                    choices=[
-                        {"index": 0, "delta": {"content": chunk}, "finish_reason": None}
-                    ],
+                    choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
                 )
-                yield f"data: {data.model_dump_json()}\n\n"
-
-            final_chunk = ChatCompletionChunk(
-                id=request_id,
-                created=created,
-                model=model_name,
-                choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
-            )
-            yield f"data: {final_chunk.model_dump_json()}\n\n"
-            yield "data: [DONE]\n\n"
+                yield f"data: {final_chunk.model_dump_json()}\n\n"
+                yield "data: [DONE]\n\n"
+            finally:
+                await provider.aclose()
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-    content = await provider.generate(prompt, system=system, history=history)
+    try:
+        content = await provider.generate(prompt, system=system, history=history)
+    finally:
+        await provider.aclose()
     return ChatCompletionResponse(
         id=request_id,
         created=created,

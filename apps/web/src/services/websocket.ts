@@ -14,6 +14,7 @@ export class WebSocketService {
   private maxReconnectAttempts: number = 5
   private reconnectDelay: number = 1000
   private shouldReconnect: boolean = true
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
   private onMessage: (message: WebSocketMessage) => void
   private onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error', errorContext?: Error | string) => void
 
@@ -45,9 +46,10 @@ export class WebSocketService {
             const message: WebSocketMessage = JSON.parse(event.data)
             this.onMessage(message)
           } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
             this.onMessage({
               type: 'error',
-              data: `Invalid message format: ${event.data}`,
+              data: `Invalid message format: ${event.data}. Error: ${errorMessage}`,
               timestamp: Date.now()
             })
           }
@@ -72,14 +74,15 @@ export class WebSocketService {
   }
 
   private attemptReconnect(): void {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++
-      setTimeout(() => {
-        this.connect().catch((error) => {
-          this.onStatusChange('error', `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`)
-        })
-      }, this.reconnectDelay * this.reconnectAttempts)
-    }
+    if (!this.shouldReconnect || this.reconnectAttempts >= this.maxReconnectAttempts) return
+    this.reconnectAttempts++
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null
+      if (!this.shouldReconnect) return
+      this.connect().catch((error) => {
+        this.onStatusChange('error', `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`)
+      })
+    }, this.reconnectDelay * this.reconnectAttempts)
   }
 
   sendStdin(data: string): void {
@@ -128,6 +131,10 @@ export class WebSocketService {
 
   disconnect(): void {
     this.shouldReconnect = false
+    if (this.reconnectTimeout !== null) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
     if (this.ws) {
       this.ws.close()
       this.ws = null

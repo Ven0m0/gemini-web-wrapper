@@ -117,4 +117,16 @@ class GeminiProvider(LLMProvider):
                         yield self._extract_text(json.loads(data_str))
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        if not self._client.is_closed:
+            await self._client.aclose()
+
+    async def __aenter__(self) -> GeminiProvider:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
+        await self.aclose()
