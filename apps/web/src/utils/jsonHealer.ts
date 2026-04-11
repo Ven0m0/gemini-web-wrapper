@@ -139,7 +139,7 @@ export class JSONHealer {
     const regex = /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|([{,])(\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)(\s*):/g
     return input.replace(
       regex,
-      (match, stringMatch, prefix, spaceBefore, key, spaceAfter) => {
+      (_match, stringMatch, prefix, spaceBefore, key, spaceAfter) => {
         if (stringMatch) {
           return stringMatch
         }
