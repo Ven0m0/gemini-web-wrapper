@@ -11,6 +11,6 @@ describe('JSONHealer', () => {
 
     // Testing unescaped strings or strings with brackets inside
     const res3 = healJSON('{"a": "hello{world"');
-    expect(res3.data).toEqual({ a: "hello{world" });
+    expect(res3.data).toEqual({ a: 'hello{world' });
   });
 });
