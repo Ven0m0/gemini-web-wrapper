@@ -63,7 +63,27 @@ export class WebSocketService {
 
         this.ws.onerror = (error) => {
           this.onStatusChange('error')
-          reject(new Error(`WebSocket connection failed: ${error}`))
+
+          const readyState = this.ws?.readyState
+          const details = [
+            `event type: ${error.type}`,
+            `readyState: ${readyState ?? 'unknown'}`
+          ]
+
+          if (typeof ErrorEvent !== 'undefined' && error instanceof ErrorEvent && error.message) {
+            details.push(`message: ${error.message}`)
+          }
+
+          const errorMessage = `WebSocket connection failed (${details.join(', ')})`
+          this.onMessage({
+            type: 'error',
+            data: errorMessage,
+            timestamp: Date.now()
+          })
+
+          const connectionError = new Error(errorMessage) as Error & { cause?: Event }
+          connectionError.cause = error
+          reject(connectionError)
         }
 
       } catch (error) {
