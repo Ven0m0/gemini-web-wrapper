@@ -201,33 +201,43 @@ export class JSONHealer {
   private static fixQuotes(input: string): string {
     // This is tricky as we need to avoid replacing single quotes inside double-quoted strings
     // Simple approach: replace single quotes with double quotes for keys and string values
-    const result = input
     let inString = false
     let quoteChar = ''
     let fixed = ''
 
-    for (let i = 0; i < result.length; i++) {
-      const char = result[i]
-      const prevChar = i > 0 ? result[i - 1] : ''
+    let i = 0
+    while (i < input.length) {
+      const char = input[i]
 
-      if ((char === '"' || char === "'") && prevChar !== '\\') {
-        if (!inString) {
-          // Starting a string
-          inString = true
-          quoteChar = char
-          fixed += '"'
-        } else if (char === quoteChar) {
-          // Ending a string
-          inString = false
-          quoteChar = ''
-          fixed += '"'
-        } else {
-          // Quote inside string
-          fixed += char
+      if (char === '\\') {
+        if (i + 1 < input.length) {
+          const nextChar = input[i + 1]
+          // If we are in a single quoted string and see an escaped single quote, unescape it
+          if (inString && quoteChar === "'" && nextChar === "'") {
+            fixed += "'"
+            i += 2
+            continue
+          }
+          fixed += char + nextChar
+          i += 2
+          continue
         }
+      }
+
+      if (!inString && (char === '"' || char === "'")) {
+        inString = true
+        quoteChar = char
+        fixed += '"'
+      } else if (inString && char === quoteChar) {
+        inString = false
+        quoteChar = ''
+        fixed += '"'
+      } else if (inString && quoteChar === "'" && char === '"') {
+        fixed += '\\"'
       } else {
         fixed += char
       }
+      i++
     }
 
     return fixed
