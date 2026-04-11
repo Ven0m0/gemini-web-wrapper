@@ -39,6 +39,21 @@ class AnthropicProvider(LLMProvider):
             self._client = httpx.AsyncClient()
         return self._client
 
+    async def close(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+        self._client = None
+
+    async def __aenter__(self) -> AnthropicProvider:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        await self.close()
     @property
     def name(self) -> str:
         return "anthropic"
