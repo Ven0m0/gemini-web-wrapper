@@ -218,6 +218,13 @@ export class JSONHealer {
             i += 2
             continue
           }
+          // If we are in a double quoted string and see an escaped single quote, unescape it
+          // because \' is not a valid JSON escape sequence
+          if (inString && quoteChar === '"' && nextChar === "'") {
+            fixed += "'"
+            i += 2
+            continue
+          }
           fixed += char + nextChar
           i += 2
           continue
