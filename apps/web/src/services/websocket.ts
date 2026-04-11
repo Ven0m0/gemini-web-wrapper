@@ -74,16 +74,15 @@ export class WebSocketService {
   }
 
   private attemptReconnect(): void {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++
-      this.reconnectTimeout = setTimeout(() => {
-        this.reconnectTimeout = null
-        if (!this.shouldReconnect) return
-        this.connect().catch((error) => {
-          this.onStatusChange('error', `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`)
-        })
-      }, this.reconnectDelay * this.reconnectAttempts)
-    }
+    if (!this.shouldReconnect || this.reconnectAttempts >= this.maxReconnectAttempts) return
+    this.reconnectAttempts++
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null
+      if (!this.shouldReconnect) return
+      this.connect().catch((error) => {
+        this.onStatusChange('error', `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`)
+      })
+    }, this.reconnectDelay * this.reconnectAttempts)
   }
 
   sendStdin(data: string): void {

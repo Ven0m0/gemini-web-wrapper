@@ -123,5 +123,10 @@ class GeminiProvider(LLMProvider):
     async def __aenter__(self) -> GeminiProvider:
         return self
 
-    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
         await self.aclose()
