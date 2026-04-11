@@ -15,12 +15,12 @@ export class WebSocketService {
   private reconnectDelay: number = 1000
   private shouldReconnect: boolean = true
   private onMessage: (message: WebSocketMessage) => void
-  private onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void
+  private onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error', errorContext?: Error | string) => void
 
   constructor(
     url: string,
     onMessage: (message: WebSocketMessage) => void,
-    onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void
+    onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error', errorContext?: Error | string) => void
   ) {
     this.url = url
     this.onMessage = onMessage
@@ -45,7 +45,6 @@ export class WebSocketService {
             const message: WebSocketMessage = JSON.parse(event.data)
             this.onMessage(message)
           } catch (error) {
-            console.error('Failed to parse WebSocket message:', error)
             this.onMessage({
               type: 'error',
               data: `Invalid message format: ${event.data}`,
@@ -62,8 +61,7 @@ export class WebSocketService {
         }
 
         this.ws.onerror = (error) => {
-          this.onStatusChange('error')
-          console.error('WebSocket error:', error)
+          this.onStatusChange('error', error instanceof Error ? error : String(error))
           reject(new Error(`WebSocket connection failed: ${error}`))
         }
 
@@ -77,8 +75,8 @@ export class WebSocketService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++
       setTimeout(() => {
-        this.connect().catch(error => {
-          console.error(`Reconnect attempt ${this.reconnectAttempts} failed:`, error)
+        this.connect().catch((error) => {
+          this.onStatusChange('error', `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`)
         })
       }, this.reconnectDelay * this.reconnectAttempts)
     }

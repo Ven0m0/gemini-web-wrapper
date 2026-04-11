@@ -648,12 +648,15 @@ export const Tool: React.FC = () => {
       (message) => {
         addWebSocketMessage(message)
       },
-      (status) => {
+      (status, errorContext) => {
         setWebSocket({
           url,
           status,
           connected: status === 'connected',
         })
+        if (status === 'error' && errorContext) {
+          addLog(`WebSocket Error: ${errorContext instanceof Error ? errorContext.message : String(errorContext)}`)
+        }
       },
     )
 
