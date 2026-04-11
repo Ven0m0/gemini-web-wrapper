@@ -158,21 +158,43 @@ export class JSONHealer {
    */
   private static fixMissingBrackets(input: string): string {
     let result = input.trim()
+    const stack: string[] = []
+    let inString = false
+    let i = 0
 
-    // Count opening and closing brackets
-    const openBraces = (result.match(/\{/g) || []).length
-    const closeBraces = (result.match(/\}/g) || []).length
-    const openBrackets = (result.match(/\[/g) || []).length
-    const closeBrackets = (result.match(/\]/g) || []).length
+    while (i < result.length) {
+      const ch = result[i]
 
-    // Add missing closing braces
-    for (let i = 0; i < openBraces - closeBraces; i++) {
-      result += '}'
+      if (inString) {
+        if (ch === '\\') {
+          i += 2
+          continue
+        }
+        if (ch === '"') {
+          inString = false
+        }
+      } else {
+        if (ch === '"') {
+          inString = true
+        } else if (ch === '{' || ch === '[') {
+          stack.push(ch)
+        } else if (ch === '}' || ch === ']') {
+          if (stack.length > 0) {
+            const last = stack[stack.length - 1]
+            if ((ch === '}' && last === '{') || (ch === ']' && last === '[')) {
+              stack.pop()
+            }
+          }
+        }
+      }
+      i++
     }
 
-    // Add missing closing brackets
-    for (let i = 0; i < openBrackets - closeBrackets; i++) {
-      result += ']'
+    // Reverse the stack and append corresponding closing brackets
+    while (stack.length > 0) {
+      const open = stack.pop()
+      if (open === '{') result += '}'
+      if (open === '[') result += ']'
     }
 
     return result
