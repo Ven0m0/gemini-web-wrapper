@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     kilo_base_url: str = "https://api.kilo.ai/api/gateway"
     host: str = "0.0.0.0"
     port: int = 9000
-    cors_allow_origins: list[str] = ["*"]
+    cors_allow_origins: list[str] = []
     frontend_dist_dir: Path = Path("apps/web/dist")
     repo_index_enabled: bool = True
     repo_index_db_path: Path = Path(".cache/repo-index.db")
@@ -46,13 +46,13 @@ class Settings(BaseSettings):
             if not all(isinstance(origin, str) for origin in value):
                 raise ValueError("CORS origins must be strings.")
             origins = [origin.strip() for origin in value if origin.strip()]
-            return origins or ["*"]
+            return origins
 
         if not isinstance(value, str):
             return value
 
         origins = [origin.strip() for origin in value.split(",") if origin.strip()]
-        return origins or ["*"]
+        return origins
 
     def provider_api_key(self) -> str | None:
         if self.model_provider == "anthropic":

@@ -59,3 +59,13 @@ def test_settings_validate_list_cors_origins() -> None:
 
     with pytest.raises(ValueError, match="CORS origins must be strings"):
         Settings(cors_allow_origins=[1])  # type: ignore[list-item]
+
+
+def test_settings_default_cors_origins() -> None:
+    settings = Settings()
+    assert settings.cors_allow_origins == []
+
+
+def test_settings_empty_cors_origins() -> None:
+    settings = Settings(cors_allow_origins=["", " "])
+    assert settings.cors_allow_origins == []
