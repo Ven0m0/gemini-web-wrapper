@@ -135,8 +135,17 @@ export class JSONHealer {
    * Output: {"name": "Eve", "age": 40}
    */
   private static fixUnquotedKeys(input: string): string {
-    // Match unquoted keys like: word: (but not inside quotes)
-    return input.replace(/(\{|,)\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')
+    // Match strings first, then unquoted keys like: word: (but not inside quotes)
+    const regex = /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|([{,])(\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)(\s*):/g
+    return input.replace(
+      regex,
+      (match, stringMatch, prefix, spaceBefore, key, spaceAfter) => {
+        if (stringMatch) {
+          return stringMatch
+        }
+        return `${prefix}${spaceBefore}"${key}"${spaceAfter}:`
+      }
+    )
   }
 
   /**
