@@ -44,6 +44,7 @@ def _mock_provider(return_text: str = "ok") -> MagicMock:
     provider = MagicMock()
     provider.generate = AsyncMock(return_value=return_text)
     provider.stream = MagicMock()
+    provider.aclose = AsyncMock()
     return provider
 
 

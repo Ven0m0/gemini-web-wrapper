@@ -34,7 +34,8 @@ class AnthropicProvider(LLMProvider):
         self._client = httpx.AsyncClient()
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        if not self._client.is_closed:
+            await self._client.aclose()
 
     async def __aenter__(self) -> AnthropicProvider:
         return self
@@ -139,6 +140,3 @@ class AnthropicProvider(LLMProvider):
                         delta = data.get("delta", {})
                         if delta.get("type") == "text_delta":
                             yield delta.get("text", "")
-
-    async def aclose(self) -> None:
-        await self._client.aclose()
