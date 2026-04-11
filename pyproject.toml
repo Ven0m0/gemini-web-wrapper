@@ -23,6 +23,7 @@ affine-config = { workspace = true }
 dev = [
     "pytest",
     "ruff",
+    "pyrefly",
 ]
 
 [tool.pytest.ini_options]
