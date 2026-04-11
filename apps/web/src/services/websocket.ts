@@ -45,10 +45,10 @@ export class WebSocketService {
             const message: WebSocketMessage = JSON.parse(event.data)
             this.onMessage(message)
           } catch (error) {
-            console.error('Failed to parse WebSocket message:', error)
+            const errorMessage = error instanceof Error ? error.message : String(error)
             this.onMessage({
               type: 'error',
-              data: `Invalid message format: ${event.data}`,
+              data: `Invalid message format: ${event.data}. Error: ${errorMessage}`,
               timestamp: Date.now()
             })
           }
@@ -63,7 +63,6 @@ export class WebSocketService {
 
         this.ws.onerror = (error) => {
           this.onStatusChange('error')
-          console.error('WebSocket error:', error)
           reject(new Error(`WebSocket connection failed: ${error}`))
         }
 
@@ -77,9 +76,7 @@ export class WebSocketService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++
       setTimeout(() => {
-        this.connect().catch(error => {
-          console.error(`Reconnect attempt ${this.reconnectAttempts} failed:`, error)
-        })
+        this.connect().catch(() => {})
       }, this.reconnectDelay * this.reconnectAttempts)
     }
   }
