@@ -118,8 +118,7 @@ export const Editor: React.FC = () => {
       }
       return urls
     } catch (e) {
-      console.error('Image upload failed', e)
-      return
+      throw new Error(`Image upload failed: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
