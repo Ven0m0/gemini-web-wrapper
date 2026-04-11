@@ -1,6 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["AGENTS.md", "https://raw.githubusercontent.com/JRedeker/opencode-shell-strategy/trunk/shell_strategy.md"],
+  "instructions": ["AGENTS.md"],
+  "default_agent": "plan",
+  "share": "manual",
   "permission": {
     "*": "allow",
     "sudo *": "deny",
@@ -8,93 +10,45 @@
     "rm -rf /*": "deny",
     "rm -rf ~": "deny",
     "rm -rf ~/*": "deny",
-    ":(){:|:&};:": "deny",
+    ":(){:|:&}:": "deny",
     "doom_loop": "deny"
   },
-  "share": "manual",
-  "default_agent": "build",
-  "model": "opencode/minimax-m2.5-free",
-  "small_model": "opencode/minimax-m2.5-free",
-  "disabled_providers": ["openai"],
+  "compaction": {
+    "auto": true,
+    "prune": true
+  },
   "plugin": [
     "openslimedit@1.0.4",
+    "opencode-websearch@0.5.0",
     "opencode-ignore@1.1.0",
-    "@gotgenes/opencode-agent-identity@3.0.1",
-    "@spoons-and-mirrors/subtask2@0.3.5",
-    "opencode-pty@0.2.3",
-    "openfundus@0.1.6",
-    "opencode-toolbox@0.10.4",
-    "@nick-vi/opencode-type-inject@1.1.1",
-    "@tarquinen/opencode-dcp@3.1.5"
+    "@nick-vi/opencode-type-inject@1.5.1"
   ],
-  "lsp": {
-    "typescript": {
-      "command": ["vtsls", "--stdio"],
-      "extensions": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".mts", ".cts"],
-      "initialization": {
-        "preferences": { "importModuleSpecifierPreference": "relative" }
-      }
-    },
-    "pyright": {
-      "command": ["basedpyright-langserver", "--stdio"],
-      "extensions": [".py", ".pyw", ".pyi"]
-    },
-    "rust": {
-      "command": ["rust-analyzer"],
-      "extensions": [".rs"]
-    },
-    "bash": {
-      "command": ["bash-language-server", "start"],
-      "extensions": [".sh", ".bash", ".zsh"]
-    },
-    "yaml-ls": {
-      "command": ["yaml-language-server", "--stdio"],
-      "extensions": [".yaml", ".yml"]
-    },
-    "markdown-oxide": {
-      "command": ["markdown-oxide"],
-      "extensions": [".md", ".mdx"]
-    },
-    "json-ls": {
-      "command": ["vscode-json-language-server", "--stdio"],
-      "extensions": [".json", ".jsonc"]
-    },
-    "dockerfile-ls": {
-      "command": ["docker-langserver", "--stdio"],
-      "extensions": [".dockerfile"]
-    },
-    "html-ls": {
-      "command": ["vscode-html-language-server", "--stdio"],
-      "extensions": [".html", ".htm"]
-    },
-    "css-ls": {
-      "command": ["vscode-css-language-server", "--stdio"],
-      "extensions": [".css", ".scss", ".less"]
-    },
-    "tombi": {
-      "command": ["tombi", "lsp"],
-      "extensions": [".toml"]
-    }
-  },
-  "watcher": { "ignore": ["node_modules/**", "dist/**", ".git/**", ".venv/**"] },
-  "mcp": {
-    "ref-tools": {
-      "type": "remote",
-      "url": "https://api.ref.tools/mcp"
-    },
-    "github-mcp-server": {
-      "type": "remote",
-      "url": "https://api.githubcopilot.com/mcp/"
-    },
-    "gh_grep": {
-      "type": "remote",
-      "url": "https://mcp.grep.app"
-    }
+  "disabled_providers": ["openai"],
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      "dist/**",
+      ".git/**",
+      ".venv/**",
+      "uv.lock",
+      "ocr_debug/**",
+      "**/node_modules/**"
+    ]
   },
   "experimental": {
     "continue_loop_on_deny": false,
-    "mcp_timeout": 10000,
-    "openTelemetry": false,
     "batch_tool": true
+  },
+  "mcp": {
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    },
+    "ref-tools": {
+      "type": "remote",
+      "url": "https://api.ref.tools/mcp",
+      "enabled": true
+    }
   }
 }
