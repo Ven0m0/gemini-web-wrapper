@@ -35,6 +35,16 @@ class GeminiProvider(LLMProvider):
             self._client = httpx.AsyncClient()
         return self._client
 
+    async def aclose(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+        self._client = None
+
+    async def __aenter__(self) -> GeminiProvider:
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        await self.aclose()
     @property
     def name(self) -> str:
         return "gemini"
