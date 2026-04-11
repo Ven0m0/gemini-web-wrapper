@@ -31,6 +31,7 @@ class AnthropicProvider(LLMProvider):
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
+        self._client = httpx.AsyncClient()
 
     @property
     def name(self) -> str:
@@ -80,22 +81,21 @@ class AnthropicProvider(LLMProvider):
         history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> str:
-        async with httpx.AsyncClient() as client:
-            url = f"{self.base_url}/messages"
-            response = await client.post(
-                url,
-                headers=self.headers,
-                json=self._build_request_body(
-                    prompt,
-                    system=system,
-                    history=history,
-                    stream=False,
-                    **kwargs,
-                ),
-                timeout=REQUEST_TIMEOUT_SECONDS,
-            )
-            response.raise_for_status()
-            return self._extract_text(response.json())
+        url = f"{self.base_url}/messages"
+        response = await self._client.post(
+            url,
+            headers=self.headers,
+            json=self._build_request_body(
+                prompt,
+                system=system,
+                history=history,
+                stream=False,
+                **kwargs,
+            ),
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return self._extract_text(response.json())
 
     async def stream(
         self,
@@ -105,29 +105,31 @@ class AnthropicProvider(LLMProvider):
         history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
-        async with httpx.AsyncClient() as client:
-            url = f"{self.base_url}/messages"
-            async with client.stream(
-                "POST",
-                url,
-                headers=self.headers,
-                json=self._build_request_body(
-                    prompt,
-                    system=system,
-                    history=history,
-                    stream=True,
-                    **kwargs,
-                ),
-                timeout=REQUEST_TIMEOUT_SECONDS,
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:].strip()
-                        if not data_str:
-                            continue
-                        data = json.loads(data_str)
-                        if data.get("type") == "content_block_delta":
-                            delta = data.get("delta", {})
-                            if delta.get("type") == "text_delta":
-                                yield delta.get("text", "")
+        url = f"{self.base_url}/messages"
+        async with self._client.stream(
+            "POST",
+            url,
+            headers=self.headers,
+            json=self._build_request_body(
+                prompt,
+                system=system,
+                history=history,
+                stream=True,
+                **kwargs,
+            ),
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data_str = line[6:].strip()
+                    if not data_str:
+                        continue
+                    data = json.loads(data_str)
+                    if data.get("type") == "content_block_delta":
+                        delta = data.get("delta", {})
+                        if delta.get("type") == "text_delta":
+                            yield delta.get("text", "")
+
+    async def aclose(self) -> None:
+        await self._client.aclose()

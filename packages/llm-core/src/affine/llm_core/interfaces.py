@@ -32,3 +32,6 @@ class LLMProvider(ABC):
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         pass
+
+    async def aclose(self) -> None:
+        pass
