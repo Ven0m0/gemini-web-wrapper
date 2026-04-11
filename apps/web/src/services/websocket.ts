@@ -78,7 +78,12 @@ export class WebSocketService {
       this.reconnectAttempts++
       setTimeout(() => {
         this.connect().catch(error => {
-          console.error(`Reconnect attempt ${this.reconnectAttempts} failed:`, error)
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          this.onMessage({
+            type: 'error',
+            data: `Reconnect attempt ${this.reconnectAttempts} failed: ${errorMessage}`,
+            timestamp: Date.now()
+          })
         })
       }, this.reconnectDelay * this.reconnectAttempts)
     }
