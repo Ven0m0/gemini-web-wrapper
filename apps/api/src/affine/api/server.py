@@ -150,26 +150,36 @@ def verify_api_key(
 app.include_router(repo_index_router, dependencies=[Depends(verify_api_key)])
 
 
+def _non_empty_text(value: object) -> str | None:
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized:
+            return normalized
+    return None
+
+
 def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
         data = response.json()
     except ValueError:
-        text = response.text.strip()
-        return text or f"Upstream provider returned {response.status_code}."
+        return _non_empty_text(response.text) or (
+            f"Upstream provider returned {response.status_code}."
+        )
 
-    if isinstance(data, dict):
-        error = data.get("error")
-        if isinstance(error, dict):
-            message = error.get("message")
-            if isinstance(message, str) and message.strip():
-                return message
-        detail = data.get("detail")
-        if isinstance(detail, str) and detail.strip():
+    if not isinstance(data, dict):
+        return f"Upstream provider returned {response.status_code}."
+
+    error = data.get("error")
+    candidates = [
+        error.get("message") if isinstance(error, dict) else None,
+        data.get("detail"),
+        data.get("message"),
+    ]
+    for candidate in candidates:
+        detail = _non_empty_text(candidate)
+        if detail:
             return detail
-        message = data.get("message")
-        if isinstance(message, str) and message.strip():
-            return message
 
     return f"Upstream provider returned {response.status_code}."
 
