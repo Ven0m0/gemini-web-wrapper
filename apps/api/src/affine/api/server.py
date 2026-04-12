@@ -151,7 +151,7 @@ def verify_api_key(
 app.include_router(repo_index_router, dependencies=[Depends(verify_api_key)])
 
 
-def _normalize_non_empty_text(value: object) -> str | None:
+def _extract_non_empty_text(value: object) -> str | None:
     if isinstance(value, str):
         normalized = value.strip()
         if normalized:
@@ -164,7 +164,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     try:
         data = response.json()
     except JSONDecodeError:
-        return _normalize_non_empty_text(response.text) or (
+        return _extract_non_empty_text(response.text) or (
             f"Upstream provider returned {response.status_code}"
         )
 
@@ -178,7 +178,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
         data.get("message"),
     ]
     for candidate in candidates:
-        detail = _normalize_non_empty_text(candidate)
+        detail = _extract_non_empty_text(candidate)
         if detail:
             return detail
 
@@ -292,16 +292,20 @@ async def chat_completions(
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+    upstream_error: httpx.HTTPStatusError | None = None
     try:
-        try:
-            content = await provider.generate(prompt, system=system, history=history)
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(
-                status_code=exc.response.status_code,
-                detail=_upstream_error_detail(exc),
-            ) from exc
+        content = await provider.generate(prompt, system=system, history=history)
+    except httpx.HTTPStatusError as exc:
+        upstream_error = exc
+        content = ""
     finally:
         await provider.aclose()
+
+    if upstream_error is not None:
+        raise HTTPException(
+            status_code=upstream_error.response.status_code,
+            detail=_upstream_error_detail(upstream_error),
+        ) from upstream_error
     return ChatCompletionResponse(
         id=request_id,
         created=created,
