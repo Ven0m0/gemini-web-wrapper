@@ -1,6 +1,6 @@
 from affine.llm_core.providers.openai_compatible import OpenAICompatibleProvider
 
-DEFAULT_MODEL = "gpt-5.4"
+DEFAULT_MODEL = "claude-sonnet-4.6"
 DEFAULT_BASE_URL = "https://api.githubcopilot.com"
 
 

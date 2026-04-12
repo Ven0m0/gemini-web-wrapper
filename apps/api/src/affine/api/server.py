@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+import httpx
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -41,13 +42,13 @@ MODEL_CATALOG = [
         "owned_by": "google",
     },
     {
-        "id": "gpt-5.4",
+        "id": "claude-sonnet-4.6",
         "object": "model",
         "created": 1677610602,
         "owned_by": "copilot",
     },
     {
-        "id": "claude-sonnet-4.6",
+        "id": "claude-opus-4.6",
         "object": "model",
         "created": 1677610602,
         "owned_by": "copilot",
@@ -77,19 +78,19 @@ MODEL_CATALOG = [
         "owned_by": "anthropic",
     },
     {
-        "id": "opencode/gpt-5.4",
+        "id": "opencode/glm-5.1",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
     },
     {
-        "id": "opencode/claude-opus-4-6",
+        "id": "opencode/kimi-k2.5",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
     },
     {
-        "id": "opencode/gemini-3.1-pro",
+        "id": "opencode/big-pickle",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
@@ -147,6 +148,30 @@ def verify_api_key(
 
 
 app.include_router(repo_index_router, dependencies=[Depends(verify_api_key)])
+
+
+def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
+    response = exc.response
+    try:
+        data = response.json()
+    except ValueError:
+        text = response.text.strip()
+        return text or f"Upstream provider returned {response.status_code}."
+
+    if isinstance(data, dict):
+        error = data.get("error")
+        if isinstance(error, dict):
+            message = error.get("message")
+            if isinstance(message, str) and message.strip():
+                return message
+        detail = data.get("detail")
+        if isinstance(detail, str) and detail.strip():
+            return detail
+        message = data.get("message")
+        if isinstance(message, str) and message.strip():
+            return message
+
+    return f"Upstream provider returned {response.status_code}."
 
 
 def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:
@@ -258,6 +283,11 @@ async def chat_completions(
 
     try:
         content = await provider.generate(prompt, system=system, history=history)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=exc.response.status_code,
+            detail=_upstream_error_detail(exc),
+        ) from exc
     finally:
         await provider.aclose()
     return ChatCompletionResponse(

@@ -90,7 +90,7 @@ PORT=9000
 
 - **Google Gemini**: gemini-3.1-pro-preview, gemini-3-flash-preview, gemini-3.1-flash-lite-preview
 - **Anthropic Claude**: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5
-- **GitHub Copilot**: gpt-5.4, claude-sonnet-4.6, gemini-3.1-pro
+- **GitHub Copilot**: claude-sonnet-4.6, claude-opus-4.6, gemini-3.1-pro
 - **OpenAI Compatible**: drop-in replacement for GPT models
 
 ## Deployment
