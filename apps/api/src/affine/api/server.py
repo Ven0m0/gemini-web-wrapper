@@ -164,11 +164,11 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
         data = response.json()
     except ValueError:
         return _non_empty_text(response.text) or (
-            f"Upstream provider returned {response.status_code}."
+            f"Upstream provider returned {response.status_code}"
         )
 
     if not isinstance(data, dict):
-        return f"Upstream provider returned {response.status_code}."
+        return f"Upstream provider returned {response.status_code}"
 
     error = data.get("error")
     candidates = [
@@ -181,7 +181,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
         if detail:
             return detail
 
-    return f"Upstream provider returned {response.status_code}."
+    return f"Upstream provider returned {response.status_code}"
 
 
 def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:
@@ -292,12 +292,13 @@ async def chat_completions(
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
     try:
-        content = await provider.generate(prompt, system=system, history=history)
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=exc.response.status_code,
-            detail=_upstream_error_detail(exc),
-        ) from exc
+        try:
+            content = await provider.generate(prompt, system=system, history=history)
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=exc.response.status_code,
+                detail=_upstream_error_detail(exc),
+            ) from exc
     finally:
         await provider.aclose()
     return ChatCompletionResponse(
