@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -335,7 +336,49 @@ def test_chat_completions_uses_copilot_provider_defaults(
     assert call_args[0][0] == "copilot"
     assert call_args[1].get("api_key") == "copilot-key"
     assert call_args[1].get("base_url") == "https://api.githubcopilot.com"
-    assert call_args[1].get("model") == "gpt-5.4"
+    assert call_args[1].get("model") == "claude-sonnet-4.6"
+
+
+def test_chat_completions_returns_upstream_http_errors(
+    client_with_key: TestClient,
+) -> None:
+    provider = _mock_provider()
+    request = httpx.Request(
+        "POST",
+        "https://api.githubcopilot.com/chat/completions",
+    )
+    response = httpx.Response(
+        404,
+        request=request,
+        json={
+            "error": {
+                "message": (
+                    'model "gpt-5.4" is not accessible via the /chat/completions'
+                    " endpoint"
+                )
+            }
+        },
+    )
+    provider.generate = AsyncMock(
+        side_effect=httpx.HTTPStatusError(
+            "upstream request failed",
+            request=request,
+            response=response,
+        )
+    )
+
+    with patch("affine.api.server.ProviderFactory.create", return_value=provider):
+        resp = client_with_key.post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={"model": "claude-sonnet-4.6", "messages": VALID_MESSAGES},
+        )
+
+    assert resp.status_code == 404
+    assert (
+        resp.json()["detail"]
+        == 'model "gpt-5.4" is not accessible via the /chat/completions endpoint'
+    )
 
 
 def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> None:
@@ -344,7 +387,7 @@ def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> No
     assert resp.status_code == 200
     model_ids = {item["id"] for item in resp.json()["data"]}
     assert "gemini-3.1-pro-preview" in model_ids
-    assert "gpt-5.4" in model_ids
-    assert "opencode/gpt-5.4" in model_ids
+    assert "claude-sonnet-4.6" in model_ids
+    assert "opencode/glm-5.1" in model_ids
     assert "kilo-auto/frontier" in model_ids
     assert "kilo-auto/balanced" in model_ids

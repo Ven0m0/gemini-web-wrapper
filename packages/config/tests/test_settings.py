@@ -40,7 +40,18 @@ def test_settings_copilot_provider_metadata() -> None:
 
     assert settings.provider_api_key() == "copilot-key"
     assert settings.provider_base_url() == "https://api.githubcopilot.com"
-    assert settings.provider_default_model() == "gpt-5.4"
+    assert settings.provider_default_model() == "claude-sonnet-4.6"
+
+
+def test_settings_opencode_provider_metadata() -> None:
+    settings = Settings(
+        model_provider="opencode-zen",
+        opencode_api_key="opencode-key",
+    )
+
+    assert settings.provider_api_key() == "opencode-key"
+    assert settings.provider_base_url() == "http://localhost:4096/zen/v1"
+    assert settings.provider_default_model() == "opencode/glm-5.1"
 
 
 def test_get_settings_is_cached() -> None:

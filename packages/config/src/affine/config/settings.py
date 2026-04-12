@@ -78,9 +78,9 @@ class Settings(BaseSettings):
         if self.model_provider == "anthropic":
             return "claude-sonnet-4-6"
         if self.model_provider == "copilot":
-            return "gpt-5.4"
+            return "claude-sonnet-4.6"
         if self.model_provider == "opencode-zen":
-            return "opencode/gpt-5.4"
+            return "opencode/glm-5.1"
         if self.model_provider == "kilo-gateway":
             return "kilo-auto/balanced"
         return "gemini-3.1-pro-preview"

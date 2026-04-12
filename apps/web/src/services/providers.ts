@@ -53,8 +53,8 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
     baseUrl: 'https://api.githubcopilot.com',
     builtin: true,
     models: [
-      { id: 'gpt-5.4', name: 'GPT-5.4 (Recommended)' },
-      { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6' },
+      { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6 (Recommended)' },
+      { id: 'claude-opus-4.6', name: 'Claude Opus 4.6' },
       { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
     ],
   },
@@ -65,9 +65,9 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
     baseUrl: 'http://localhost:4096/zen/v1',
     builtin: true,
     models: [
-      { id: 'opencode/gpt-5.4', name: 'GPT-5.4' },
-      { id: 'opencode/claude-opus-4-6', name: 'Claude Opus 4.6' },
-      { id: 'opencode/gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
+      { id: 'opencode/glm-5.1', name: 'GLM 5.1 (Recommended)' },
+      { id: 'opencode/kimi-k2.5', name: 'Kimi K2.5' },
+      { id: 'opencode/big-pickle', name: 'Big Pickle' },
     ],
   },
   {

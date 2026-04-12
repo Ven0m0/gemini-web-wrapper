@@ -1,8 +1,10 @@
 import secrets
 import uuid
 from datetime import datetime
+from json import JSONDecodeError
 from typing import Any
 
+import httpx
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -41,13 +43,13 @@ MODEL_CATALOG = [
         "owned_by": "google",
     },
     {
-        "id": "gpt-5.4",
+        "id": "claude-sonnet-4.6",
         "object": "model",
         "created": 1677610602,
         "owned_by": "copilot",
     },
     {
-        "id": "claude-sonnet-4.6",
+        "id": "claude-opus-4.6",
         "object": "model",
         "created": 1677610602,
         "owned_by": "copilot",
@@ -77,19 +79,19 @@ MODEL_CATALOG = [
         "owned_by": "anthropic",
     },
     {
-        "id": "opencode/gpt-5.4",
+        "id": "opencode/glm-5.1",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
     },
     {
-        "id": "opencode/claude-opus-4-6",
+        "id": "opencode/kimi-k2.5",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
     },
     {
-        "id": "opencode/gemini-3.1-pro",
+        "id": "opencode/big-pickle",
         "object": "model",
         "created": 1677610602,
         "owned_by": "opencode",
@@ -147,6 +149,40 @@ def verify_api_key(
 
 
 app.include_router(repo_index_router, dependencies=[Depends(verify_api_key)])
+
+
+def _extract_non_empty_text(value: object) -> str | None:
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized:
+            return normalized
+    return None
+
+
+def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
+    response = exc.response
+    try:
+        data = response.json()
+    except JSONDecodeError:
+        return _extract_non_empty_text(response.text) or (
+            f"Upstream provider returned {response.status_code}"
+        )
+
+    if not isinstance(data, dict):
+        return f"Upstream provider returned {response.status_code}"
+
+    error = data.get("error")
+    candidates = [
+        error.get("message") if isinstance(error, dict) else None,
+        data.get("detail"),
+        data.get("message"),
+    ]
+    for candidate in candidates:
+        detail = _extract_non_empty_text(candidate)
+        if detail:
+            return detail
+
+    return f"Upstream provider returned {response.status_code}"
 
 
 def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:
@@ -256,10 +292,20 @@ async def chat_completions(
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+    upstream_error: httpx.HTTPStatusError | None = None
     try:
         content = await provider.generate(prompt, system=system, history=history)
+    except httpx.HTTPStatusError as exc:
+        upstream_error = exc
+        content = ""
     finally:
         await provider.aclose()
+
+    if upstream_error is not None:
+        raise HTTPException(
+            status_code=upstream_error.response.status_code,
+            detail=_upstream_error_detail(upstream_error),
+        ) from upstream_error
     return ChatCompletionResponse(
         id=request_id,
         created=created,
