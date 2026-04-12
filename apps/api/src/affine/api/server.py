@@ -1,6 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime
+from json import JSONDecodeError
 from typing import Any
 
 import httpx
@@ -150,7 +151,7 @@ def verify_api_key(
 app.include_router(repo_index_router, dependencies=[Depends(verify_api_key)])
 
 
-def _non_empty_text(value: object) -> str | None:
+def _normalize_non_empty_text(value: object) -> str | None:
     if isinstance(value, str):
         normalized = value.strip()
         if normalized:
@@ -162,8 +163,8 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
         data = response.json()
-    except ValueError:
-        return _non_empty_text(response.text) or (
+    except JSONDecodeError:
+        return _normalize_non_empty_text(response.text) or (
             f"Upstream provider returned {response.status_code}"
         )
 
@@ -177,7 +178,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
         data.get("message"),
     ]
     for candidate in candidates:
-        detail = _non_empty_text(candidate)
+        detail = _normalize_non_empty_text(candidate)
         if detail:
             return detail
 
