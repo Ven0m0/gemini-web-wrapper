@@ -291,7 +291,11 @@ async def agent_chat(
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as e:
-            error_event = {"type": "error", "error": str(e)}
+            print(f"Agent stream failed: {e}", flush=True)
+            error_event = {
+                "type": "error",
+                "error": "An internal error has occurred.",
+            }
             yield f"data: {json.dumps(error_event)}\n\n"
         finally:
             await provider.aclose()
