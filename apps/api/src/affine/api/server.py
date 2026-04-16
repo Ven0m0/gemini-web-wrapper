@@ -163,6 +163,11 @@ def _extract_non_empty_text(value: object) -> str | None:
     return None
 
 
+def _message_content_str(content: object) -> str:
+    """Return a message content value as a plain string."""
+    return content if isinstance(content, str) else str(content)
+
+
 def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
@@ -272,23 +277,10 @@ async def agent_chat(
 
     # Accumulate all prior user/assistant turns into history; last user message is prompt
     for msg in non_system[:-1]:
-        history.append(
-            {
-                "role": msg.role,
-                "content": msg.content
-                if isinstance(msg.content, str)
-                else str(msg.content),
-            }
-        )
+        history.append({"role": msg.role, "content": _message_content_str(msg.content)})
 
     last_msg = non_system[-1] if non_system else None
-    user_message = (
-        last_msg.content
-        if last_msg and isinstance(last_msg.content, str)
-        else str(last_msg.content or "")
-        if last_msg
-        else ""
-    )
+    user_message = _message_content_str(last_msg.content) if last_msg else ""
 
     async def event_generator():
         try:

@@ -53,6 +53,11 @@ export class Agent {
     this.middlewares = options.middlewares ?? [];
   }
 
+  private _buildMessages(input?: string): NonSystemMessage[] {
+    if (!input) return this.messages;
+    return [...this.messages, { role: "user" as const, content: [{ type: "text" as const, text: input }] }];
+  }
+
   async run(input?: string): Promise<any> {
     const middlewareResults: Record<string, unknown> = {};
     for (const mw of this.middlewares) {
@@ -63,9 +68,7 @@ export class Agent {
     }
     this._context = { ...this._context, ...middlewareResults };
 
-    const messages: NonSystemMessage[] = input
-      ? [...this.messages, { role: "user" as const, content: [{ type: "text" as const, text: input }] }]
-      : this.messages;
+    const messages = this._buildMessages(input);
 
     const modelContext: ModelContext = {
       prompt: this.prompt,
@@ -97,9 +100,7 @@ export class Agent {
     }
     this._context = { ...this._context, ...middlewareResults };
 
-    const messages: NonSystemMessage[] = input
-      ? [...this.messages, { role: "user" as const, content: [{ type: "text" as const, text: input }] }]
-      : this.messages;
+    const messages = this._buildMessages(input);
 
     const modelContext: ModelContext = {
       prompt: this.prompt,
