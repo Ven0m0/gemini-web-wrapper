@@ -1,25 +1,25 @@
 export interface ProviderModelOption {
-  id: string
-  name: string
-  uid?: string
+  id: string;
+  name: string;
+  uid?: string;
 }
 
 export interface ProviderConfig {
-  id: string
-  name: string
-  apiKey: string
-  baseUrl: string
-  models: ProviderModelOption[]
-  builtin?: boolean
+  id: string;
+  name: string;
+  apiKey: string;
+  baseUrl: string;
+  models: ProviderModelOption[];
+  builtin?: boolean;
 }
 
 type LegacyConfigLike = {
-  provider?: unknown
-  model?: unknown
-  geminiKey?: unknown
-  anthropicKey?: unknown
-  providers?: unknown
-}
+  provider?: unknown;
+  model?: unknown;
+  geminiKey?: unknown;
+  anthropicKey?: unknown;
+  providers?: unknown;
+};
 
 const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
   {
@@ -82,11 +82,10 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
       { id: 'kilo-auto/free', name: 'Kilo Auto Free' },
     ],
   },
-]
+];
 
-export const DEFAULT_PROVIDER_ID = 'gemini'
-export const DEFAULT_MODEL_ID =
-  BUILTIN_PROVIDER_DEFINITIONS[0]?.models[0]?.id ?? 'gemini-3.1-pro-preview'
+export const DEFAULT_PROVIDER_ID = 'gemini';
+export const DEFAULT_MODEL_ID = BUILTIN_PROVIDER_DEFINITIONS[0]?.models[0]?.id ?? 'gemini-3.1-pro-preview';
 
 function cloneProvider(provider: ProviderConfig): ProviderConfig {
   return {
@@ -95,61 +94,61 @@ function cloneProvider(provider: ProviderConfig): ProviderConfig {
       ...model,
       uid: model.uid ?? crypto.randomUUID(),
     })),
-  }
+  };
 }
 
 function sanitizeText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function normalizeModel(model: unknown, fallbackId: string, fallbackName: string): ProviderModelOption {
   if (!model || typeof model !== 'object') {
-    return { id: fallbackId, name: fallbackName, uid: crypto.randomUUID() }
+    return { id: fallbackId, name: fallbackName, uid: crypto.randomUUID() };
   }
 
-  const id = sanitizeText((model as { id?: unknown }).id) || fallbackId
-  const name = sanitizeText((model as { name?: unknown }).name) || id || fallbackName
-  const uid = sanitizeText((model as { uid?: unknown }).uid) || crypto.randomUUID()
-  return { id, name, uid }
+  const id = sanitizeText((model as { id?: unknown }).id) || fallbackId;
+  const name = sanitizeText((model as { name?: unknown }).name) || id || fallbackName;
+  const uid = sanitizeText((model as { uid?: unknown }).uid) || crypto.randomUUID();
+  return { id, name, uid };
 }
 
 function createFallbackModelId(providerId: string, index: number): string {
-  return `__fallback_${providerId}_${index + 1}`
+  return `__fallback_${providerId}_${index + 1}`;
 }
 
 function normalizeProvider(provider: unknown): ProviderConfig | null {
   if (!provider || typeof provider !== 'object') {
-    return null
+    return null;
   }
 
   const candidate = provider as {
-    id?: unknown
-    name?: unknown
-    apiKey?: unknown
-    baseUrl?: unknown
-    models?: unknown
-    builtin?: unknown
-  }
+    id?: unknown;
+    name?: unknown;
+    apiKey?: unknown;
+    baseUrl?: unknown;
+    models?: unknown;
+    builtin?: unknown;
+  };
 
-  const id = sanitizeText(candidate.id)
+  const id = sanitizeText(candidate.id);
   if (!id) {
-    return null
+    return null;
   }
 
   const models = Array.isArray(candidate.models)
     ? (() => {
-        const seenIds = new Set<string>()
+        const seenIds = new Set<string>();
         return candidate.models
           .map((model, index) => normalizeModel(model, createFallbackModelId(id, index), `Model ${index + 1}`))
           .filter((model) => {
             if (!model.id || seenIds.has(model.id)) {
-              return false
+              return false;
             }
-            seenIds.add(model.id)
-            return true
-          })
+            seenIds.add(model.id);
+            return true;
+          });
       })()
-    : []
+    : [];
 
   return {
     id,
@@ -158,15 +157,15 @@ function normalizeProvider(provider: unknown): ProviderConfig | null {
     baseUrl: sanitizeText(candidate.baseUrl),
     builtin: candidate.builtin === true,
     models,
-  }
+  };
 }
 
 export function createDefaultProviders(): ProviderConfig[] {
-  return BUILTIN_PROVIDER_DEFINITIONS.map(cloneProvider)
+  return BUILTIN_PROVIDER_DEFINITIONS.map(cloneProvider);
 }
 
 export function getProviderById(providers: ProviderConfig[], providerId: string): ProviderConfig | undefined {
-  return providers.find((provider) => provider.id === providerId)
+  return providers.find((provider) => provider.id === providerId);
 }
 
 export function getFlattenedProviderModels(providers: ProviderConfig[]) {
@@ -179,105 +178,105 @@ export function getFlattenedProviderModels(providers: ProviderConfig[]) {
       key: `${provider.id}::${model.id}`,
       label: `${provider.name} · ${model.name}`,
     }))
-  )
+  );
 }
 
 export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): ProviderConfig[] {
-  const defaults = createDefaultProviders()
+  const defaults = createDefaultProviders();
   const normalizedProviders = Array.isArray(configLike?.providers)
     ? configLike.providers.map(normalizeProvider).filter((provider): provider is ProviderConfig => provider !== null)
-    : []
+    : [];
 
-  const mergedBuiltinIds = new Set<string>()
+  const normalizedProviderMap = new Map<string, ProviderConfig>();
+  for (const provider of normalizedProviders) {
+    if (!normalizedProviderMap.has(provider.id)) {
+      normalizedProviderMap.set(provider.id, provider);
+    }
+  }
+
+  const mergedBuiltinIds = new Set<string>();
   const mergedProviders = defaults.map((builtin) => {
-    const override = normalizedProviders.find((provider) => provider.id === builtin.id)
+    const override = normalizedProviderMap.get(builtin.id);
     if (override) {
-      mergedBuiltinIds.add(override.id)
+      mergedBuiltinIds.add(override.id);
       return {
         ...builtin,
         name: override.name || builtin.name,
         apiKey: override.apiKey || builtin.apiKey,
         baseUrl: override.baseUrl || builtin.baseUrl,
         models: override.models.length > 0 ? override.models : builtin.models,
-      }
+      };
     }
 
     if (builtin.id === 'gemini') {
       return {
         ...builtin,
         apiKey: sanitizeText(configLike?.geminiKey) || builtin.apiKey,
-      }
+      };
     }
 
     if (builtin.id === 'anthropic') {
       return {
         ...builtin,
         apiKey: sanitizeText(configLike?.anthropicKey) || builtin.apiKey,
-      }
+      };
     }
 
-    return builtin
-  })
+    return builtin;
+  });
 
-  const customProviderIds = new Set<string>()
-  const customProviders = normalizedProviders
+  const customProviders = Array.from(normalizedProviderMap.values())
     .filter((provider) => !mergedBuiltinIds.has(provider.id) && !provider.builtin)
-    .filter((provider) => {
-      if (customProviderIds.has(provider.id)) {
-        return false
-      }
-      customProviderIds.add(provider.id)
-      return true
-    })
     .map((provider) => ({
       ...provider,
-      models: provider.models.length > 0
-        ? provider.models
-        : [{ id: createFallbackModelId(provider.id, 0), name: 'Default Model', uid: crypto.randomUUID() }],
-    }))
+      models:
+        provider.models.length > 0
+          ? provider.models
+          : [{ id: createFallbackModelId(provider.id, 0), name: 'Default Model', uid: crypto.randomUUID() }],
+    }));
 
-  return [...mergedProviders, ...customProviders]
+  return [...mergedProviders, ...customProviders];
 }
 
 export function ensureProviderSelection(providerId: string, providers: ProviderConfig[]): string {
   if (getProviderById(providers, providerId)) {
-    return providerId
+    return providerId;
   }
-  return providers[0]?.id ?? DEFAULT_PROVIDER_ID
+  return providers[0]?.id ?? DEFAULT_PROVIDER_ID;
 }
 
 export function ensureModelSelection(providerId: string, modelId: string, providers: ProviderConfig[]): string {
-  const resolvedProvider = getProviderById(providers, ensureProviderSelection(providerId, providers))
+  const resolvedProvider = getProviderById(providers, ensureProviderSelection(providerId, providers));
   if (!resolvedProvider) {
-    return DEFAULT_MODEL_ID
+    return DEFAULT_MODEL_ID;
   }
 
   if (resolvedProvider.models.some((model) => model.id === modelId)) {
-    return modelId
+    return modelId;
   }
 
-  return resolvedProvider.models[0]?.id ?? DEFAULT_MODEL_ID
+  return resolvedProvider.models[0]?.id ?? DEFAULT_MODEL_ID;
 }
 
-export function migrateProviderSelections<T extends { provider?: string; model?: string; providers?: ProviderConfig[] }>(
-  config: T
-): T {
-  const providers = normalizeProvidersConfig(config)
-  const provider = ensureProviderSelection(config.provider ?? DEFAULT_PROVIDER_ID, providers)
-  const model = ensureModelSelection(provider, config.model ?? DEFAULT_MODEL_ID, providers)
+export function migrateProviderSelections<
+  T extends { provider?: string; model?: string; providers?: ProviderConfig[] },
+>(config: T): T {
+  const providers = normalizeProvidersConfig(config);
+  const provider = ensureProviderSelection(config.provider ?? DEFAULT_PROVIDER_ID, providers);
+  const model = ensureModelSelection(provider, config.model ?? DEFAULT_MODEL_ID, providers);
 
   return {
     ...config,
     providers,
     provider,
     model,
-  }
+  };
 }
 
 export function migrateSavedConfig<T extends { provider?: string; model?: string; providers?: ProviderConfig[] }>(
   config: T
 ): T {
-  const migrated = migrateProviderSelections(config)
+  const migrated = migrateProviderSelections(config);
   if (
     !Array.isArray((config as LegacyConfigLike).providers) &&
     typeof migrated.model === 'string' &&
@@ -287,11 +286,11 @@ export function migrateSavedConfig<T extends { provider?: string; model?: string
       ...migrated,
       provider: DEFAULT_PROVIDER_ID,
       model: DEFAULT_MODEL_ID,
-    }
+    };
   }
-  return migrated
+  return migrated;
 }
 
 export function isBuiltinProvider(providerId: string): boolean {
-  return BUILTIN_PROVIDER_DEFINITIONS.some((provider) => provider.id === providerId)
+  return BUILTIN_PROVIDER_DEFINITIONS.some((provider) => provider.id === providerId);
 }
