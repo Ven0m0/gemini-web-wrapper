@@ -17,15 +17,17 @@ A mobile-first Progressive Web App (PWA) for AI-assisted development with GitHub
 
 ### Prerequisites
 
-- Node.js 24 LTS+, Bun 1.3.11+, and uv
+- Node.js 24 LTS+, Bun 1.3.12+, and uv
 - Python 3.14+
 - Git
+- Optional: [mise](https://mise.jdx.dev/) to install the pinned project toolchain from `mise.toml`
 
 ### 1. Clone & Setup
 
 ```bash
 git clone <your-repo>
 cd <your-repo>
+mise install  # Optional: installs the pinned Node, Bun, Python, and uv toolchain
 cp .env.example .env
 # Edit .env with your API keys
 ```

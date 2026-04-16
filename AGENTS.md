@@ -6,6 +6,8 @@ Canonical agent guidance for this repository. `AGENTS.md` is the fuller source f
 
 This is a mixed Bun + uv monorepo.
 
+Root tool versions are pinned in `mise.toml` for local development and automation bootstrap.
+
 - **Frontend:** `apps/web`
   - React 19 + TypeScript + Vite 8 PWA
   - Shared client state in `src/store.ts` via Zustand
