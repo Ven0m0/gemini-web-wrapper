@@ -94,7 +94,7 @@ export function GhosttyTerminal({ chunks, fontSize, active, onData }: GhosttyTer
       }
     };
 
-    void setup();
+    setup();
 
     return () => {
       cancelled = true;

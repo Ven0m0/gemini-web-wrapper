@@ -170,7 +170,11 @@ export function UnifiedShell() {
 
   const triggerHaptics = useCallback(() => {
     if (shell.preferences.enableHaptics && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(8);
+      try {
+        navigator.vibrate(8);
+      } catch {
+        // Ignore browsers that block or do not fully support vibration.
+      }
     }
   }, [shell.preferences.enableHaptics]);
 
@@ -574,7 +578,9 @@ export function UnifiedShell() {
                         <button
                           type="button"
                           className="shell-primary-button"
-                          onClick={() => void connectProfile(profile)}
+                          onClick={() => {
+                            connectProfile(profile);
+                          }}
                         >
                           Connect
                         </button>
@@ -651,7 +657,9 @@ export function UnifiedShell() {
                           <button
                             type="button"
                             className="shell-primary-button"
-                            onClick={() => void connectProfile(profile)}
+                            onClick={() => {
+                              connectProfile(profile);
+                            }}
                           >
                             Connect
                           </button>

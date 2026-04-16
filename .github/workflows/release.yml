@@ -36,8 +36,8 @@ jobs:
 
       - name: Package web release asset
         run: |
-          test -d apps/web/dist
-          test -n "$(find apps/web/dist -mindepth 1 -print -quit)"
+          test -d apps/web/dist || { echo "Build directory not found"; exit 1; }
+          test -n "$(find apps/web/dist -mindepth 1 -print -quit)" || { echo "Build directory is empty"; exit 1; }
           tar -czf "gemini-web-wrapper-web-${{ github.ref_name }}.tar.gz" -C apps/web dist
 
       - name: Create GitHub Release

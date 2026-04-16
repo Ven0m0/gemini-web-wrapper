@@ -164,7 +164,7 @@ export const useStore = create<AppStore>((set) => ({
         ...state.shell,
         ...shell,
         profiles: shell.profiles ?? state.shell.profiles,
-        preferences: shell.preferences ? { ...state.shell.preferences, ...shell.preferences } : state.shell.preferences,
+        preferences: { ...state.shell.preferences, ...shell.preferences },
       },
     })),
 
