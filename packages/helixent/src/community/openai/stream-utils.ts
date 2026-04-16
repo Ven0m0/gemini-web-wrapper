@@ -9,6 +9,10 @@ export class StreamAccumulator {
   private _usage: TokenUsage | undefined;
 
   push(chunk: { choices?: Array<{ delta?: { content?: string | null; reasoning_content?: string | null; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }): void {
+    // Always capture usage metadata, even on usage-only chunks with no choices/delta
+    if (chunk.usage) {
+      this._usage = { promptTokens: chunk.usage.prompt_tokens ?? 0, completionTokens: chunk.usage.completion_tokens ?? 0, totalTokens: chunk.usage.total_tokens ?? 0 };
+    }
     const choice = chunk.choices?.[0];
     if (!choice?.delta) return;
     const delta = choice.delta;
@@ -26,9 +30,6 @@ export class StreamAccumulator {
           this._toolCalls.set(index, { id: tc.id ?? "", name: tc.function?.name ?? "", arguments: tc.function?.arguments ?? "" });
         }
       }
-    }
-    if (chunk.usage) {
-      this._usage = { promptTokens: chunk.usage.prompt_tokens ?? 0, completionTokens: chunk.usage.completion_tokens ?? 0, totalTokens: chunk.usage.total_tokens ?? 0 };
     }
   }
 

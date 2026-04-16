@@ -63,9 +63,13 @@ export class Agent {
     }
     this._context = { ...this._context, ...middlewareResults };
 
+    const messages: NonSystemMessage[] = input
+      ? [...this.messages, { role: "user" as const, content: [{ type: "text" as const, text: input }] }]
+      : this.messages;
+
     const modelContext: ModelContext = {
       prompt: this.prompt,
-      messages: this.messages,
+      messages,
       tools: this.tools as unknown as Tool[],
     };
 
@@ -93,9 +97,13 @@ export class Agent {
     }
     this._context = { ...this._context, ...middlewareResults };
 
+    const messages: NonSystemMessage[] = input
+      ? [...this.messages, { role: "user" as const, content: [{ type: "text" as const, text: input }] }]
+      : this.messages;
+
     const modelContext: ModelContext = {
       prompt: this.prompt,
-      messages: this.messages,
+      messages,
       tools: this.tools as unknown as Tool[],
     };
 

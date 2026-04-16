@@ -1,8 +1,8 @@
 import json
+import logging
 import secrets
 import uuid
 from datetime import datetime
-from json import JSONDecodeError
 from typing import Any
 
 import httpx
@@ -21,6 +21,8 @@ from affine.shared.openai_schemas import (
 )
 from affine.shared.agent_schemas import AgentRequest
 from affine.api.repo_index import router as repo_index_router
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Affine AI Workstation API")
 settings = get_settings()
@@ -165,7 +167,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
         data = response.json()
-    except JSONDecodeError:
+    except json.JSONDecodeError:
         return _extract_non_empty_text(response.text) or (
             f"Upstream provider returned {response.status_code}"
         )
@@ -255,31 +257,38 @@ async def agent_chat(
     request: AgentRequest,
     settings: Settings = Depends(get_settings),
 ):
-    """Stream agent responses with tool calls via SSE."""
+    """Stream agent responses via SSE. Emits text_delta and done events."""
     provider = _build_provider_from_agent_request(request, settings)
 
     system_prompt = request.system_prompt
-    history = []
-    user_message = ""
+    history: list[dict[str, Any]] = []
 
+    non_system = [m for m in request.messages if m.role != "system"]
     for msg in request.messages:
         if msg.role == "system":
             system_prompt = (
                 msg.content if isinstance(msg.content, str) else system_prompt
             )
-        elif msg.role == "user":
-            user_message = (
-                msg.content if isinstance(msg.content, str) else str(msg.content)
-            )
-        else:
-            history.append(
-                {
-                    "role": msg.role,
-                    "content": msg.content
-                    if isinstance(msg.content, str)
-                    else str(msg.content),
-                }
-            )
+
+    # Accumulate all prior user/assistant turns into history; last user message is prompt
+    for msg in non_system[:-1]:
+        history.append(
+            {
+                "role": msg.role,
+                "content": msg.content
+                if isinstance(msg.content, str)
+                else str(msg.content),
+            }
+        )
+
+    last_msg = non_system[-1] if non_system else None
+    user_message = (
+        last_msg.content
+        if last_msg and isinstance(last_msg.content, str)
+        else str(last_msg.content or "")
+        if last_msg
+        else ""
+    )
 
     async def event_generator():
         try:
@@ -290,12 +299,24 @@ async def agent_chat(
                 yield f"data: {json.dumps(event_data)}\n\n"
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
-        except Exception as e:
-            print(f"Agent stream failed: {e}", flush=True)
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "Agent stream upstream error: %s %s",
+                e.response.status_code,
+                e.response.text[:200],
+            )
+            error_event = {"type": "error", "error": "Upstream provider error."}
+            yield f"data: {json.dumps(error_event)}\n\n"
+        except httpx.RequestError as e:
+            logger.error("Agent stream request error: %s", e)
             error_event = {
                 "type": "error",
-                "error": "An internal error has occurred.",
+                "error": "Request to upstream provider failed.",
             }
+            yield f"data: {json.dumps(error_event)}\n\n"
+        except Exception:
+            logger.error("Agent stream unexpected error", exc_info=True)
+            error_event = {"type": "error", "error": "An internal error has occurred."}
             yield f"data: {json.dumps(error_event)}\n\n"
         finally:
             await provider.aclose()

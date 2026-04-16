@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from affine.shared.openai_schemas import ChatMessage
 
@@ -18,6 +18,12 @@ class AgentRequest(BaseModel):
     x_provider: str | None = Field(None, description="Provider override")
     x_provider_api_key: str | None = Field(None)
     x_provider_base_url: str | None = Field(None)
+
+    @model_validator(mode="after")
+    def validate_provider_override(self) -> "AgentRequest":
+        if self.x_provider_base_url and not self.x_provider:
+            raise ValueError("x_provider_base_url requires x_provider")
+        return self
 
 
 class ToolCallEvent(BaseModel):
