@@ -272,6 +272,22 @@ export function UnifiedShell() {
         .filter((profile): profile is ShellProfile => profile !== undefined),
     [gridProfileIds, shell.profiles]
   );
+  const renderedSessionData = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(sessionState).map(([profileId, session]) => [
+          profileId,
+          {
+            classicTranscript: session.messages.map((message) => message.terminalText).join(''),
+            terminalChunks: session.messages.map((message) => ({
+              id: message.id,
+              data: message.terminalText,
+            })),
+          },
+        ])
+      ),
+    [sessionState]
+  );
 
   useEffect(() => {
     setGridProfileIds((current) => {
@@ -605,15 +621,14 @@ export function UnifiedShell() {
             <div className={buildGridClassName(activeProfiles.length)}>
               {activeProfiles.map((profile) => {
                 const session = sessionState[profile.id] ?? createEmptySession(profile.id);
-                const terminalChunks: GhosttyTerminalChunk[] = session.messages.map((message) => ({
-                  id: message.id,
-                  data: message.terminalText,
-                }));
-                const classicTranscript = session.messages.map((message) => message.terminalText).join('');
+                const renderedSession = renderedSessionData[profile.id] ?? {
+                  classicTranscript: '',
+                  terminalChunks: [] as GhosttyTerminalChunk[],
+                };
 
                 return (
                   <article
-                    key={`${profile.id}-${shell.preferences.terminalMode}-${shell.preferences.fontSize}`}
+                    key={profile.id}
                     className={`shell-pane ${session.needsAttention ? 'attention' : ''}`}
                     onClick={() => clearAttention(profile.id)}
                   >
@@ -658,7 +673,7 @@ export function UnifiedShell() {
                     <div className="shell-pane-body">
                       {shell.preferences.terminalMode === 'ghostty' ? (
                         <GhosttyTerminal
-                          chunks={terminalChunks}
+                          chunks={renderedSession.terminalChunks}
                           fontSize={shell.preferences.fontSize}
                           active
                           onData={(data) => sendInput(profile.id, data)}
@@ -668,7 +683,7 @@ export function UnifiedShell() {
                           className={`shell-classic-terminal shell-font-${session.messages.length > 0 ? 'ready' : 'empty'}`}
                           style={{ fontSize: `${shell.preferences.fontSize}px` }}
                         >
-                          {classicTranscript ||
+                          {renderedSession.classicTranscript ||
                             'Connected output will appear here.\nUse the input box below or the accessory bar to interact with the session.'}
                         </pre>
                       )}

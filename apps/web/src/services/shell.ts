@@ -161,5 +161,5 @@ export function persistShellState(state: ShellState): void {
     return;
   }
 
-  localStorage.setItem(SHELL_STATE_STORAGE_KEY, JSON.stringify(migrateSavedShellState(state)));
+  localStorage.setItem(SHELL_STATE_STORAGE_KEY, JSON.stringify(state));
 }

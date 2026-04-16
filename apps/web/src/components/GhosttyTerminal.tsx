@@ -80,9 +80,7 @@ export function GhosttyTerminal({ chunks, fontSize, active, onData }: GhosttyTer
         terminal.loadAddon(fitAddon);
         terminal.open(containerRef.current);
         fitAddon.fit();
-        if (typeof fitAddon.observeResize === 'function') {
-          fitAddon.observeResize();
-        }
+        fitAddon.observeResize();
         terminal.onData((data: string) => {
           onDataRef.current(data);
         });
