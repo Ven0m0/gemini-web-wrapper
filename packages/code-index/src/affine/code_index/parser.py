@@ -121,7 +121,7 @@ class ASTParser:
                 ],
             )
 
-        except ImportError as exc:
+        except ImportError:
             # Languages will be unavailable
             pass
 

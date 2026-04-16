@@ -7,17 +7,19 @@ dependencies = [
     "affine-api",
     "affine-shared",
     "affine-llm-core",
-    "affine-config"
+    "affine-config",
+    "affine-code-index"
 ]
 
 [tool.uv.workspace]
-members = ["apps/api", "packages/shared/python", "packages/llm-core", "packages/config"]
+members = ["apps/api", "packages/shared/python", "packages/llm-core", "packages/config", "packages/code-index"]
 
 [tool.uv.sources]
 affine-api = { workspace = true }
 affine-shared = { workspace = true }
 affine-llm-core = { workspace = true }
 affine-config = { workspace = true }
+affine-code-index = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -31,6 +33,7 @@ pythonpath = [
     "apps/api/src",
     "packages/shared/python/src",
     "packages/llm-core/src",
-    "packages/config/src"
+    "packages/config/src",
+    "packages/code-index/src"
 ]
 asyncio_mode = "auto"

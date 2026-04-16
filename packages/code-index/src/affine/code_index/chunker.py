@@ -44,7 +44,7 @@ class SlidingWindowChunker:
             chunk_content = "\n".join(chunk_lines)
 
             # Calculate byte offsets
-            start_byte = sum(len(l) + 1 for l in lines[:start_line])
+            start_byte = sum(len(line) + 1 for line in lines[:start_line])
             end_byte = start_byte + len(chunk_content)
 
             chunks.append(
