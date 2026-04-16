@@ -50,7 +50,7 @@ export interface WebSocketState {
   }>
 }
 
-export type AppMode = 'shell' | 'editor' | 'tool' | 'chat-demo' | 'chat' | 'settings'
+export type AppMode = 'shell' | 'editor' | 'tool' | 'chat-demo' | 'chat' | 'settings' | 'agent'
 
 export interface AppState {
   mode: AppMode
