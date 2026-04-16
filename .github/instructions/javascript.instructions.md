@@ -1,80 +1,45 @@
 ---
-applyTo: "**/*.{js,jsx,ts,tsx,mjs}"
+applyTo: "apps/web/**/*.{js,jsx,ts,tsx,mjs}"
 ---
 
-# JavaScript/TypeScript Standards
+# Frontend JavaScript/TypeScript Guidance
+
+## Scope
+
+This file applies to the React + TypeScript frontend in `apps/web`.
+
+- Keep UI rendering in components.
+- Move API access, adapters, and non-trivial browser logic into `src/services/`.
+- Keep shared application state in `src/store.ts` via Zustand.
+- Do not embed provider secrets or call provider SDKs directly from the frontend.
 
 ## Toolchain
 
-`biome` (zero-config) | `typescript --strict` | `vitest` | `bun`/`pnpm`
+- Package manager: `bun`
+- Lint: `oxlint src` and `biome lint .`
+- Format: `biome format --write .`
+- Type-check: `tsc --noEmit`
+- Build: `vite build`
+- Tests: `bun run test` currently exits successfully with `No tests configured`
+
+## Validation
 
 ```bash
-bun install && bun run test --coverage
+cd apps/web
+bun install
+bun run lint
+bun run typecheck
+bun run build
 ```
 
-<Standards>
+- Run the full sequence when changing frontend code.
+- Keep frontend changes compatible with the current Bun lockfile and Vite build.
 
-**Types**: Strict mode tsconfig (`strict`, `noImplicitAny`, `strictNullChecks`)
-**Interfaces**: `interface` over `type` for object shapes
-**Safety**: Type guards instead of `as` casts, `for...of` over `Array.forEach`
-**React**: Functional components with hooks, custom hooks for reuse, stable `key` props (not indexes)
-**Naming**: Descriptive over abbreviated, functions <50 lines
-**Comments**: Explain "why" not "what"; public APIs must have docs
-**Imports**: stdlib > third-party > local (alphabetical within groups)
+## Expectations
 
-</Standards>
-
-## Patterns
-
-```typescript
-interface User {
-  id: string;
-  name: string;
-  roles?: string[];
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
-```
-
-**Accessibility**: semantic HTML, `htmlFor` on labels, `lang` on `<html>`, no `javascript:` URLs, `tabIndex={0}` for custom interactive elements.
-
-## Naming Conventions
-
-- **Variables/Functions**: camelCase (`getUserById`, `isActive`)
-- **Classes/Interfaces/Types**: PascalCase (`UserService`, `AuthConfig`)
-- **Constants**: SCREAMING_SNAKE_CASE (`MAX_RETRIES`, `API_BASE_URL`)
-- **Booleans**: question form (`isActive`, `hasPermission`, `canEdit`)
-
-## Function Rules
-
-- Maximum 20 lines per function (ideally 5-10)
-- Maximum 3 arguments (prefer 0-2)
-- Single responsibility - one function = one job
-- No unexpected side effects
-
-## Error Handling
-
-- Always use try/catch for async operations
-- Provide meaningful error messages with context
-- Never swallow errors silently
-
-<Limitations>
-
-- No `enum` - use `as const`
-- No non-null assertions (`!`) - use type guards
-- No `var` - use `const`/`let`
-- No `any` without justification
-- No `eval()` or dynamic code execution
-
-</Limitations>
-
-<Security>
-
-- No hardcoded secrets or credentials
-- Input validation at system boundaries
-- Error messages must not leak implementation details
-- Audit dependencies regularly
-
-</Security>
+- Use typed functional React components and preserve strict TypeScript expectations.
+- Prefer `interface` for object-shaped contracts and avoid `any` unless there is no practical alternative.
+- Use type guards instead of unsafe casts and avoid non-null assertions.
+- Prefix intentionally unused variables or parameters with `_` so `oxlint` and Biome stay quiet.
+- Keep imports grouped as standard library, third-party, then local modules.
+- Use semantic HTML and preserve existing accessibility behavior.

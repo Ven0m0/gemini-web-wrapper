@@ -1,77 +1,52 @@
 ---
-applyTo: "**/{*.py,pyproject.toml}"
+applyTo: "{apps/api,packages/config,packages/llm-core,packages/shared/python,packages/code-index}/**/*.py"
 ---
 
-# Python Standards
+# Python Guidance
 
 ## Toolchain
 
-- **Lint/Fmt**: `ruff check --fix && ruff format` (PEP 8, 4-space, 80 chars)
-- **Types**: `mypy --strict` (no `Any`; full annotations)
-- **Test**: `pytest -v --cov` (95%+ coverage, edge cases)
-- **Deps**: `uv sync && uv audit` (security checks)
+- Package manager: `uv`
+- Formatting and linting: `ruff`
+- API type-checking: `pyrefly`
+- API tests: `pytest`
 
-## Core Rules
+## Repository hotspots
 
-- **Style**: PEP 8, PEP 257 (docstrings), PEP 484 (type hints)
-- **Types**: Modern generics (`list[str]`); `Protocol` for interfaces; no `Any`
-- **Security**: Input validation, no hardcoded secrets, OWASP awareness
-- **Perf**: O(n) algorithms; `lru_cache` for expensive ops; generators for large data
-- **Arch**: SOLID principles, dependency injection, clean architecture
+- FastAPI app: `apps/api/src/affine/api/server.py`
+- Settings: `packages/config/src/affine/config/settings.py`
+- Provider factory: `packages/llm-core/src/affine/llm_core/factory.py`
+- Shared schemas: `packages/shared/python/src/affine/shared/`
+- Code indexing modules: `packages/code-index/src/affine/code_index/`
 
-## Patterns
+## Validation
 
-**Type Safety:**
+### API changes
 
-```python
-from typing import Protocol, TypeVar
-
-Entity = TypeVar("Entity")
-
-class Repository(Protocol):
-  def get(self, id: str) -> Entity | None: ...
-  def save(self, entity: Entity) -> None: ...
+```bash
+cd apps/api
+export PYTHONPATH=src:../../packages/config/src
+uv sync --all-extras
+uv run ruff format --check
+uv run ruff check
+uv run pyrefly check
+uv run pytest
 ```
 
-**Performance:**
+### Package changes
 
-```python
-from functools import lru_cache
-
-@lru_cache(maxsize=128)
-def expensive(n: int) -> int:
-  return sum(range(n))
-
-def stream_file(path: str) -> Iterator[str]:
-  with open(path) as f:
-    for line in f:
-      yield line.strip()
+```bash
+cd packages/config && uv sync && uv run ruff format --check src/ && uv run ruff check src/
+cd packages/llm-core && uv sync && uv run ruff format --check src/ && uv run ruff check src/
+cd packages/shared/python && uv sync && uv run ruff format --check src/ && uv run ruff check src/
+cd packages/code-index && uv sync && uv run ruff format --check src/ && uv run ruff check src/
 ```
 
-## 🔐 Security Rules
+## Expectations
 
-- Never use `eval()` or `exec()` with user input
-- Use parameterized queries for SQL
-- Validate all external inputs
-- Use `secrets` module for tokens, not `random`
-
-## Forbidden
-
-- Bare `except:` → catch specific exceptions
-- `Any` type → use concrete types or `Protocol`
-- Hardcoded secrets → use env vars
-- O(n²) loops → use sets/dicts for lookups
-- Global mutable state → use DI/parameters
-
-## 📦 Import Order
-
-1. Standard library (`os`, `sys`, `typing`)
-2. Third-party (`fastapi`, `pydantic`)
-3. Local application imports
-
-## ⚡ Best Practices
-
-- Use context managers (`with` statements)
-- Prefer list comprehensions over loops
-- Use `pathlib` for file paths
-- Use `dataclasses` or Pydantic for data structures
+- Keep FastAPI handlers async-first and use explicit control flow.
+- Route settings access through `packages/config`.
+- Route provider selection through `packages/llm-core`.
+- Reuse shared request and response models from `packages/shared/python`.
+- Prefer precise types, modern generics, and small helper functions over broad `Any` usage.
+- Validate external inputs and avoid leaking secrets or provider credentials.

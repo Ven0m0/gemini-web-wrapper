@@ -6,6 +6,8 @@ Canonical agent guidance for this repository. `AGENTS.md` is the fuller source f
 
 This is a mixed Bun + uv monorepo.
 
+Root tool versions are pinned in `mise.toml` for local development and automation bootstrap.
+
 - **Frontend:** `apps/web`
   - React 19 + TypeScript + Vite 8 PWA
   - Shared client state in `src/store.ts` via Zustand
@@ -15,10 +17,14 @@ This is a mixed Bun + uv monorepo.
   - FastAPI app in `src/affine/api/server.py`
   - Module entrypoint in `src/affine/api/__main__.py`
   - Current HTTP routes include `/health`, `/v1/models`, and `/v1/chat/completions`
+- **Indexing package:** `packages/code-index`
+  - Core modules live in `src/affine/code_index/`
+  - Provides parsing, chunking, discovery, embedding, and search helpers used by the workspace
 - **Shared Python packages:**
   - `packages/config` — typed settings
   - `packages/llm-core` — provider interfaces and provider factory
   - `packages/shared/python` — shared models and OpenAI-style schemas
+  - `packages/code-index` — repository indexing and code search primitives
 
 ## Source of Truth Order
 
