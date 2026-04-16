@@ -18,7 +18,8 @@ dependencies = [
     "tree-sitter-rust>=0.24.2",
     "affine-shared",
     "affine-llm-core",
-    "affine-config"
+    "affine-config",
+    "affine-code-index"
 ]
 
 [dependency-groups]
@@ -33,3 +34,4 @@ dev = [
 affine-shared = { workspace = true }
 affine-llm-core = { workspace = true }
 affine-config = { workspace = true }
+affine-code-index = { workspace = true }

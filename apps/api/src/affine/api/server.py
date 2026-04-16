@@ -21,6 +21,7 @@ from affine.shared.openai_schemas import (
 )
 from affine.shared.agent_schemas import AgentRequest
 from affine.api.repo_index import router as repo_index_router
+from affine.api.local_index import router as local_index_router
 
 app = FastAPI(title="Affine AI Workstation API")
 settings = get_settings()
@@ -151,6 +152,7 @@ def verify_api_key(
 
 
 app.include_router(repo_index_router, dependencies=[Depends(verify_api_key)])
+app.include_router(local_index_router, dependencies=[Depends(verify_api_key)])
 
 
 def _extract_non_empty_text(value: object) -> str | None:

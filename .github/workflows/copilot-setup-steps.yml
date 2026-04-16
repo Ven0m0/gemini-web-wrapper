@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 env:
-  DEBIAN_FRONTEND: noninteractive 
+  DEBIAN_FRONTEND: noninteractive
   DEBCONF_NOWARNINGS: yes
 jobs:
   copilot-setup-steps:
@@ -48,7 +48,7 @@ jobs:
         run: |
           bun i -g @zed-industries/vscode-langservers-extracted yaml-language-server bash-language-server @ast-grep/cli @biomejs/biome oxlint oxfmt typescript @vtsls/language-server
       - name: Install uv workspace dependencies
-        run: uv sync --all-extras --all-packages --all-groups --frozen 
+        run: uv sync --all-extras --all-packages --all-groups --frozen
       - name: Preinstall uv tools
         run: |
           uv tool install basedpyright
