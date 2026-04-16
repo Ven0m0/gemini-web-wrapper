@@ -1,0 +1,56 @@
+name: Copilot Setup Steps
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+permissions:
+  contents: read
+env:
+  DEBIAN_FRONTEND: noninteractive 
+  DEBCONF_NOWARNINGS: yes
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install apt packages
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1
+          sudo apt-get install -yqq --no-install-recommends ripgrep fd-find shellcheck shfmt build-essential pkg-config
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+      - name: Install repository toolchain
+        uses: jdx/mise-action@v4.0.1
+        with:
+          install: true
+          cache: true
+          experimental: true
+      - name: Install Bun workspace dependencies
+        run: bun i --frozen-lockfile
+      - name: Preinstall bun global packages
+        run: |
+          bun i -g @zed-industries/vscode-langservers-extracted yaml-language-server bash-language-server @ast-grep/cli @biomejs/biome oxlint oxfmt typescript @vtsls/language-server
+      - name: Install uv workspace dependencies
+        run: uv sync --all-extras --all-packages --all-groups --frozen 
+      - name: Preinstall uv tools
+        run: |
+          uv tool install basedpyright
+          uv tool install ty
+          uv tool install ruff
