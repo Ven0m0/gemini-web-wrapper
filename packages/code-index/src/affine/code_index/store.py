@@ -59,11 +59,6 @@ class CodeIndexStore:
                 schema=schema,
                 mode="create",
             )
-            # Create indices for faster queries
-            await self._table.create_index(
-                "vector",
-                config=lancedb.index.ivf_pq(distance_type="cosine"),
-            )
 
     async def upsert_batch(self, records: list[dict[str, Any]]) -> None:
         """Batch insert/update records."""

@@ -54,7 +54,7 @@ async def index_command(args: argparse.Namespace) -> int:
     await indexer.initialize()
     result = await indexer.index(force=args.force)
 
-    print(f"\nIndexing complete:")
+    print("\nIndexing complete:")
     print(f"  Status: {result['status']}")
     print(f"  Files processed: {result.get('files', 0)}")
     print(f"  AST nodes: {result.get('ast_nodes', 0)}")
