@@ -9,9 +9,35 @@ export const strReplaceTool = defineTool({
     if (!(await file.exists())) return { ok: false, error: `File ${path} does not exist` };
     const text = await file.text();
     if (!old) return { ok: false, error: "old must be non-empty" };
-    const updated = count === undefined ? text.split(old).join(replacement) : text.replace(new RegExp(old.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), replacement);
+
+    let updated = text;
+    let replacements = 0;
+
+    if (count === undefined) {
+      const parts = text.split(old);
+      replacements = parts.length - 1;
+      updated = parts.join(replacement);
+    } else {
+      const maxReplacements = Math.max(0, Math.trunc(count));
+      let startIndex = 0;
+      let result = "";
+
+      while (replacements < maxReplacements) {
+        const matchIndex = text.indexOf(old, startIndex);
+        if (matchIndex === -1) break;
+
+        result += text.slice(startIndex, matchIndex) + replacement;
+        startIndex = matchIndex + old.length;
+        replacements += 1;
+      }
+
+      if (replacements > 0) {
+        updated = result + text.slice(startIndex);
+      }
+    }
+
     if (updated === text) return { ok: true, path, replacements: 0, changed: false };
     await file.write(updated);
-    return { ok: true, path, replacements: 1, changed: true };
+    return { ok: true, path, replacements, changed: true };
   },
 });
