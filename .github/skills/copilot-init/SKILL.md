@@ -39,7 +39,7 @@ Keep startup guidance short, keep detailed repo-wide guidance in a single canoni
    - Use pinned action versions.
    - Install only the repository's real system dependencies, toolchain, and project dependencies.
    - Match the repository's actual package manager, lockfiles, version pins, and setup flow.
-   - For Python repos, prefer `uv sync --frozen` plus `uv tool install` for repo-relevant developer tools such as `basedpyright`, `ruff`, and `ty`.
+   - For Python repos, prefer `astral-sh/setup-uv` with `python-version` so uv owns Python setup and dependency bootstrap in one path; then use `uv sync --frozen` plus `uv tool install` for repo-relevant developer tools such as `basedpyright`, `ruff`, and `ty`.
    - For Bun repos, prefer real Bun dependencies and global tools that the repo actually uses. In this repo, `@biomejs/biome`, `oxfmt`, and `oxlint` are valid; do not add an invalid `oxc` package dependency.
 4. Create or update `.github/instructions/*.instructions.md`.
    - Add files only when the repository has a real language, workflow, review,
@@ -80,6 +80,7 @@ Keep startup guidance short, keep detailed repo-wide guidance in a single canoni
 - Do not hand-edit generated artifacts when the repository provides a script or generator.
 - Keep guidance concise, actionable, and repository-specific.
 - Update good existing files instead of creating duplicates.
+- When uv is the Python toolchain, prefer a single `astral-sh/setup-uv` step with `python-version` over combining uv with a separate `actions/setup-python` step unless the repository already requires both.
 - Do not broaden validation scope just because a tool is popular. Implement only the linting, type-checking, formatting, and tests that the project actually needs.
 - Use this split when deciding where guidance belongs:
   - Startup bootstrap: `.github/copilot-instructions.md`
