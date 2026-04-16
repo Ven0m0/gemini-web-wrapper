@@ -8,6 +8,7 @@ import { ConfigOverlay } from './components/ConfigOverlay'
 import { InstallPrompt } from './components/InstallPrompt'
 import { ChatDemo } from './components/ChatDemo'
 import { OpenRouterChat } from './components/OpenRouterChat'
+import { AgentChat } from './components/AgentChat'
 import { migrateSavedConfig } from './services/providers'
 import './App.css'
 
@@ -72,6 +73,17 @@ const NAV_ITEMS: NavItem[] = [
       </svg>
     ),
   },
+  {
+    id: 'agent',
+    label: 'Agent',
+    mobileVisible: false,
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4" />
+      </svg>
+    ),
+  },
 ]
 
 const MODE_LABELS: Record<AppMode, string> = {
@@ -81,6 +93,7 @@ const MODE_LABELS: Record<AppMode, string> = {
   tool: 'files',
   'chat-demo': 'chat-demo',
   settings: 'settings',
+  agent: 'agent',
 }
 
 function App() {
@@ -113,6 +126,7 @@ function App() {
       case 'tool':       return <Tool />
       case 'chat-demo':  return <ChatDemo />
       case 'settings':   return <ConfigOverlay inline />
+      case 'agent':      return <AgentChat />
       case 'chat':
       default:           return <OpenRouterChat />
     }

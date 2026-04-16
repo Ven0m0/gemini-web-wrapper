@@ -1,3 +1,4 @@
+import json
 import secrets
 import uuid
 from datetime import datetime
@@ -18,6 +19,7 @@ from affine.shared.openai_schemas import (
     ChatCompletionRequest,
     ChatCompletionResponse,
 )
+from affine.shared.agent_schemas import AgentRequest
 from affine.api.repo_index import router as repo_index_router
 
 app = FastAPI(title="Affine AI Workstation API")
@@ -221,6 +223,92 @@ def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMPr
     if provider_base_url:
         server_provider_kwargs["base_url"] = provider_base_url
     return ProviderFactory.create(settings.model_provider, **server_provider_kwargs)
+
+
+def _build_provider_from_agent_request(
+    request: "AgentRequest", settings: Settings
+) -> LLMProvider:
+    """Build LLMProvider from agent request with overrides."""
+    if request.x_provider:
+        kwargs: dict[str, Any] = {"model": request.model}
+        if request.x_provider_api_key:
+            kwargs["api_key"] = request.x_provider_api_key
+        if request.x_provider_base_url:
+            kwargs["base_url"] = request.x_provider_base_url
+        if ProviderFactory.is_registered(request.x_provider):
+            return ProviderFactory.create(request.x_provider, **kwargs)
+        elif request.x_provider_base_url:
+            return ProviderFactory.create(request.x_provider, **kwargs)
+
+    kwargs = {
+        "api_key": settings.provider_api_key(),
+        "model": settings.model_name or request.model,
+    }
+    base_url = settings.provider_base_url()
+    if base_url:
+        kwargs["base_url"] = base_url
+    return ProviderFactory.create(settings.model_provider, **kwargs)
+
+
+@app.post("/v1/agent/chat", dependencies=[Depends(verify_api_key)])
+async def agent_chat(
+    request: AgentRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Stream agent responses with tool calls via SSE."""
+    provider = _build_provider_from_agent_request(request, settings)
+
+    system_prompt = request.system_prompt
+    history = []
+    user_message = ""
+
+    for msg in request.messages:
+        if msg.role == "system":
+            system_prompt = (
+                msg.content if isinstance(msg.content, str) else system_prompt
+            )
+        elif msg.role == "user":
+            user_message = (
+                msg.content if isinstance(msg.content, str) else str(msg.content)
+            )
+        else:
+            history.append(
+                {
+                    "role": msg.role,
+                    "content": msg.content
+                    if isinstance(msg.content, str)
+                    else str(msg.content),
+                }
+            )
+
+    async def event_generator():
+        try:
+            async for chunk in provider.stream(
+                user_message, system=system_prompt, history=history
+            ):
+                event_data = {"type": "text_delta", "text": chunk}
+                yield f"data: {json.dumps(event_data)}\n\n"
+
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as e:
+            print(f"Agent stream failed: {e}", flush=True)
+            error_event = {
+                "type": "error",
+                "error": "An internal error has occurred.",
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+        finally:
+            await provider.aclose()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/health")
