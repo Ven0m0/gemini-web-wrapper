@@ -22,7 +22,7 @@
     "format": "biome format --write .",
     "lint": "oxlint src && biome lint .",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"No tests configured\" && exit 0"
+    "test": "vitest run"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.5",
@@ -35,6 +35,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "diff": "^9.0.0",
+    "ghostty-web": "^0.4.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "zustand": "^5.0.12"
@@ -47,7 +48,8 @@
     "oxlint": "^1.59.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.8",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.1.4"
   },
   "overrides": {
     "minimatch": "^10.2.1"

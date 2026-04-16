@@ -1,104 +1,112 @@
-interface WebSocketMessage {
-  type: 'stdin' | 'stdout' | 'stderr' | 'command' | 'status' | 'error' | 'file_upload' | 'file_download' | 'file_data'
-  data: string
-  timestamp: number
-  filename?: string
-  fileSize?: number
-  isBase64?: boolean
+export interface WebSocketMessage {
+  type: 'stdin' | 'stdout' | 'stderr' | 'command' | 'status' | 'error' | 'file_upload' | 'file_download' | 'file_data';
+  data: string;
+  timestamp: number;
+  filename?: string;
+  fileSize?: number;
+  isBase64?: boolean;
 }
 
 export class WebSocketService {
-  private ws: WebSocket | null = null
-  private url: string
-  private reconnectAttempts: number = 0
-  private maxReconnectAttempts: number = 5
-  private reconnectDelay: number = 1000
-  private shouldReconnect: boolean = true
-  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
-  private onMessage: (message: WebSocketMessage) => void
-  private onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error', errorContext?: Error | string) => void
+  private ws: WebSocket | null = null;
+  private url: string;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 5;
+  private reconnectDelay: number = 1000;
+  private shouldReconnect: boolean = true;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private onMessage: (message: WebSocketMessage) => void;
+  private onStatusChange: (
+    status: 'connecting' | 'connected' | 'disconnected' | 'error',
+    errorContext?: Error | string
+  ) => void;
 
   constructor(
     url: string,
     onMessage: (message: WebSocketMessage) => void,
-    onStatusChange: (status: 'connecting' | 'connected' | 'disconnected' | 'error', errorContext?: Error | string) => void
+    onStatusChange: (
+      status: 'connecting' | 'connected' | 'disconnected' | 'error',
+      errorContext?: Error | string
+    ) => void
   ) {
-    this.url = url
-    this.onMessage = onMessage
-    this.onStatusChange = onStatusChange
+    this.url = url;
+    this.onMessage = onMessage;
+    this.onStatusChange = onStatusChange;
   }
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.shouldReconnect = true
-        this.onStatusChange('connecting')
-        this.ws = new WebSocket(this.url)
+        this.shouldReconnect = true;
+        this.onStatusChange('connecting');
+        this.ws = new WebSocket(this.url);
 
         this.ws.onopen = () => {
-          this.reconnectAttempts = 0
-          this.onStatusChange('connected')
-          resolve()
-        }
+          this.reconnectAttempts = 0;
+          this.onStatusChange('connected');
+          resolve();
+        };
 
         this.ws.onmessage = (event) => {
           try {
-            const message: WebSocketMessage = JSON.parse(event.data)
-            this.onMessage(message)
+            const message: WebSocketMessage = JSON.parse(event.data);
+            this.onMessage(message);
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error)
+            const errorMessage = error instanceof Error ? error.message : String(error);
             this.onMessage({
               type: 'error',
               data: `Invalid message format: ${event.data}. Error: ${errorMessage}`,
-              timestamp: Date.now()
-            })
+              timestamp: Date.now(),
+            });
           }
-        }
+        };
 
         this.ws.onclose = () => {
-          this.onStatusChange('disconnected')
+          this.onStatusChange('disconnected');
           if (this.shouldReconnect) {
-            this.attemptReconnect()
+            this.attemptReconnect();
           }
-        }
+        };
 
         this.ws.onerror = (error) => {
-          this.onStatusChange('error', error instanceof Error ? error : String(error))
-          reject(new Error(`WebSocket connection failed: ${error}`))
-        }
-
+          this.onStatusChange('error', error instanceof Error ? error : String(error));
+          reject(new Error(`WebSocket connection failed: ${error}`));
+        };
       } catch (error) {
-        reject(error)
+        reject(error);
       }
-    })
+    });
   }
 
   private attemptReconnect(): void {
-    if (!this.shouldReconnect || this.reconnectAttempts >= this.maxReconnectAttempts) return
-    this.reconnectAttempts++
+    if (!this.shouldReconnect || this.reconnectAttempts >= this.maxReconnectAttempts) return;
+    this.reconnectAttempts++;
     this.reconnectTimeout = setTimeout(() => {
-      this.reconnectTimeout = null
-      if (!this.shouldReconnect) return
+      this.reconnectTimeout = null;
+      if (!this.shouldReconnect) return;
       this.connect().catch((error) => {
-        this.onStatusChange('error', `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`)
-      })
-    }, this.reconnectDelay * this.reconnectAttempts)
+        this.onStatusChange(
+          'error',
+          `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
+    }, this.reconnectDelay * this.reconnectAttempts);
   }
 
   sendStdin(data: string): void {
     this.sendMessage({
       type: 'stdin',
       data,
-      timestamp: Date.now()
-    })
+      timestamp: Date.now(),
+    });
   }
 
   sendCommand(command: string): void {
     this.sendMessage({
       type: 'command',
       data: command,
-      timestamp: Date.now()
-    })
+      timestamp: Date.now(),
+    });
   }
 
   sendFileUpload(filename: string, content: string, isBase64: boolean = false): void {
@@ -108,8 +116,8 @@ export class WebSocketService {
       filename,
       fileSize: content.length,
       isBase64,
-      timestamp: Date.now()
-    })
+      timestamp: Date.now(),
+    });
   }
 
   requestFileDownload(filename: string): void {
@@ -117,54 +125,59 @@ export class WebSocketService {
       type: 'file_download',
       data: filename,
       filename,
-      timestamp: Date.now()
-    })
+      timestamp: Date.now(),
+    });
   }
 
   private sendMessage(message: WebSocketMessage): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message))
+      this.ws.send(JSON.stringify(message));
     } else {
-      throw new Error('WebSocket is not connected')
+      throw new Error('WebSocket is not connected');
     }
   }
 
   disconnect(): void {
-    this.shouldReconnect = false
+    this.shouldReconnect = false;
     if (this.reconnectTimeout !== null) {
-      clearTimeout(this.reconnectTimeout)
-      this.reconnectTimeout = null
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
     }
     if (this.ws) {
-      this.ws.close()
-      this.ws = null
+      this.ws.close();
+      this.ws = null;
     }
   }
 
   isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
   getReadyState(): string {
-    if (!this.ws) return 'CLOSED'
+    if (!this.ws) return 'CLOSED';
 
     switch (this.ws.readyState) {
-      case WebSocket.CONNECTING: return 'CONNECTING'
-      case WebSocket.OPEN: return 'OPEN'
-      case WebSocket.CLOSING: return 'CLOSING'
-      case WebSocket.CLOSED: return 'CLOSED'
-      default: return 'UNKNOWN'
+      case WebSocket.CONNECTING:
+        return 'CONNECTING';
+      case WebSocket.OPEN:
+        return 'OPEN';
+      case WebSocket.CLOSING:
+        return 'CLOSING';
+      case WebSocket.CLOSED:
+        return 'CLOSED';
+      default:
+        return 'UNKNOWN';
     }
   }
 }
 
 /** Module-level singleton so any component can reach the active connection. */
-let _activeService: WebSocketService | null = null
+let _activeService: WebSocketService | null = null;
 
 export function setActiveWebSocketService(svc: WebSocketService | null): void {
-  _activeService = svc
+  _activeService = svc;
 }
 
 export function getActiveWebSocketService(): WebSocketService | null {
-  return _activeService
+  return _activeService;
 }
