@@ -189,7 +189,8 @@ export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): 
 
   const normalizedProviderMap = new Map<string, ProviderConfig>();
   for (const provider of normalizedProviders) {
-    if (!normalizedProviderMap.has(provider.id)) {
+    const existing = normalizedProviderMap.get(provider.id);
+    if (!existing || (existing.builtin && !provider.builtin)) {
       normalizedProviderMap.set(provider.id, provider);
     }
   }
