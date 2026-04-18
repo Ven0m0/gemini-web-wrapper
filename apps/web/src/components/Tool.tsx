@@ -222,11 +222,11 @@ export const Tool: React.FC = () => {
     if (!path || !githubService) return
 
     const directories = getAncestorDirectories(path)
-    for (const directory of directories) {
-      if (!directoryEntries[directory]) {
-        await loadDirectory(directory, { silent: true })
-      }
-    }
+    const directoriesToLoad = directories.filter((dir) => !directoryEntries[dir])
+
+    await Promise.all(
+      directoriesToLoad.map((dir) => loadDirectory(dir, { silent: true }))
+    )
 
     setExpandedDirectories((prev) => Array.from(new Set([...prev, ...directories])))
   }, [directoryEntries, githubService, loadDirectory])
