@@ -32,7 +32,7 @@ export function createSkillsMiddleware(skillsDirs: string[] = [join(process.cwd(
           ? skills.find((s) => (s.name ?? "").toLowerCase() === (agentContext.requestedSkillName as string).toLowerCase())
           : null;
         return {
-          prompt: modelContext.prompt + `\n\n<skills>\n${JSON.stringify(skills, null, 2)}\n</skills>\n${requested ? `<explicit_skill>${requested.name}</explicit_skill>\n` : ""}`,
+          prompt: `${modelContext.prompt}\n\n<skills>\n${JSON.stringify(skills, null, 2)}\n</skills>\n${requested ? `<explicit_skill>${requested.name}</explicit_skill>\n` : ""}`,
         };
       }
     },

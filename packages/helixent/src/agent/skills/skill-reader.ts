@@ -1,6 +1,7 @@
+import { assertFileExists } from "@/foundation/utils/file";
+
 export async function readSkillFrontMatter(path: string): Promise<any> {
-  const file = Bun.file(path);
-  if (!(await file.exists())) throw new Error(`File ${path} does not exist`);
+  const file = await assertFileExists(path);
   const content = await file.text();
   const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
   if (!match) return { path, name: path.split("/").pop() };

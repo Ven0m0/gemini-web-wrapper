@@ -33,7 +33,7 @@ export type AgentProgressThinkingEvent = Extract<AgentEvent, { subtype: "thinkin
 export type AgentProgressToolEvent = Extract<AgentEvent, { subtype: "tool" }>;
 export type AgentProgressEvent = Extract<AgentEvent, { type: "progress" }>;
 
-export function formatToolResultForMessage(toolName: string, result: unknown): string {
+export function formatToolResultForMessage(_toolName: string, result: unknown): string {
   return typeof result === "string" ? result : JSON.stringify(result);
 }
 
@@ -53,7 +53,7 @@ export class Agent {
     this.middlewares = options.middlewares ?? [];
   }
 
-  async run(input?: string): Promise<any> {
+  async run(_input?: string): Promise<any> {
     const middlewareResults: Record<string, unknown> = {};
     for (const mw of this.middlewares) {
       if (mw.beforeAgentRun) {
@@ -83,7 +83,7 @@ export class Agent {
     return this.model.invoke(modelContext);
   }
 
-  async *runStream(input?: string): AsyncGenerator<any> {
+  async *runStream(_input?: string): AsyncGenerator<any> {
     const middlewareResults: Record<string, unknown> = {};
     for (const mw of this.middlewares) {
       if (mw.beforeAgentRun) {

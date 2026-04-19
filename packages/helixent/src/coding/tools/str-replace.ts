@@ -1,12 +1,17 @@
 import z from "zod";
 import { defineTool } from "@/foundation";
+import { assertFileExists } from "@/foundation/utils/file";
 export const strReplaceTool = defineTool({
   name: "str_replace",
   description: "Replace occurrences of a substring in a file",
   parameters: z.object({ description: z.string(), path: z.string(), old: z.string(), new: z.string(), count: z.number().optional() }),
   invoke: async ({ path, old, new: replacement, count }) => {
-    const file = Bun.file(path);
-    if (!(await file.exists())) return { ok: false, error: `File ${path} does not exist` };
+    let file;
+    try {
+      file = await assertFileExists(path);
+    } catch {
+      return { ok: false, error: `File ${path} does not exist` };
+    }
     const text = await file.text();
     if (!old) return { ok: false, error: "old must be non-empty" };
 

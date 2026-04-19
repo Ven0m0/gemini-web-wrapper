@@ -1,5 +1,5 @@
 export interface AgentEvent {
-  type: "tool_call" | "tool_result" | "text_delta" | "thinking_delta" | "done" | "error";
+  type: 'tool_call' | 'tool_result' | 'text_delta' | 'thinking_delta' | 'done' | 'error';
   tool_id?: string;
   tool_name?: string;
   arguments?: Record<string, unknown>;
@@ -12,16 +12,16 @@ export interface AgentEvent {
 
 export interface AgentMessage {
   id: string;
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
   timestamp: number;
   toolCalls?: Array<{ id: string; name: string; args: Record<string, unknown>; result?: string }>;
   thinking?: string;
 }
 
-export class AgentService {
-  private apiBase = "/v1";
+import { API_BASE } from '../constants/api';
 
+export class AgentService {
   constructor(private apiKey: string) {}
 
   async *stream(params: {
@@ -32,11 +32,11 @@ export class AgentService {
     providerKey?: string;
     providerBaseUrl?: string;
   }): AsyncGenerator<AgentEvent> {
-    const response = await fetch(`${this.apiBase}/agent/chat`, {
-      method: "POST",
+    const response = await fetch(`${API_BASE}/agent/chat`, {
+      method: 'POST',
       headers: {
-        "Authorization": `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: params.model,
@@ -53,10 +53,10 @@ export class AgentService {
     }
 
     const reader = response.body?.getReader();
-    if (!reader) throw new Error("No response body");
+    if (!reader) throw new Error('No response body');
 
     const decoder = new TextDecoder();
-    let buffer = "";
+    let buffer = '';
 
     try {
       while (true) {
@@ -64,19 +64,19 @@ export class AgentService {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
+          if (line.startsWith('data: ')) {
             const data = line.slice(6);
-            if (data === "[DONE]") continue;
+            if (data === '[DONE]') continue;
             try {
               const event: AgentEvent = JSON.parse(data);
               yield event;
-              if (event.type === "done" || event.type === "error") return;
+              if (event.type === 'done' || event.type === 'error') return;
             } catch (e) {
-              console.warn("Failed to parse SSE event:", data, e);
+              console.warn('Failed to parse SSE event:', data, e);
             }
           }
         }

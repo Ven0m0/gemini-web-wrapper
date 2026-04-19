@@ -1,25 +1,25 @@
-import React, { useState } from 'react'
-import { ChatWidget } from './ChatWidget'
-import { ChatDesignSystem } from './ChatDesignSystem'
+import React, { useState } from 'react';
+import { ChatDesignSystem } from './ChatDesignSystem';
+import { ChatWidget } from './ChatWidget';
 
 export const ChatDemo: React.FC = () => {
-  const [selectedTheme, setSelectedTheme] = useState('modern')
-  const [selectedPosition, setSelectedPosition] = useState('bottom-right')
-  const [primaryColor, setPrimaryColor] = useState('#007acc')
-  const [borderRadius, setBorderRadius] = useState(12)
-  const [fontSize, setFontSize] = useState('medium')
-  const [showAvatar, setShowAvatar] = useState(true)
-  const [showTimestamp, setShowTimestamp] = useState(true)
-  const [allowAttachments, setAllowAttachments] = useState(true)
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [autoOpen, setAutoOpen] = useState(false)
-  const [customGreeting, setCustomGreeting] = useState("Hello! How can I help you today?")
-  const [agentName, setAgentName] = useState("AI Assistant")
-  const [agentAvatar, setAgentAvatar] = useState("AI")
-  const companyName = "Demo Company"
+  const [selectedTheme, setSelectedTheme] = useState('modern');
+  const [selectedPosition, setSelectedPosition] = useState('bottom-right');
+  const [primaryColor, setPrimaryColor] = useState('#007acc');
+  const [borderRadius, setBorderRadius] = useState(12);
+  const [fontSize, setFontSize] = useState('medium');
+  const [showAvatar, setShowAvatar] = useState(true);
+  const [showTimestamp, setShowTimestamp] = useState(true);
+  const [allowAttachments, setAllowAttachments] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [customGreeting, setCustomGreeting] = useState('Hello! How can I help you today?');
+  const [agentName, setAgentName] = useState('AI Assistant');
+  const [agentAvatar, setAgentAvatar] = useState('AI');
+  const companyName = 'Demo Company';
 
-  const currentTheme = ChatDesignSystem.themes[selectedTheme as keyof typeof ChatDesignSystem.themes]
+  const currentTheme = ChatDesignSystem.themes[selectedTheme as keyof typeof ChatDesignSystem.themes];
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -41,7 +41,9 @@ export const ChatDemo: React.FC = () => {
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {Object.entries(ChatDesignSystem.themes).map(([key, theme]) => (
-                    <option key={key} value={key}>{theme.name}</option>
+                    <option key={key} value={key}>
+                      {theme.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -210,18 +212,28 @@ export const ChatDemo: React.FC = () => {
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="text-lg font-medium text-gray-700 mb-2">Current Configuration</h3>
               <div className="text-sm text-gray-600 space-y-1">
-                <div>Theme: <span className="font-medium">{currentTheme.name}</span></div>
-                <div>Position: <span className="font-medium">{selectedPosition}</span></div>
-                <div>Primary Color: <span className="font-medium">{primaryColor}</span></div>
-                <div>Border Radius: <span className="font-medium">{borderRadius}px</span></div>
-                <div>Font Size: <span className="font-medium">{fontSize}</span></div>
+                <div>
+                  Theme: <span className="font-medium">{currentTheme.name}</span>
+                </div>
+                <div>
+                  Position: <span className="font-medium">{selectedPosition}</span>
+                </div>
+                <div>
+                  Primary Color: <span className="font-medium">{primaryColor}</span>
+                </div>
+                <div>
+                  Border Radius: <span className="font-medium">{borderRadius}px</span>
+                </div>
+                <div>
+                  Font Size: <span className="font-medium">{fontSize}</span>
+                </div>
               </div>
             </div>
 
             <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                The chat widget will appear in the {selectedPosition} corner of this page.
-                Click the button below to test it!
+                The chat widget will appear in the {selectedPosition} corner of this page. Click the button below to
+                test it!
               </p>
             </div>
 
@@ -229,7 +241,7 @@ export const ChatDemo: React.FC = () => {
               onClick={() => {
                 // Request notification permission
                 if (notificationsEnabled && 'Notification' in window && Notification.permission === 'default') {
-                  Notification.requestPermission()
+                  Notification.requestPermission();
                 }
               }}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
@@ -262,7 +274,7 @@ export const ChatDemo: React.FC = () => {
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ChatDemo
+export default ChatDemo;

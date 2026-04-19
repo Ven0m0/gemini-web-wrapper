@@ -1,16 +1,16 @@
 import { useEffect } from 'react';
-import { useStore } from './store';
-import type { AppMode } from './store';
-import { UnifiedShell } from './components/UnifiedShell';
-import { Editor } from './components/Editor';
-import { Tool } from './components/Tool';
-import { ConfigOverlay } from './components/ConfigOverlay';
-import { InstallPrompt } from './components/InstallPrompt';
-import { ChatDemo } from './components/ChatDemo';
-import { OpenRouterChat } from './components/OpenRouterChat';
 import { AgentChat } from './components/AgentChat';
+import { ChatDemo } from './components/ChatDemo';
+import { ConfigOverlay } from './components/ConfigOverlay';
+import { Editor } from './components/Editor';
+import { InstallPrompt } from './components/InstallPrompt';
+import { OpenRouterChat } from './components/OpenRouterChat';
+import { Tool } from './components/Tool';
+import { UnifiedShell } from './components/UnifiedShell';
 import { migrateSavedConfig } from './services/providers';
 import { readSavedShellState } from './services/shell';
+import type { AppMode } from './store';
+import { useStore } from './store';
 import './App.css';
 
 /** Settings gear icon — extracted so it can be reused in both the sidebar
@@ -163,8 +163,7 @@ function App() {
     if (savedConfig) {
       try {
         setConfig(migrateSavedConfig(JSON.parse(savedConfig)));
-      } catch {
-      }
+      } catch {}
     }
     setShell(readSavedShellState());
   }, [setConfig, setShell]);

@@ -5,8 +5,8 @@ import {
   DEFAULT_PROVIDER_ID,
   type ProviderConfig,
 } from './services/providers';
-import { createDefaultShellState, type ShellState } from './services/shell';
 import type { RepoIndexStatus } from './services/repoIndex';
+import { createDefaultShellState, type ShellState } from './services/shell';
 
 export interface FileState {
   original: string;

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
+import { createShellProfile, persistShellState, type ShellProfile, type ShellState } from '../services/shell';
+import { type WebSocketMessage, WebSocketService } from '../services/websocket';
 import { useStore } from '../store';
-import { persistShellState, createShellProfile, type ShellProfile, type ShellState } from '../services/shell';
-import { WebSocketService, type WebSocketMessage } from '../services/websocket';
 import { GhosttyTerminal, type GhosttyTerminalChunk } from './GhosttyTerminal';
 import { WebShell } from './WebShell';
 import './UnifiedShell.css';

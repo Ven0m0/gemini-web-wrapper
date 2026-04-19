@@ -1,3 +1,6 @@
+import { generateId } from '../utils/id';
+import { normalizeString } from '../utils/string';
+
 export interface ProviderModelOption {
   id: string;
   name: string;
@@ -92,23 +95,19 @@ function cloneProvider(provider: ProviderConfig): ProviderConfig {
     ...provider,
     models: provider.models.map((model) => ({
       ...model,
-      uid: model.uid ?? crypto.randomUUID(),
+      uid: model.uid ?? generateId(),
     })),
   };
 }
 
-function sanitizeText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function normalizeModel(model: unknown, fallbackId: string, fallbackName: string): ProviderModelOption {
   if (!model || typeof model !== 'object') {
-    return { id: fallbackId, name: fallbackName, uid: crypto.randomUUID() };
+    return { id: fallbackId, name: fallbackName, uid: generateId() };
   }
 
-  const id = sanitizeText((model as { id?: unknown }).id) || fallbackId;
-  const name = sanitizeText((model as { name?: unknown }).name) || id || fallbackName;
-  const uid = sanitizeText((model as { uid?: unknown }).uid) || crypto.randomUUID();
+  const id = normalizeString((model as { id?: unknown }).id) || fallbackId;
+  const name = normalizeString((model as { name?: unknown }).name) || id || fallbackName;
+  const uid = normalizeString((model as { uid?: unknown }).uid) || generateId();
   return { id, name, uid };
 }
 
@@ -130,7 +129,7 @@ function normalizeProvider(provider: unknown): ProviderConfig | null {
     builtin?: unknown;
   };
 
-  const id = sanitizeText(candidate.id);
+  const id = normalizeString(candidate.id);
   if (!id) {
     return null;
   }
@@ -152,9 +151,9 @@ function normalizeProvider(provider: unknown): ProviderConfig | null {
 
   return {
     id,
-    name: sanitizeText(candidate.name) || id,
-    apiKey: sanitizeText(candidate.apiKey),
-    baseUrl: sanitizeText(candidate.baseUrl),
+    name: normalizeString(candidate.name) || id,
+    apiKey: normalizeString(candidate.apiKey),
+    baseUrl: normalizeString(candidate.baseUrl),
     builtin: candidate.builtin === true,
     models,
   };
@@ -212,14 +211,14 @@ export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): 
     if (builtin.id === 'gemini') {
       return {
         ...builtin,
-        apiKey: sanitizeText(configLike?.geminiKey) || builtin.apiKey,
+        apiKey: normalizeString(configLike?.geminiKey) || builtin.apiKey,
       };
     }
 
     if (builtin.id === 'anthropic') {
       return {
         ...builtin,
-        apiKey: sanitizeText(configLike?.anthropicKey) || builtin.apiKey,
+        apiKey: normalizeString(configLike?.anthropicKey) || builtin.apiKey,
       };
     }
 
@@ -233,7 +232,7 @@ export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): 
       models:
         provider.models.length > 0
           ? provider.models
-          : [{ id: createFallbackModelId(provider.id, 0), name: 'Default Model', uid: crypto.randomUUID() }],
+          : [{ id: createFallbackModelId(provider.id, 0), name: 'Default Model', uid: generateId() }],
     }));
 
   return [...mergedProviders, ...customProviders];

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { AssistantMessage, Message, ModelProvider, ModelProviderInvokeParams } from "@/foundation";
+import type { AssistantMessage, ModelProvider, ModelProviderInvokeParams } from "@/foundation";
 import { StreamAccumulator } from "./stream-utils";
 import { convertToOpenAIMessages, parseAssistantMessage } from "./utils";
 

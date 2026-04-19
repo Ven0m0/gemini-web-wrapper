@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useStore } from '../store'
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ensureModelSelection,
   ensureProviderSelection,
@@ -7,18 +6,19 @@ import {
   migrateProviderSelections,
   migrateSavedConfig,
   type ProviderConfig,
-} from '../services/providers'
+} from '../services/providers';
+import { useStore } from '../store';
 
 interface ConfigOverlayProps {
   /**
    * When true, renders as a full-page inline settings view instead of a
    * floating modal overlay.  Use this for the dedicated Settings tab.
    */
-  inline?: boolean
+  inline?: boolean;
 }
 
 function formatRepositoryInput(owner: string, repo: string): string {
-  return [owner.trim(), repo.trim()].filter(Boolean).join('/')
+  return [owner.trim(), repo.trim()].filter(Boolean).join('/');
 }
 
 function parseRepositoryInput(value: string): { owner: string; repo: string } {
@@ -26,75 +26,80 @@ function parseRepositoryInput(value: string): { owner: string; repo: string } {
     .trim()
     .replace(/^(?:https?:\/\/)?(?:www\.)?github\.com\//, '')
     .replace(/\.git$/, '')
-    .replace(/^\/+|\/+$/g, '')
+    .replace(/^\/+|\/+$/g, '');
 
-  const [owner = '', repo = ''] = normalized.split('/').filter(Boolean)
-  return { owner, repo }
+  const [owner = '', repo = ''] = normalized.split('/').filter(Boolean);
+  return { owner, repo };
 }
 
 function createProviderId(providers: ProviderConfig[]): string {
-  let counter = providers.filter((provider) => !provider.builtin).length + 1
-  let providerId = `custom-provider-${counter}`
+  let counter = providers.filter((provider) => !provider.builtin).length + 1;
+  let providerId = `custom-provider-${counter}`;
 
   while (providers.some((provider) => provider.id === providerId)) {
-    counter += 1
-    providerId = `custom-provider-${counter}`
+    counter += 1;
+    providerId = `custom-provider-${counter}`;
   }
 
-  return providerId
+  return providerId;
 }
 
 export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) => {
-  const { config, setConfig, setShowConfig, showConfig } = useStore()
-  const [localConfig, setLocalConfig] = useState(() => migrateSavedConfig(config))
-  const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature))
-  const [repoInput, setRepoInput] = useState(() => formatRepositoryInput(config.owner, config.repo))
-  const [showTokens, setShowTokens] = useState(false)
-  const [rememberCredentials, setRememberCredentials] = useState(() => Boolean(localStorage.getItem('chat-github-config')))
+  const { config, setConfig, setShowConfig, showConfig } = useStore();
+  const [localConfig, setLocalConfig] = useState(() => migrateSavedConfig(config));
+  const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature));
+  const [repoInput, setRepoInput] = useState(() => formatRepositoryInput(config.owner, config.repo));
+  const [showTokens, setShowTokens] = useState(false);
+  const [rememberCredentials, setRememberCredentials] = useState(() =>
+    Boolean(localStorage.getItem('chat-github-config'))
+  );
   /** Brief confirmation shown in inline mode after a successful save. */
-  const [showSavedMessage, setShowSavedMessage] = useState(false)
-  const [storageMessage, setStorageMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
+  const [showSavedMessage, setShowSavedMessage] = useState(false);
+  const [storageMessage, setStorageMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    const migratedConfig = migrateSavedConfig(config)
-    setLocalConfig(migratedConfig)
-    setTemperatureInput(String(migratedConfig.temperature))
-    setRepoInput(formatRepositoryInput(migratedConfig.owner, migratedConfig.repo))
-  }, [config])
+    const migratedConfig = migrateSavedConfig(config);
+    setLocalConfig(migratedConfig);
+    setTemperatureInput(String(migratedConfig.temperature));
+    setRepoInput(formatRepositoryInput(migratedConfig.owner, migratedConfig.repo));
+  }, [config]);
 
   const selectedProvider = useMemo(
     () => getProviderById(localConfig.providers, localConfig.provider),
     [localConfig.provider, localConfig.providers]
-  )
+  );
   const otherProviderIds = useMemo(
-    () => new Set(
-      localConfig.providers
-        .filter((provider) => provider.id !== selectedProvider?.id)
-        .map((provider) => provider.id)
-    ),
+    () =>
+      new Set(
+        localConfig.providers.filter((provider) => provider.id !== selectedProvider?.id).map((provider) => provider.id)
+      ),
     [localConfig.providers, selectedProvider?.id]
-  )
+  );
 
-  const setProviders = (providers: ProviderConfig[], nextProviderId = localConfig.provider, nextModelId = localConfig.model) => {
-    const provider = ensureProviderSelection(nextProviderId, providers)
-    const model = ensureModelSelection(provider, nextModelId, providers)
-    setLocalConfig({ ...localConfig, providers, provider, model })
-  }
+  const setProviders = (
+    providers: ProviderConfig[],
+    nextProviderId = localConfig.provider,
+    nextModelId = localConfig.model
+  ) => {
+    const provider = ensureProviderSelection(nextProviderId, providers);
+    const model = ensureModelSelection(provider, nextModelId, providers);
+    setLocalConfig({ ...localConfig, providers, provider, model });
+  };
 
   const updateProvider = (providerId: string, updater: (provider: ProviderConfig) => ProviderConfig) => {
     const providers = localConfig.providers.map((provider) =>
       provider.id === providerId ? updater(provider) : provider
-    )
-    setProviders(providers)
-  }
+    );
+    setProviders(providers);
+  };
 
   const handleSelectProvider = (providerId: string) => {
-    const provider = getProviderById(localConfig.providers, providerId)
-    setProviders(localConfig.providers, providerId, provider?.models[0]?.id)
-  }
+    const provider = getProviderById(localConfig.providers, providerId);
+    setProviders(localConfig.providers, providerId, provider?.models[0]?.id);
+  };
 
   const handleAddProvider = () => {
-    const providerId = createProviderId(localConfig.providers)
+    const providerId = createProviderId(localConfig.providers);
     const providers = [
       ...localConfig.providers,
       {
@@ -104,28 +109,31 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
         baseUrl: '',
         models: [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
       },
-    ]
-    setProviders(providers, providerId, 'gpt-4o-mini')
-  }
+    ];
+    setProviders(providers, providerId, 'gpt-4o-mini');
+  };
 
   const handleRemoveProvider = () => {
     if (!selectedProvider || selectedProvider.builtin) {
-      return
+      return;
     }
 
     if (!window.confirm(`Remove provider "${selectedProvider.name}"?`)) {
-      return
+      return;
     }
 
-    const providers = localConfig.providers.filter((provider) => provider.id !== selectedProvider.id)
-    setProviders(providers)
-  }
+    const providers = localConfig.providers.filter((provider) => provider.id !== selectedProvider.id);
+    setProviders(providers);
+  };
 
   const handleSave = () => {
-    const parsedRepo = parseRepositoryInput(repoInput)
+    const parsedRepo = parseRepositoryInput(repoInput);
     if (repoInput.trim() && (!parsedRepo.owner || !parsedRepo.repo)) {
-      setStorageMessage({ tone: 'error', text: 'Invalid repository format. Expected owner/repo (e.g., facebook/react).' })
-      return
+      setStorageMessage({
+        tone: 'error',
+        text: 'Invalid repository format. Expected owner/repo (e.g., facebook/react).',
+      });
+      return;
     }
 
     const normalized = migrateProviderSelections({
@@ -133,81 +141,85 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
       owner: parsedRepo.owner,
       repo: parsedRepo.repo,
       branch: localConfig.branch.trim() || 'main',
-    })
-    setConfig(normalized)
+    });
+    setConfig(normalized);
 
     if (rememberCredentials) {
-      localStorage.setItem('chat-github-config', JSON.stringify({
-        githubToken: normalized.githubToken,
-        openaiKey: normalized.openaiKey,
-        providers: normalized.providers,
-        provider: normalized.provider,
-        owner: normalized.owner,
-        repo: normalized.repo,
-        branch: normalized.branch,
-        model: normalized.model,
-        temperature: normalized.temperature,
-      }))
+      localStorage.setItem(
+        'chat-github-config',
+        JSON.stringify({
+          githubToken: normalized.githubToken,
+          openaiKey: normalized.openaiKey,
+          providers: normalized.providers,
+          provider: normalized.provider,
+          owner: normalized.owner,
+          repo: normalized.repo,
+          branch: normalized.branch,
+          model: normalized.model,
+          temperature: normalized.temperature,
+        })
+      );
     } else {
-      localStorage.removeItem('chat-github-config')
+      localStorage.removeItem('chat-github-config');
     }
 
     setStorageMessage({
       tone: 'success',
-      text: normalized.owner && normalized.repo
-        ? `Saved ${normalized.owner}/${normalized.repo}. The file tree and repo index will refresh automatically.`
-        : 'Configuration saved for this session.',
-    })
+      text:
+        normalized.owner && normalized.repo
+          ? `Saved ${normalized.owner}/${normalized.repo}. The file tree and repo index will refresh automatically.`
+          : 'Configuration saved for this session.',
+    });
 
     if (inline) {
-      setShowSavedMessage(true)
-      setTimeout(() => setShowSavedMessage(false), 2000)
+      setShowSavedMessage(true);
+      setTimeout(() => setShowSavedMessage(false), 2000);
     } else {
-      setShowConfig(false)
+      setShowConfig(false);
     }
-  }
+  };
 
   const handleCancel = () => {
-    const migratedConfig = migrateSavedConfig(config)
-    setLocalConfig(migratedConfig)
-    setTemperatureInput(String(migratedConfig.temperature))
-    setRepoInput(formatRepositoryInput(migratedConfig.owner, migratedConfig.repo))
-    setStorageMessage(null)
+    const migratedConfig = migrateSavedConfig(config);
+    setLocalConfig(migratedConfig);
+    setTemperatureInput(String(migratedConfig.temperature));
+    setRepoInput(formatRepositoryInput(migratedConfig.owner, migratedConfig.repo));
+    setStorageMessage(null);
     if (!inline) {
-      setShowConfig(false)
+      setShowConfig(false);
     }
-  }
+  };
 
   const handleLoadFromStorage = () => {
-    const saved = localStorage.getItem('chat-github-config')
+    const saved = localStorage.getItem('chat-github-config');
     if (saved) {
       try {
         const parsedConfig = migrateSavedConfig({
           ...localConfig,
           ...JSON.parse(saved),
-        })
-        setLocalConfig(parsedConfig)
-        setTemperatureInput(String(parsedConfig.temperature))
-        setRepoInput(formatRepositoryInput(parsedConfig.owner, parsedConfig.repo))
-        setRememberCredentials(true)
-        setStorageMessage({ tone: 'success', text: 'Loaded saved configuration from local storage.' })
+        });
+        setLocalConfig(parsedConfig);
+        setTemperatureInput(String(parsedConfig.temperature));
+        setRepoInput(formatRepositoryInput(parsedConfig.owner, parsedConfig.repo));
+        setRememberCredentials(true);
+        setStorageMessage({ tone: 'success', text: 'Loaded saved configuration from local storage.' });
       } catch {
-        setStorageMessage({ tone: 'error', text: 'Failed to load the saved configuration.' })
+        setStorageMessage({ tone: 'error', text: 'Failed to load the saved configuration.' });
       }
     } else {
-      setStorageMessage({ tone: 'error', text: 'No saved configuration found in local storage.' })
+      setStorageMessage({ tone: 'error', text: 'No saved configuration found in local storage.' });
     }
-  }
+  };
 
   const handleClearStorage = () => {
-    localStorage.removeItem('chat-github-config')
-    setRememberCredentials(false)
-    setStorageMessage({ tone: 'success', text: 'Cleared the saved configuration from local storage.' })
-  }
+    localStorage.removeItem('chat-github-config');
+    setRememberCredentials(false);
+    setStorageMessage({ tone: 'success', text: 'Cleared the saved configuration from local storage.' });
+  };
 
-  const availableModels = selectedProvider?.models ?? []
+  const availableModels = selectedProvider?.models ?? [];
 
-  if (!inline && !showConfig) return null
+  if (!inline && !showConfig) return null;
 
   const formBody = (
     <div className="config-content">
@@ -271,7 +283,9 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
               style={{ flex: 1 }}
             >
               {localConfig.providers.map((provider) => (
-                <option key={provider.id} value={provider.id}>{provider.name}</option>
+                <option key={provider.id} value={provider.id}>
+                  {provider.name}
+                </option>
               ))}
             </select>
             <button type="button" onClick={handleAddProvider} className="config-action-btn">
@@ -279,8 +293,8 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             </button>
           </div>
           <small>
-            Built-in providers include native adapters plus preset gateway endpoints like OpenCode Zen and
-            Kilo Gateway. Custom providers use OpenAI-compatible
+            Built-in providers include native adapters plus preset gateway endpoints like OpenCode Zen and Kilo Gateway.
+            Custom providers use OpenAI-compatible
             <code style={{ marginLeft: 4 }}>/chat/completions</code>
             endpoints, similar to OpenCode custom providers.
           </small>
@@ -295,10 +309,12 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                   <input
                     type="text"
                     value={selectedProvider.name}
-                    onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
-                      ...provider,
-                      name: e.target.value,
-                    }))}
+                    onChange={(e) =>
+                      updateProvider(selectedProvider.id, (provider) => ({
+                        ...provider,
+                        name: e.target.value,
+                      }))
+                    }
                     placeholder="My AI Provider"
                   />
                 </div>
@@ -309,15 +325,15 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                     type="text"
                     value={selectedProvider.id}
                     onChange={(e) => {
-                      const nextId = e.target.value.trim()
+                      const nextId = e.target.value.trim();
                       if (!nextId || otherProviderIds.has(nextId)) {
-                        return
+                        return;
                       }
 
                       const providers = localConfig.providers.map((provider) =>
                         provider.id === selectedProvider.id ? { ...provider, id: nextId } : provider
-                      )
-                      setProviders(providers, nextId)
+                      );
+                      setProviders(providers, nextId);
                     }}
                     placeholder="myprovider"
                   />
@@ -331,11 +347,15 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
               <input
                 type="text"
                 value={selectedProvider.baseUrl}
-                onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
-                  ...provider,
-                  baseUrl: e.target.value,
-                }))}
-                placeholder={selectedProvider.builtin ? 'https://proxy.example.com/v1' : 'https://api.myprovider.com/v1'}
+                onChange={(e) =>
+                  updateProvider(selectedProvider.id, (provider) => ({
+                    ...provider,
+                    baseUrl: e.target.value,
+                  }))
+                }
+                placeholder={
+                  selectedProvider.builtin ? 'https://proxy.example.com/v1' : 'https://api.myprovider.com/v1'
+                }
               />
               <small>
                 {selectedProvider.builtin
@@ -349,10 +369,12 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
               <input
                 type={showTokens ? 'text' : 'password'}
                 value={selectedProvider.apiKey}
-                onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
-                  ...provider,
-                  apiKey: e.target.value,
-                }))}
+                onChange={(e) =>
+                  updateProvider(selectedProvider.id, (provider) => ({
+                    ...provider,
+                    apiKey: e.target.value,
+                  }))
+                }
                 placeholder={selectedProvider.builtin ? 'Provider API key' : 'Optional for local/open endpoints'}
               />
             </div>
@@ -364,7 +386,9 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                 onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
               >
                 {availableModels.map((model) => (
-                  <option key={model.id} value={model.id}>{model.name}</option>
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -374,39 +398,51 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                 <label>Custom Models</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {selectedProvider.models.map((model, index) => (
-                    <div key={model.uid ?? `${selectedProvider.id}-${model.id}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div
+                      key={model.uid ?? `${selectedProvider.id}-${model.id}`}
+                      style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+                    >
                       <input
                         type="text"
                         value={model.id}
-                        onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
-                          ...provider,
-                          models: provider.models.map((entry, entryIndex) =>
-                            entryIndex === index ? { ...entry, id: e.target.value } : entry
-                          ),
-                        }))}
+                        onChange={(e) =>
+                          updateProvider(selectedProvider.id, (provider) => ({
+                            ...provider,
+                            models: provider.models.map((entry, entryIndex) =>
+                              entryIndex === index ? { ...entry, id: e.target.value } : entry
+                            ),
+                          }))
+                        }
                         placeholder="model-id"
                       />
                       <input
                         type="text"
                         value={model.name}
-                        onChange={(e) => updateProvider(selectedProvider.id, (provider) => ({
-                          ...provider,
-                          models: provider.models.map((entry, entryIndex) =>
-                            entryIndex === index ? { ...entry, name: e.target.value } : entry
-                          ),
-                        }))}
+                        onChange={(e) =>
+                          updateProvider(selectedProvider.id, (provider) => ({
+                            ...provider,
+                            models: provider.models.map((entry, entryIndex) =>
+                              entryIndex === index ? { ...entry, name: e.target.value } : entry
+                            ),
+                          }))
+                        }
                         placeholder="Display name"
                       />
                       <button
                         type="button"
                         className="config-action-btn danger"
-                        onClick={() => updateProvider(selectedProvider.id, (provider) => {
-                          const models = provider.models.filter((_, entryIndex) => entryIndex !== index)
-                          return {
-                            ...provider,
-                            models: models.length > 0 ? models : [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
-                          }
-                        })}
+                        onClick={() =>
+                          updateProvider(selectedProvider.id, (provider) => {
+                            const models = provider.models.filter((_, entryIndex) => entryIndex !== index);
+                            return {
+                              ...provider,
+                              models:
+                                models.length > 0
+                                  ? models
+                                  : [{ id: 'gpt-4o-mini', name: 'Default Model', uid: crypto.randomUUID() }],
+                            };
+                          })
+                        }
                       >
                         Remove
                       </button>
@@ -416,25 +452,23 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
                     <button
                       type="button"
                       className="config-action-btn"
-                      onClick={() => updateProvider(selectedProvider.id, (provider) => ({
-                        ...provider,
-                        models: [
-                          ...provider.models,
-                          {
-                            id: `model-${provider.models.length + 1}`,
-                            name: `Model ${provider.models.length + 1}`,
-                            uid: crypto.randomUUID(),
-                          },
-                        ],
-                      }))}
+                      onClick={() =>
+                        updateProvider(selectedProvider.id, (provider) => ({
+                          ...provider,
+                          models: [
+                            ...provider.models,
+                            {
+                              id: `model-${provider.models.length + 1}`,
+                              name: `Model ${provider.models.length + 1}`,
+                              uid: crypto.randomUUID(),
+                            },
+                          ],
+                        }))
+                      }
                     >
                       Add Model
                     </button>
-                    <button
-                      type="button"
-                      className="config-action-btn danger"
-                      onClick={handleRemoveProvider}
-                    >
+                    <button type="button" className="config-action-btn danger" onClick={handleRemoveProvider}>
                       Remove Provider
                     </button>
                   </div>
@@ -453,17 +487,17 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             step="0.1"
             value={temperatureInput}
             onChange={(e) => {
-              const nextValue = e.target.value
-              setTemperatureInput(nextValue)
+              const nextValue = e.target.value;
+              setTemperatureInput(nextValue);
               if (nextValue.trim() === '') {
-                return
+                return;
               }
-              const nextTemperature = Number.parseFloat(nextValue)
+              const nextTemperature = Number.parseFloat(nextValue);
               if (!Number.isNaN(nextTemperature)) {
                 setLocalConfig({
                   ...localConfig,
                   temperature: nextTemperature,
-                })
+                });
               }
             }}
           />
@@ -498,11 +532,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
         </div>
         <div className="config-field">
           <label>
-            <input
-              type="checkbox"
-              checked={showTokens}
-              onChange={(e) => setShowTokens(e.target.checked)}
-            />
+            <input type="checkbox" checked={showTokens} onChange={(e) => setShowTokens(e.target.checked)} />
             Show tokens in plain text
           </label>
         </div>
@@ -515,11 +545,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             Clear Storage
           </button>
         </div>
-        {storageMessage && (
-          <div className={`config-status ${storageMessage.tone}`}>
-            {storageMessage.text}
-          </div>
-        )}
+        {storageMessage && <div className={`config-status ${storageMessage.tone}`}>{storageMessage.text}</div>}
       </div>
 
       <div className="config-help">
@@ -532,7 +558,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
         </ul>
       </div>
     </div>
-  )
+  );
 
   if (inline) {
     return (
@@ -542,9 +568,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
           {showSavedMessage && <span className="settings-saved-badge">OK Saved</span>}
         </div>
 
-        <div className="settings-view-body">
-          {formBody}
-        </div>
+        <div className="settings-view-body">{formBody}</div>
 
         <div className="settings-view-footer">
           <button onClick={handleSave} className="config-btn primary">
@@ -552,7 +576,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -560,7 +584,9 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
       <div className="config-modal">
         <div className="config-header">
           <h2>Configuration</h2>
-          <button onClick={handleCancel} className="config-close">×</button>
+          <button onClick={handleCancel} className="config-close">
+            ×
+          </button>
         </div>
 
         {formBody}
@@ -575,5 +601,5 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
         </div>
       </div>
     </div>
-  )
-}
+  );
+};

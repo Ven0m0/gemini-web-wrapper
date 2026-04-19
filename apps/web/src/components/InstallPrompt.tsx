@@ -1,59 +1,59 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[]
+  readonly platforms: string[];
   readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed'
-    platform: string
-  }>
-  prompt(): Promise<void>
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
 }
 
 export const InstallPrompt: React.FC = () => {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
-  const [showPrompt, setShowPrompt] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
     // Detect if app is already installed
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-    setIsInstalled(isStandalone)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    setIsInstalled(isStandalone);
 
     // Listen for beforeinstallprompt event (Chrome, Edge, Android)
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e as BeforeInstallPromptEvent)
-      setShowPrompt(true)
-    }
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+      setShowPrompt(true);
+    };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    }
-  }, [])
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   const handleInstallClick = async () => {
     if (installPrompt) {
-      installPrompt.prompt()
-      const { outcome } = await installPrompt.userChoice
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
 
       if (outcome === 'accepted') {
-        setInstallPrompt(null)
-        setShowPrompt(false)
+        setInstallPrompt(null);
+        setShowPrompt(false);
       }
     }
-  }
+  };
 
   const handleDismiss = () => {
-    setShowPrompt(false)
+    setShowPrompt(false);
     // Don't show again for this session
-    sessionStorage.setItem('installPromptDismissed', 'true')
-  }
+    sessionStorage.setItem('installPromptDismissed', 'true');
+  };
 
   // Don't show if already installed or dismissed
   if (isInstalled || !showPrompt || sessionStorage.getItem('installPromptDismissed')) {
-    return null
+    return null;
   }
 
   return (
@@ -175,5 +175,5 @@ export const InstallPrompt: React.FC = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
