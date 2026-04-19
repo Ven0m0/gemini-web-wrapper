@@ -42,7 +42,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   companyName = 'AI Assistant',
   companyLogo,
   agentName = 'AI Assistant',
-  agentAvatar = '🤖',
+  agentAvatar = 'Bot',
   welcomeMessage = "Hi! I'm here to help. What can I do for you today?",
   theme = 'auto',
   primaryColor = '#007acc',

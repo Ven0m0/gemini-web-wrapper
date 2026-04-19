@@ -8,7 +8,7 @@ import { EditorView } from '@codemirror/view'
 import { imagePreview } from '../codemirror/imagePreview'
 import { imagePasteDrop } from '../codemirror/imagePasteDrop'
 import { useStore } from '../store'
-import { DiffService } from '../services/diff'
+import { hasChanges, formatDiffText } from '../services/diff'
 import { GitHubService } from '../services/github'
 
 type DiffMode = 'original' | 'modified' | 'diff'
@@ -75,10 +75,10 @@ export const Editor: React.FC = () => {
       case 'modified':
         return file.current
       case 'diff':
-        if (!DiffService.hasChanges(file.original, file.current)) {
+        if (!hasChanges(file.original, file.current)) {
           return 'No changes to display'
         }
-        return DiffService.formatDiffText(file.original, file.current)
+        return formatDiffText(file.original, file.current)
       default:
         return file.current
     }
@@ -174,7 +174,7 @@ export const Editor: React.FC = () => {
             className="theme-btn"
             title="Toggle theme"
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? 'Sun' : 'Moon'}
           </button>
           <button
             onClick={() => setMode('shell')}
@@ -217,7 +217,7 @@ export const Editor: React.FC = () => {
         />
       </div>
 
-      {diffMode === 'diff' && DiffService.hasChanges(file.original, file.current) && (
+      {diffMode === 'diff' && hasChanges(file.original, file.current) && (
         <div className="diff-legend">
           <div className="diff-legend-item">
             <span className="diff-added">+</span> Added lines

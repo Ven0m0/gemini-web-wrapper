@@ -14,7 +14,6 @@ function isSafeSrc(src: string): boolean {
   if (['javascript:', 'vbscript:', 'data:'].some(scheme => lower.startsWith(scheme))) return false
   // Allow standard http(s) URLs
   if (['http://', 'https://'].some(scheme => lower.startsWith(scheme))) return true
-  // relative or root-relative (no explicit scheme)
   return trimmed.startsWith('/') || !trimmed.includes('://')
 }
 

@@ -60,7 +60,7 @@ export const InstallPrompt: React.FC = () => {
     <div className="install-prompt">
       <div className="install-banner">
         <div className="install-content">
-          <div className="install-icon">📱</div>
+          <div className="install-icon">[mobile]</div>
           <div className="install-text">
             <h4>Install GitHub Editor</h4>
             <p>Install this app for a better experience</p>
@@ -73,7 +73,7 @@ export const InstallPrompt: React.FC = () => {
             </button>
           )}
           <button onClick={handleDismiss} className="dismiss-btn">
-            ✕
+            X
           </button>
         </div>
       </div>

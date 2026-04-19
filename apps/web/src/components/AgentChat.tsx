@@ -130,7 +130,7 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
             <div className={`max-w-[80%] rounded-lg p-3 ${msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-100 dark:bg-gray-800"}`}>
               {msg.thinking && (
                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 italic">
-                  💭 {msg.thinking}
+                  Thinking {msg.thinking}
                 </div>
               )}
               <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -138,8 +138,8 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
                 <div className="mt-2 space-y-2">
                   {msg.toolCalls.map((tc) => (
                     <div key={tc.id} className="text-xs bg-gray-200 dark:bg-gray-700 rounded p-2">
-                      <div className="font-mono">🔧 {tc.name}</div>
-                      {tc.result && <div className="mt-1 text-green-600 dark:text-green-400">✓ {tc.result.slice(0, 100)}{tc.result.length > 100 ? "..." : ""}</div>}
+                      <div className="font-mono">Tool {tc.name}</div>
+                      {tc.result && <div className="mt-1 text-green-600 dark:text-green-400">OK {tc.result.slice(0, 100)}{tc.result.length > 100 ? "..." : ""}</div>}
                     </div>
                   ))}
                 </div>
@@ -151,7 +151,7 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
           <div className="flex justify-start">
             <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800">
               <div className="text-xs text-gray-500 dark:text-gray-400 italic animate-pulse">
-                💭 {currentThinking}
+                Thinking {currentThinking}
               </div>
             </div>
           </div>

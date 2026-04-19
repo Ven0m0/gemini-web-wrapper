@@ -2,13 +2,8 @@ import { exists, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import os from "node:os";
 import type { AgentMiddleware } from "../agent-middleware";
+import type { SkillFrontmatter } from "../index";
 import { readSkillFrontMatter } from "./skill-reader";
-
-export interface SkillFrontmatter {
-  path: string;
-  name?: string;
-  [key: string]: unknown;
-}
 
 export function createSkillsMiddleware(skillsDirs: string[] = [join(process.cwd(), ".agents/skills")]): AgentMiddleware {
   return {

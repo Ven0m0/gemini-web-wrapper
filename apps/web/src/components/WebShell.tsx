@@ -168,7 +168,7 @@ export const WebShell: React.FC = () => {
   return (
     <div className="tool-container" style={{height: '100vh', display: 'flex', flexDirection: 'column'}}>
       <div className="tool-header">
-        <h2>🧪 Wasmer Web Shell</h2>
+        <h2>Test Wasmer Web Shell</h2>
         <div className="tool-mode-switch">
           <button onClick={() => window.open('https://webassembly.sh/', '_blank', 'noopener,noreferrer')}>Open in New Tab</button>
           <button onClick={handleCopy}>Copy Commands</button>

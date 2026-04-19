@@ -16,7 +16,7 @@ export const ChatDemo: React.FC = () => {
   const [autoOpen, setAutoOpen] = useState(false)
   const [customGreeting, setCustomGreeting] = useState("Hello! How can I help you today?")
   const [agentName, setAgentName] = useState("AI Assistant")
-  const [agentAvatar, setAgentAvatar] = useState("🤖")
+  const [agentAvatar, setAgentAvatar] = useState("AI")
   const companyName = "Demo Company"
 
   const currentTheme = ChatDesignSystem.themes[selectedTheme as keyof typeof ChatDesignSystem.themes]
@@ -121,7 +121,7 @@ export const ChatDemo: React.FC = () => {
                   value={agentAvatar}
                   onChange={(e) => setAgentAvatar(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="🤖 or URL"
+                  placeholder="AI or URL"
                 />
               </div>
 
@@ -220,7 +220,7 @@ export const ChatDemo: React.FC = () => {
 
             <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                💡 The chat widget will appear in the {selectedPosition} corner of this page.
+                The chat widget will appear in the {selectedPosition} corner of this page.
                 Click the button below to test it!
               </p>
             </div>

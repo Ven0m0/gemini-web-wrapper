@@ -42,7 +42,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   allowAttachments = true,
   customGreeting = "Hello! How can I help you today?",
   agentName = "AI Assistant",
-  agentAvatar = "🤖",
+  agentAvatar = "Bot",
   companyLogo,
   primaryColor = "#007acc",
   backgroundColor,
@@ -190,7 +190,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       const fileMessage: ChatMessage = {
         id: `file-${Date.now()}`,
         role: 'user',
-        content: `📎 Uploaded file: ${file.name}`,
+        content: `Clip Uploaded file: ${file.name}`,
         timestamp: Date.now(),
         attachments: [content]
       }
@@ -365,7 +365,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                         <div className="mt-2 space-y-1">
                           {message.attachments.map((attachment, index) => (
                             <div key={index} className="text-xs opacity-75">
-                              📎 Attachment {index + 1}
+                              Clip Attachment {index + 1}
                             </div>
                           ))}
                         </div>

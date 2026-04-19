@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import shutil
 import sqlite3
 from collections.abc import Callable, Iterable
@@ -120,6 +121,8 @@ AST_GREP_PATTERNS: dict[str, list[tuple[str, str, str]]] = {
         ("trait", "trait $NAME { $$$BODY }", "NAME"),
     ],
 }
+
+logger = logging.getLogger(__name__)
 
 
 class CursorLike(Protocol):
@@ -513,6 +516,7 @@ class RepositoryIndexService:
             root = SgRoot(content, language)
             node = root.root()
         except Exception:
+            logger.warning("Failed to parse content with ast_grep", exc_info=True)
             return []
 
         symbols: list[IndexedSymbol] = []
@@ -520,6 +524,7 @@ class RepositoryIndexService:
             try:
                 matches = node.find_all(pattern=pattern)
             except Exception:
+                logger.warning("Failed to find ast_grep pattern matches", exc_info=True)
                 continue
             for match in matches:
                 name_node = match.get_match(capture)

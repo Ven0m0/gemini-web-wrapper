@@ -142,7 +142,7 @@ export const PwaDiagnostics: React.FC = () => {
           <div className="pwa-diag-body">
             <div><b>URL:</b> {location.href}</div>
             <div><b>Display Mode:</b> {displayMode}</div>
-            <div><b>Manifest:</b> {manifest.href || 'N/A'} {manifest.ok ? '✅' : '❌'} {manifest.status ? `(status ${manifest.status})` : ''}</div>
+            <div><b>Manifest:</b> {manifest.href || 'N/A'} {manifest.ok ? 'OK' : 'X'} {manifest.status ? `(status ${manifest.status})` : ''}</div>
             {manifest.textSnippet && (
               <pre className="pwa-diag-pre">{manifest.textSnippet}</pre>
             )}

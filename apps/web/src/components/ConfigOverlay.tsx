@@ -539,7 +539,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
       <div className="settings-view">
         <div className="settings-view-header">
           <h2 className="settings-view-title">Settings</h2>
-          {showSavedMessage && <span className="settings-saved-badge">✓ Saved</span>}
+          {showSavedMessage && <span className="settings-saved-badge">OK Saved</span>}
         </div>
 
         <div className="settings-view-body">

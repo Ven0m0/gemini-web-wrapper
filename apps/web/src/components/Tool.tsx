@@ -814,7 +814,7 @@ export const Tool: React.FC = () => {
                 void handleLoadFile(item.path)
               }}
             >
-              <span className="tree-node-icon" aria-hidden="true">{isDirectory ? '📁' : '📄'}</span>
+              <span className="tree-node-icon" aria-hidden="true">{isDirectory ? 'Dir' : 'File'}</span>
               <span className="tree-node-name">{item.name}</span>
               {isDirectory && isLoading && <span className="tree-node-meta">…</span>}
             </button>

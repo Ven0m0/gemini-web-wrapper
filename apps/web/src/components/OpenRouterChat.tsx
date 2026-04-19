@@ -99,7 +99,7 @@ function AssistantBubble({ message }: { message: Message }) {
             {JSON.stringify(message.healedData, null, 2)}
           </pre>
           <span style={{ fontSize: 11, color: 'var(--color-success)', fontFamily: 'var(--font-family-mono)' }}>
-            ✓ JSON healed
+            OK JSON healed
           </span>
         </div>
       )
@@ -749,7 +749,7 @@ export const OpenRouterChat: React.FC = () => {
           letterSpacing: '0.02em',
         }}>
           <span style={{ color: enableJSONHealing ? 'var(--color-success)' : 'transparent' }}>
-            ⚡ json healing active
+            Power json healing active
           </span>
           <span>
             <kbd style={{ padding: '1px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 0, fontSize: 9 }}>Enter</kbd>

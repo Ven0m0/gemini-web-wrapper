@@ -164,7 +164,6 @@ function App() {
       try {
         setConfig(migrateSavedConfig(JSON.parse(savedConfig)));
       } catch {
-        // silently ignore invalid config JSON in localStorage
       }
     }
     setShell(readSavedShellState());

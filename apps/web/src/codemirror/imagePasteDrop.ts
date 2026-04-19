@@ -30,7 +30,6 @@ async function insertImages(view: EditorView, files: File[], pos?: number, onRes
       dataUrls.push(url)
       parts.push(`![${alt}](${url})`)
     } catch (e) {
-      // skip errored files
     }
   }
   if (!parts.length) return false
@@ -72,7 +71,6 @@ async function insertImages(view: EditorView, files: File[], pos?: number, onRes
         }
       }
     } catch {
-      // silently ignore upload failures; data URLs remain
     }
   }
   return true
