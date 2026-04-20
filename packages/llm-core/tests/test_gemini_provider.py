@@ -1,12 +1,17 @@
 from affine.llm_core.providers.gemini import GeminiProvider
 
+
 def test_extract_text_happy_path():
-    data = {"candidates": [{"content": {"parts": [{"text": "hello "}, {"text": "world"}]}}]}
+    data = {
+        "candidates": [{"content": {"parts": [{"text": "hello "}, {"text": "world"}]}}]
+    }
     assert GeminiProvider._extract_text(data) == "hello world"
+
 
 def test_extract_text_missing_candidates():
     data = {}
     assert GeminiProvider._extract_text(data) == ""
+
 
 def test_extract_text_empty_candidates():
     data = {"candidates": []}
