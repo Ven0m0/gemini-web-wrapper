@@ -62,10 +62,15 @@ class ASTParser:
 
     def _init_languages(self) -> None:
         """Initialize language configurations."""
+        self._init_python()
+        self._init_rust()
+        self._init_bash()
+        self._init_typescript()
+        self._init_javascript()
+
+    def _init_python(self) -> None:
         try:
             import tree_sitter_python as tspython
-            import tree_sitter_rust as tsrust
-            import tree_sitter_bash as tsbash
 
             self._configs["python"] = LanguageConfig(
                 name="python",
@@ -83,6 +88,12 @@ class ASTParser:
                     ("async_function", "async def $NAME($$$ARGS): $$$BODY", "NAME"),
                 ],
             )
+        except ImportError:
+            pass
+
+    def _init_rust(self) -> None:
+        try:
+            import tree_sitter_rust as tsrust
 
             self._configs["rust"] = LanguageConfig(
                 name="rust",
@@ -107,6 +118,12 @@ class ASTParser:
                     ("module", "mod $NAME { $$$BODY }", "NAME"),
                 ],
             )
+        except ImportError:
+            pass
+
+    def _init_bash(self) -> None:
+        try:
+            import tree_sitter_bash as tsbash
 
             self._configs["bash"] = LanguageConfig(
                 name="bash",
@@ -120,15 +137,12 @@ class ASTParser:
                     ("function", "$NAME() { $$$BODY }", "NAME"),
                 ],
             )
-
         except ImportError:
-            # Languages will be unavailable
             pass
 
-        # TypeScript/JavaScript - optional
+    def _init_typescript(self) -> None:
         try:
             import tree_sitter_typescript as tsts
-            import tree_sitter_javascript as tsjs
 
             self._configs["typescript"] = LanguageConfig(
                 name="typescript",
@@ -150,6 +164,12 @@ class ASTParser:
                     ("method", "$NAME($$$ARGS) { $$$BODY }", "NAME"),
                 ],
             )
+        except ImportError:
+            pass
+
+    def _init_javascript(self) -> None:
+        try:
+            import tree_sitter_javascript as tsjs
 
             self._configs["javascript"] = LanguageConfig(
                 name="javascript",
