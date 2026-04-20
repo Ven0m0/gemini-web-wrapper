@@ -7,6 +7,7 @@ import {
   migrateSavedConfig,
   type ProviderConfig,
 } from '../services/providers';
+import { clearStorage, hasSavedConfig, loadConfig, saveConfig } from '../services/storage';
 import { useStore } from '../store';
 
 interface ConfigOverlayProps {
@@ -50,9 +51,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature));
   const [repoInput, setRepoInput] = useState(() => formatRepositoryInput(config.owner, config.repo));
   const [showTokens, setShowTokens] = useState(false);
-  const [rememberCredentials, setRememberCredentials] = useState(() =>
-    Boolean(localStorage.getItem('chat-github-config'))
-  );
+  const [rememberCredentials, setRememberCredentials] = useState(() => hasSavedConfig());
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [storageMessage, setStorageMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
@@ -144,24 +143,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     });
     setConfig(normalized);
 
-    if (rememberCredentials) {
-      localStorage.setItem(
-        'chat-github-config',
-        JSON.stringify({
-          githubToken: normalized.githubToken,
-          openaiKey: normalized.openaiKey,
-          providers: normalized.providers,
-          provider: normalized.provider,
-          owner: normalized.owner,
-          repo: normalized.repo,
-          branch: normalized.branch,
-          model: normalized.model,
-          temperature: normalized.temperature,
-        })
-      );
-    } else {
-      localStorage.removeItem('chat-github-config');
-    }
+    saveConfig(normalized, rememberCredentials);
 
     setStorageMessage({
       tone: 'success',
@@ -191,30 +173,26 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   };
 
   const handleLoadFromStorage = () => {
-    const saved = localStorage.getItem('chat-github-config');
-    if (saved) {
+    if (hasSavedConfig()) {
       try {
-        const parsedConfig = migrateSavedConfig({
-          ...localConfig,
-          ...JSON.parse(saved),
-        });
-        setLocalConfig(parsedConfig);
-        setTemperatureInput(String(parsedConfig.temperature));
-        setRepoInput(formatRepositoryInput(parsedConfig.owner, parsedConfig.repo));
+        const loaded = loadConfig(localConfig);
+        setLocalConfig(loaded);
+        setTemperatureInput(String(loaded.temperature));
+        setRepoInput(formatRepositoryInput(loaded.owner, loaded.repo));
         setRememberCredentials(true);
-        setStorageMessage({ tone: 'success', text: 'Loaded saved configuration from local storage.' });
+        setStorageMessage({ tone: 'success', text: 'Loaded saved configuration from storage.' });
       } catch {
         setStorageMessage({ tone: 'error', text: 'Failed to load the saved configuration.' });
       }
     } else {
-      setStorageMessage({ tone: 'error', text: 'No saved configuration found in local storage.' });
+      setStorageMessage({ tone: 'error', text: 'No saved configuration found.' });
     }
   };
 
   const handleClearStorage = () => {
-    localStorage.removeItem('chat-github-config');
+    clearStorage();
     setRememberCredentials(false);
-    setStorageMessage({ tone: 'success', text: 'Cleared the saved configuration from local storage.' });
+    setStorageMessage({ tone: 'success', text: 'Cleared the saved configuration.' });
   };
 
   const availableModels = selectedProvider?.models ?? [];

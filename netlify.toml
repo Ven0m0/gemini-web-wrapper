@@ -1,15 +1,3 @@
 [build]
-  command = "cd apps/web && npm install -g bun && bun install && bun run build"
+  command = "bun install && bun run build"
   publish = "apps/web/dist"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
