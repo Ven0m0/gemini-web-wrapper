@@ -1,4 +1,4 @@
-import { ProviderConfig } from './providers';
+import type { ProviderConfig } from './providers';
 
 export interface StorageConfig {
   githubToken?: string;
