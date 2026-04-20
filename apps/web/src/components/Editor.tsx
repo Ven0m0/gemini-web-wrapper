@@ -110,7 +110,6 @@ export const Editor: React.FC = () => {
 
       const urls: string[] = [];
       for (const file of files) {
-        const _ext = (file.name.split('.').pop() || '').toLowerCase();
         const name = sanitize(file.name.replace(/\s+/g, '_'));
         const path = `${basePath}/${timestamp}-${name}`;
         const base64 = await toBase64(file);
