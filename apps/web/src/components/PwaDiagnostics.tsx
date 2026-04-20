@@ -1,107 +1,109 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react';
 
 type SwInfo = {
-  supported: boolean
-  scope?: string
-  controller?: boolean
-  state?: string
-  error?: string
-}
+  supported: boolean;
+  scope?: string;
+  controller?: boolean;
+  state?: string;
+  error?: string;
+};
 
 type ManifestInfo = {
-  href?: string
-  ok: boolean
-  status?: number
-  textSnippet?: string
-}
+  href?: string;
+  ok: boolean;
+  status?: number;
+  textSnippet?: string;
+};
 
 type CacheInfo = {
-  names: string[]
-}
+  names: string[];
+};
 
 export const PwaDiagnostics: React.FC = () => {
-  const [open, setOpen] = useState(false)
-  const [displayMode, setDisplayMode] = useState<'standalone' | 'browser'>('browser')
-  const [manifest, setManifest] = useState<ManifestInfo>({ ok: false })
-  const [sw, setSw] = useState<SwInfo>({ supported: 'serviceWorker' in navigator })
-  const [cachesInfo, setCachesInfo] = useState<CacheInfo>({ names: [] })
-  const [checking, setChecking] = useState(false)
+  const [open, setOpen] = useState(false);
+  const [displayMode, setDisplayMode] = useState<'standalone' | 'browser'>('browser');
+  const [manifest, setManifest] = useState<ManifestInfo>({ ok: false });
+  const [sw, setSw] = useState<SwInfo>({ supported: 'serviceWorker' in navigator });
+  const [cachesInfo, setCachesInfo] = useState<CacheInfo>({ names: [] });
+  const [checking, setChecking] = useState(false);
 
   const manifestUrl = useMemo(() => {
-    const link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null
-    return link?.href
-  }, [])
+    const link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+    return link?.href;
+  }, []);
 
   const refresh = async () => {
-    setChecking(true)
+    setChecking(true);
     try {
       // Display-mode
-      const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (navigator as any).standalone === true
-      setDisplayMode(standalone ? 'standalone' : 'browser')
+      const standalone =
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+        (navigator as any).standalone === true;
+      setDisplayMode(standalone ? 'standalone' : 'browser');
 
       // Manifest
-      let m: ManifestInfo = { ok: false }
+      let m: ManifestInfo = { ok: false };
       if (manifestUrl) {
         try {
-          const res = await fetch(manifestUrl, { cache: 'no-store' })
-          const text = await res.text()
+          const res = await fetch(manifestUrl, { cache: 'no-store' });
+          const text = await res.text();
           m = {
             href: manifestUrl,
             ok: res.ok,
             status: res.status,
-            textSnippet: text.slice(0, 200)
-          }
-        } catch (e) {
-          m = { href: manifestUrl, ok: false }
+            textSnippet: text.slice(0, 200),
+          };
+        } catch (_e) {
+          m = { href: manifestUrl, ok: false };
         }
       }
-      setManifest(m)
+      setManifest(m);
 
       // SW
-      const swInfo: SwInfo = { supported: 'serviceWorker' in navigator }
+      const swInfo: SwInfo = { supported: 'serviceWorker' in navigator };
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.getRegistration()
+          const reg = await navigator.serviceWorker.getRegistration();
           if (reg) {
-            swInfo.scope = reg.scope
-            swInfo.controller = !!navigator.serviceWorker.controller
-            swInfo.state = reg.installing?.state || reg.waiting?.state || reg.active?.state || 'active'
+            swInfo.scope = reg.scope;
+            swInfo.controller = !!navigator.serviceWorker.controller;
+            swInfo.state = reg.installing?.state || reg.waiting?.state || reg.active?.state || 'active';
           } else {
             // still wait for ready in case it's pending
             try {
-              const ready = await navigator.serviceWorker.ready
-              swInfo.scope = ready.scope
-              swInfo.controller = !!navigator.serviceWorker.controller
-              swInfo.state = 'active'
+              const ready = await navigator.serviceWorker.ready;
+              swInfo.scope = ready.scope;
+              swInfo.controller = !!navigator.serviceWorker.controller;
+              swInfo.state = 'active';
             } catch (e) {
-              swInfo.error = String(e)
+              swInfo.error = String(e);
             }
           }
         } catch (e) {
-          swInfo.error = String(e)
+          swInfo.error = String(e);
         }
       }
-      setSw(swInfo)
+      setSw(swInfo);
 
       // Caches
       try {
         // @ts-ignore
         if (window.caches && caches?.keys) {
-          const names = await caches.keys()
-          setCachesInfo({ names })
+          const names = await caches.keys();
+          setCachesInfo({ names });
         }
       } catch {
-        setCachesInfo({ names: [] })
+        setCachesInfo({ names: [] });
       }
     } finally {
-      setChecking(false)
+      setChecking(false);
     }
-  }
+  };
 
   useEffect(() => {
-    refresh()
+    refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   const copy = async () => {
     const payload = {
@@ -109,22 +111,22 @@ export const PwaDiagnostics: React.FC = () => {
       displayMode,
       manifest,
       sw,
-      caches: cachesInfo
-    }
+      caches: cachesInfo,
+    };
     try {
-      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
-      alert('PWA diagnostics copied to clipboard')
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      alert('PWA diagnostics copied to clipboard');
     } catch {
-      alert('Copy failed')
+      alert('Copy failed');
     }
-  }
+  };
 
   return (
     <div className="pwa-diag-root">
       <button
         className="pwa-diag-fab"
         aria-label="PWA diagnostics"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         title="PWA diagnostics"
       >
         PWA
@@ -135,19 +137,36 @@ export const PwaDiagnostics: React.FC = () => {
           <div className="pwa-diag-header">
             <strong>PWA Diagnostics</strong>
             <div className="spacer" />
-            <button className="pwa-diag-btn" onClick={refresh} disabled={checking}>{checking ? '…' : 'Refresh'}</button>
-            <button className="pwa-diag-btn" onClick={copy}>Copy</button>
-            <button className="pwa-diag-btn" onClick={() => setOpen(false)}>Close</button>
+            <button className="pwa-diag-btn" onClick={refresh} disabled={checking}>
+              {checking ? '…' : 'Refresh'}
+            </button>
+            <button className="pwa-diag-btn" onClick={copy}>
+              Copy
+            </button>
+            <button className="pwa-diag-btn" onClick={() => setOpen(false)}>
+              Close
+            </button>
           </div>
           <div className="pwa-diag-body">
-            <div><b>URL:</b> {location.href}</div>
-            <div><b>Display Mode:</b> {displayMode}</div>
-            <div><b>Manifest:</b> {manifest.href || 'N/A'} {manifest.ok ? '✅' : '❌'} {manifest.status ? `(status ${manifest.status})` : ''}</div>
-            {manifest.textSnippet && (
-              <pre className="pwa-diag-pre">{manifest.textSnippet}</pre>
-            )}
-            <div><b>Service Worker:</b> {sw.supported ? 'supported' : 'not supported'} {sw.scope ? `scope=${sw.scope}` : ''} {sw.state ? `state=${sw.state}` : ''} {sw.controller ? '(controlled)' : ''} {sw.error ? `error=${sw.error}` : ''}</div>
-            <div><b>Caches:</b> {cachesInfo.names.length > 0 ? cachesInfo.names.join(', ') : '(none)'}</div>
+            <div>
+              <b>URL:</b> {location.href}
+            </div>
+            <div>
+              <b>Display Mode:</b> {displayMode}
+            </div>
+            <div>
+              <b>Manifest:</b> {manifest.href || 'N/A'} {manifest.ok ? 'OK' : 'X'}{' '}
+              {manifest.status ? `(status ${manifest.status})` : ''}
+            </div>
+            {manifest.textSnippet && <pre className="pwa-diag-pre">{manifest.textSnippet}</pre>}
+            <div>
+              <b>Service Worker:</b> {sw.supported ? 'supported' : 'not supported'}{' '}
+              {sw.scope ? `scope=${sw.scope}` : ''} {sw.state ? `state=${sw.state}` : ''}{' '}
+              {sw.controller ? '(controlled)' : ''} {sw.error ? `error=${sw.error}` : ''}
+            </div>
+            <div>
+              <b>Caches:</b> {cachesInfo.names.length > 0 ? cachesInfo.names.join(', ') : '(none)'}
+            </div>
           </div>
         </div>
       )}
@@ -165,5 +184,5 @@ export const PwaDiagnostics: React.FC = () => {
         @media (max-width: 480px){.pwa-diag-panel{left:8px;right:8px}}
       `}</style>
     </div>
-  )
-}
+  );
+};

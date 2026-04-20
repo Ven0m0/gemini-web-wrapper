@@ -1,78 +1,78 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useStore } from '../store'
+import React, { useEffect, useRef, useState } from 'react';
+import { useStore } from '../store';
 
 export const CLI: React.FC = () => {
-  const MAX_COMMAND_HISTORY = 100
-  const [history, setHistory] = useState<string[]>([])
-  const [input, setInput] = useState('')
+  const MAX_COMMAND_HISTORY = 100;
+  const [history, setHistory] = useState<string[]>([]);
+  const [input, setInput] = useState('');
   // Separate store for entered commands (distinct from display history)
-  const [cmdHistory, setCmdHistory] = useState<string[]>([])
-  const [cmdHistoryIndex, setCmdHistoryIndex] = useState(-1)
+  const [cmdHistory, setCmdHistory] = useState<string[]>([]);
+  const [cmdHistoryIndex, setCmdHistoryIndex] = useState(-1);
   // Preserve the in-progress draft when the user starts navigating history
-  const [inputDraft, setInputDraft] = useState('')
-  const terminalRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [inputDraft, setInputDraft] = useState('');
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const { setMode } = useStore()
+  const { setMode } = useStore();
 
   useEffect(() => {
-    terminalRef.current?.scrollTo(0, terminalRef.current.scrollHeight)
-  }, [history])
+    terminalRef.current?.scrollTo(0, terminalRef.current.scrollHeight);
+  }, [history]);
 
   useEffect(() => {
     // Welcome message
     if (history.length === 0) {
-      addHistory('Welcome to Gemini Web Wrapper')
-      addHistory('Type /help for available commands')
-      addHistory('')
+      addHistory('Welcome to Gemini Web Wrapper');
+      addHistory('Type /help for available commands');
+      addHistory('');
     }
-  }, [])
+  }, []);
 
   const addHistory = (line: string) => {
-    setHistory(prev => [...prev, line])
-  }
+    setHistory((prev) => [...prev, line]);
+  };
 
   const handleCommand = (cmd: string) => {
-    addHistory(`$ ${cmd}`)
+    addHistory(`$ ${cmd}`);
 
-    const trimmed = cmd.trim()
-    if (!trimmed) return
+    const trimmed = cmd.trim();
+    if (!trimmed) return;
 
-    const [command, ...args] = trimmed.split(/\s+/)
+    const [command, ...args] = trimmed.split(/\s+/);
 
     switch (command) {
       case '/help':
-        showHelp()
-        break
+        showHelp();
+        break;
 
       case '/clear':
-        setHistory([])
-        break
+        setHistory([]);
+        break;
 
       case '/editor':
-        setMode('editor')
-        break
+        setMode('editor');
+        break;
 
       case '/tool':
-        setMode('tool')
-        break
+        setMode('tool');
+        break;
 
       case '/config':
         // Open config overlay
-        addHistory('Opening configuration...')
-        break
+        addHistory('Opening configuration...');
+        break;
 
       case '/chat':
         if (args[0] === 'demo') {
-          setMode('chat-demo')
+          setMode('chat-demo');
         }
-        break
+        break;
 
       default:
-        addHistory(`Unknown command: ${command}`)
-        addHistory('Type /help for available commands')
+        addHistory(`Unknown command: ${command}`);
+        addHistory('Type /help for available commands');
     }
-  }
+  };
 
   const showHelp = () => {
     const commands = [
@@ -94,59 +94,59 @@ export const CLI: React.FC = () => {
       { cmd: '/model <id>', desc: 'Switch AI model' },
       { cmd: '/save', desc: 'Save current file locally' },
       { cmd: '/tokens', desc: 'Estimate token usage' },
-    ]
+    ];
 
-    addHistory('━━━ Available Commands ━━━')
-    addHistory('')
+    addHistory('━━━ Available Commands ━━━');
+    addHistory('');
     commands.forEach(({ cmd, desc }) => {
-      addHistory(`  ${cmd.padEnd(20)} ${desc}`)
-    })
-    addHistory('')
-    addHistory('━━━━━━━━━━━━━━━━━━━━━━━━━')
-  }
+      addHistory(`  ${cmd.padEnd(20)} ${desc}`);
+    });
+    addHistory('');
+    addHistory('━━━━━━━━━━━━━━━━━━━━━━━━━');
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault()
+      e.preventDefault();
       if (input.trim()) {
-        setCmdHistory(prev => {
-          const maxPreviousCommands = Math.min(prev.length, MAX_COMMAND_HISTORY - 1)
-          return [...prev.slice(-maxPreviousCommands), input.trim()]
-        })
-        handleCommand(input)
-        setInput('')
-        setCmdHistoryIndex(-1)
-        setInputDraft('')
+        setCmdHistory((prev) => {
+          const maxPreviousCommands = Math.min(prev.length, MAX_COMMAND_HISTORY - 1);
+          return [...prev.slice(-maxPreviousCommands), input.trim()];
+        });
+        handleCommand(input);
+        setInput('');
+        setCmdHistoryIndex(-1);
+        setInputDraft('');
       }
     } else if (e.key === 'ArrowUp') {
-      if (cmdHistory.length === 0) return
-      e.preventDefault()
+      if (cmdHistory.length === 0) return;
+      e.preventDefault();
       if (cmdHistoryIndex === -1) {
         // First press: save the current draft and jump to the newest command
-        setInputDraft(input)
-        const newIdx = cmdHistory.length - 1
-        setCmdHistoryIndex(newIdx)
-        setInput(cmdHistory[newIdx])
+        setInputDraft(input);
+        const newIdx = cmdHistory.length - 1;
+        setCmdHistoryIndex(newIdx);
+        setInput(cmdHistory[newIdx]);
       } else if (cmdHistoryIndex > 0) {
-        const newIdx = cmdHistoryIndex - 1
-        setCmdHistoryIndex(newIdx)
-        setInput(cmdHistory[newIdx])
+        const newIdx = cmdHistoryIndex - 1;
+        setCmdHistoryIndex(newIdx);
+        setInput(cmdHistory[newIdx]);
       }
       // Already at oldest entry – do nothing
     } else if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      if (cmdHistoryIndex === -1) return
+      e.preventDefault();
+      if (cmdHistoryIndex === -1) return;
       if (cmdHistoryIndex < cmdHistory.length - 1) {
-        const newIdx = cmdHistoryIndex + 1
-        setCmdHistoryIndex(newIdx)
-        setInput(cmdHistory[newIdx])
+        const newIdx = cmdHistoryIndex + 1;
+        setCmdHistoryIndex(newIdx);
+        setInput(cmdHistory[newIdx]);
       } else {
         // Back past the newest entry – restore the saved draft
-        setCmdHistoryIndex(-1)
-        setInput(inputDraft)
+        setCmdHistoryIndex(-1);
+        setInput(inputDraft);
       }
     }
-  }
+  };
 
   return (
     <div className="cli-container">
@@ -160,22 +160,14 @@ export const CLI: React.FC = () => {
           terminal
         </div>
         <div className="cli-actions">
-          <button
-            onClick={() => setHistory([])}
-            className="btn btn-ghost"
-            title="Clear"
-          >
+          <button onClick={() => setHistory([])} className="btn btn-ghost" title="Clear">
             clear
           </button>
         </div>
       </div>
 
       {/* Terminal Output */}
-      <div
-        ref={terminalRef}
-        className="terminal-output"
-        onClick={() => inputRef.current?.focus()}
-      >
+      <div ref={terminalRef} className="terminal-output" onClick={() => inputRef.current?.focus()}>
         {history.map((line, i) => (
           <div key={i} className="terminal-line">
             {line}
@@ -198,5 +190,5 @@ export const CLI: React.FC = () => {
         />
       </div>
     </div>
-  )
-}
+  );
+};

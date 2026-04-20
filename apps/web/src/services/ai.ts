@@ -1,15 +1,16 @@
-import { healJSON, type HealedResponse } from '../utils/jsonHealer'
+import { API_BASE } from '../constants/api';
+import { type HealedResponse, healJSON } from '../utils/jsonHealer';
 
 export class AIImageError extends Error {
-  status: number
-  statusText: string
-  body: string
+  status: number;
+  statusText: string;
+  body: string;
   constructor(message: string, status: number, statusText: string, body: string) {
-    super(message)
-    this.name = 'AIImageError'
-    this.status = status
-    this.statusText = statusText
-    this.body = body
+    super(message);
+    this.name = 'AIImageError';
+    this.status = status;
+    this.statusText = statusText;
+    this.body = body;
   }
 }
 
@@ -25,15 +26,12 @@ export class AIImageError extends Error {
  * and production deployments serve the API directly.
  */
 export class AIService {
-  private apiKey: string
-  private model: string
-  private temperature: number
-  private provider: string | undefined
-  private providerKey: string | undefined
-  private providerBaseUrl: string | undefined
-
-  // Local API base URL - uses relative path for proxy in dev, direct access in prod
-  private apiBase = '/v1'
+  private apiKey: string;
+  private model: string;
+  private temperature: number;
+  private provider: string | undefined;
+  private providerKey: string | undefined;
+  private providerBaseUrl: string | undefined;
 
   constructor(
     apiKey: string,
@@ -41,14 +39,14 @@ export class AIService {
     temperature: number = 0.3,
     provider?: string,
     providerKey?: string,
-    providerBaseUrl?: string,
+    providerBaseUrl?: string
   ) {
-    this.apiKey = apiKey
-    this.model = model
-    this.temperature = temperature
-    this.provider = provider
-    this.providerKey = providerKey
-    this.providerBaseUrl = providerBaseUrl
+    this.apiKey = apiKey;
+    this.model = model;
+    this.temperature = temperature;
+    this.provider = provider;
+    this.providerKey = providerKey;
+    this.providerBaseUrl = providerBaseUrl;
   }
 
   /**
@@ -57,9 +55,9 @@ export class AIService {
    */
   private getHeaders(): Record<string, string> {
     return {
-      'Authorization': `Bearer ${this.apiKey}`,
+      Authorization: `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
-    }
+    };
   }
 
   /**
@@ -72,13 +70,13 @@ export class AIService {
         x_provider: this.provider,
         ...(this.providerKey ? { x_provider_api_key: this.providerKey } : {}),
         ...(this.providerBaseUrl ? { x_provider_base_url: this.providerBaseUrl } : {}),
-      }
+      };
     }
-    return {}
+    return {};
   }
 
   async transformFile(instruction: string, currentContent: string): Promise<string> {
-    const systemPrompt = `You rewrite the whole file based on the instruction. Return ONLY the full updated file with no explanations. Support Chinese text properly and preserve Chinese characters, formatting, and encoding.`
+    const systemPrompt = `You rewrite the whole file based on the instruction. Return ONLY the full updated file with no explanations. Support Chinese text properly and preserve Chinese characters, formatting, and encoding.`;
 
     const userPrompt = `Instruction: ${instruction}
 
@@ -87,68 +85,70 @@ Current file content:
 ${currentContent}
 ---END FILE---
 
-Note: Preserve proper character encoding and formatting for all text content.`
+Note: Preserve proper character encoding and formatting for all text content.`;
 
     try {
-      const response = await fetch(`${this.apiBase}/chat/completions`, {
+      const response = await fetch(`${API_BASE}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
           model: this.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
+            { role: 'user', content: userPrompt },
           ],
-          ...(this.model === 'gpt-5' ? {
-            max_completion_tokens: 4000,
-            // GPT-5 only supports default temperature (1.0)
-          } : {
-            temperature: this.temperature,
-            max_tokens: 4000,
-          }),
+          ...(this.model === 'gpt-5'
+            ? {
+                max_completion_tokens: 4000,
+                // GPT-5 only supports default temperature (1.0)
+              }
+            : {
+                temperature: this.temperature,
+                max_tokens: 4000,
+              }),
           ...this.providerFields(),
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!data.choices || data.choices.length === 0) {
-        throw new Error('No response from AI')
+        throw new Error('No response from AI');
       }
 
-      let content = data.choices[0].message.content.trim()
+      let content = data.choices[0].message.content.trim();
 
       // Clean up common AI response artifacts
       if (content.startsWith('---START FILE---')) {
-        content = content.replace(/^---START FILE---\s*/, '')
+        content = content.replace(/^---START FILE---\s*/, '');
       }
       if (content.endsWith('---END FILE---')) {
-        content = content.replace(/\s*---END FILE---$/, '')
+        content = content.replace(/\s*---END FILE---$/, '');
       }
 
-      return content
+      return content;
     } catch (error) {
-      throw new Error(`Failed to transform file: ${error}`)
+      throw new Error(`Failed to transform file: ${error}`);
     }
   }
 
   async estimateTokens(text: string): Promise<number> {
-    return Math.ceil(text.length / 4)
+    return Math.ceil(text.length / 4);
   }
 
   async chatCompletion(
     messages: Array<{ role: string; content: string }>,
     options?: {
-      temperature?: number
-      maxTokens?: number
+      temperature?: number;
+      maxTokens?: number;
     }
   ): Promise<string> {
     try {
-      const response = await fetch(`${this.apiBase}/chat/completions`, {
+      const response = await fetch(`${API_BASE}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
@@ -158,21 +158,21 @@ Note: Preserve proper character encoding and formatting for all text content.`
           max_tokens: options?.maxTokens ?? 4000,
           ...this.providerFields(),
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!data.choices || data.choices.length === 0) {
-        throw new Error('No response from AI')
+        throw new Error('No response from AI');
       }
 
-      return data.choices[0].message.content.trim()
+      return data.choices[0].message.content.trim();
     } catch (error) {
-      throw new Error(`Failed to get chat completion: ${error}`)
+      throw new Error(`Failed to get chat completion: ${error}`);
     }
   }
 
@@ -185,8 +185,8 @@ Note: Preserve proper character encoding and formatting for all text content.`
     currentContent: string,
     schema?: any
   ): Promise<HealedResponse<T>> {
-    const response = await this.transformFile(instruction, currentContent)
-    return healJSON<T>(response, schema)
+    const response = await this.transformFile(instruction, currentContent);
+    return healJSON<T>(response, schema);
   }
 
   /**
@@ -196,12 +196,12 @@ Note: Preserve proper character encoding and formatting for all text content.`
     messages: Array<{ role: string; content: string }>,
     schema?: any,
     options?: {
-      temperature?: number
-      maxTokens?: number
+      temperature?: number;
+      maxTokens?: number;
     }
   ): Promise<HealedResponse<T>> {
     try {
-      const response = await fetch(`${this.apiBase}/chat/completions`, {
+      const response = await fetch(`${API_BASE}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
@@ -212,45 +212,45 @@ Note: Preserve proper character encoding and formatting for all text content.`
           max_tokens: options?.maxTokens ?? 4000,
           ...this.providerFields(),
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!data.choices || data.choices.length === 0) {
-        throw new Error('No response from AI')
+        throw new Error('No response from AI');
       }
 
-      const content = data.choices[0].message.content.trim()
-      return healJSON<T>(content, schema)
+      const content = data.choices[0].message.content.trim();
+      return healJSON<T>(content, schema);
     } catch (error) {
-      throw new Error(`Failed to get chat completion: ${error}`)
+      throw new Error(`Failed to get chat completion: ${error}`);
     }
   }
 
   async generateImage(prompt: string, size: '256x256' | '512x512' | '1024x1024' = '1024x1024'): Promise<string> {
-    if (!prompt.trim()) throw new Error('Image prompt is empty')
+    if (!prompt.trim()) throw new Error('Image prompt is empty');
     try {
       const response = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           model: 'gpt-image-1',
           prompt,
           size,
-          n: 1
-        })
-      })
-      const text = await response.text()
+          n: 1,
+        }),
+      });
+      const text = await response.text();
       if (!response.ok) {
         // Try to extract error details from JSON if present
-        let msg = text
+        let msg = text;
         try {
           const err = JSON.parse(text)
           msg = err?.error?.message || err?.message || text
@@ -263,30 +263,30 @@ Note: Preserve proper character encoding and formatting for all text content.`
           response.status,
           response.statusText,
           text
-        )
+        );
       }
-      const data = JSON.parse(text)
-      const item = data?.data?.[0]
-      if (!item) throw new Error('No image returned from AI')
+      const data = JSON.parse(text);
+      const item = data?.data?.[0];
+      if (!item) throw new Error('No image returned from AI');
       if (item.b64_json) {
-        return item.b64_json
+        return item.b64_json;
       }
       if (item.url) {
         // Fetch the image URL and convert to base64
-        const imgRes = await fetch(item.url)
+        const imgRes = await fetch(item.url);
         if (!imgRes.ok) {
-          throw new Error(`Failed to fetch generated image URL: ${imgRes.status} ${imgRes.statusText}`)
+          throw new Error(`Failed to fetch generated image URL: ${imgRes.status} ${imgRes.statusText}`);
         }
-        const buf = new Uint8Array(await imgRes.arrayBuffer())
+        const buf = new Uint8Array(await imgRes.arrayBuffer());
         // Convert bytes to base64 efficiently
-        let binary = ''
-        const chunk = 0x8000
+        let binary = '';
+        const chunk = 0x8000;
         for (let i = 0; i < buf.length; i += chunk) {
-          binary += String.fromCharCode.apply(null, Array.from(buf.subarray(i, i + chunk)) as any)
+          binary += String.fromCharCode.apply(null, Array.from(buf.subarray(i, i + chunk)) as any);
         }
-        return btoa(binary)
+        return btoa(binary);
       }
-      throw new Error('Unsupported image response format from AI')
+      throw new Error('Unsupported image response format from AI');
     } catch (e) {
       throw e;
     }

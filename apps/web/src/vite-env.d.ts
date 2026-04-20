@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 /** Injected at build time by the Vite `define` plugin (see vite.config.ts). */
-declare const __BUILD_TIME__: string
+declare const __BUILD_TIME__: string;
 
 declare module '*.css' {
   const content: string;
