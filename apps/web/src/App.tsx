@@ -9,7 +9,7 @@ import { InstallPrompt } from './components/InstallPrompt';
 import { ChatDemo } from './components/ChatDemo';
 import { OpenRouterChat } from './components/OpenRouterChat';
 import { AgentChat } from './components/AgentChat';
-import { migrateSavedConfig } from './services/providers';
+import { loadConfig } from './services/storage';
 import { readSavedShellState } from './services/shell';
 import './App.css';
 
@@ -159,14 +159,7 @@ function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    const savedConfig = localStorage.getItem('chat-github-config');
-    if (savedConfig) {
-      try {
-        setConfig(migrateSavedConfig(JSON.parse(savedConfig)));
-      } catch {
-        // silently ignore invalid config JSON in localStorage
-      }
-    }
+    setConfig(loadConfig(config));
     setShell(readSavedShellState());
   }, [setConfig, setShell]);
 
