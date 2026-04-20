@@ -58,12 +58,26 @@ class OpenAIEmbedder:
         return self._dimension
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts in batches, return L2-normalized vectors."""
-        all_vectors: list[list[float]] = []
+        """Embed texts in batches concurrently, return L2-normalized vectors."""
+        import asyncio
 
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            vectors = await self._embed_batch(batch)
+        semaphore = asyncio.Semaphore(10)
+
+        async def _embed_with_semaphore(batch: list[str]) -> list[list[float]]:
+            async with semaphore:
+                return await self._embed_batch(batch)
+
+        batches = [
+            texts[i : i + self.batch_size]
+            for i in range(0, len(texts), self.batch_size)
+        ]
+
+        results = await asyncio.gather(
+            *[_embed_with_semaphore(batch) for batch in batches]
+        )
+
+        all_vectors: list[list[float]] = []
+        for vectors in results:
             all_vectors.extend(vectors)
 
         return all_vectors
@@ -81,8 +95,8 @@ class OpenAIEmbedder:
         response.raise_for_status()
         data = response.json()
 
-        embeddings = [item["embedding"] for item in data["data"]]
-        embeddings.sort(key=lambda x: data["data"][embeddings.index(x)]["index"])
+        sorted_data = sorted(data["data"], key=lambda x: x["index"])
+        embeddings = [item["embedding"] for item in sorted_data]
 
         # Normalize
         vectors = np.array(embeddings, dtype=np.float32)
@@ -117,12 +131,26 @@ class GeminiEmbedder:
         return self._dimension
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts in batches, return L2-normalized vectors."""
-        all_vectors: list[list[float]] = []
+        """Embed texts in batches concurrently, return L2-normalized vectors."""
+        import asyncio
 
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            vectors = await self._embed_batch(batch)
+        semaphore = asyncio.Semaphore(10)
+
+        async def _embed_with_semaphore(batch: list[str]) -> list[list[float]]:
+            async with semaphore:
+                return await self._embed_batch(batch)
+
+        batches = [
+            texts[i : i + self.batch_size]
+            for i in range(0, len(texts), self.batch_size)
+        ]
+
+        results = await asyncio.gather(
+            *[_embed_with_semaphore(batch) for batch in batches]
+        )
+
+        all_vectors: list[list[float]] = []
+        for vectors in results:
             all_vectors.extend(vectors)
 
         return all_vectors
@@ -183,15 +211,27 @@ class LocalEmbedder:
         return self._model
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts locally in batches."""
+        """Embed texts locally in batches concurrently."""
         import asyncio
 
         loop = asyncio.get_event_loop()
+        semaphore = asyncio.Semaphore(10)
+
+        async def _embed_with_semaphore(batch: list[str]) -> list[list[float]]:
+            async with semaphore:
+                return await loop.run_in_executor(None, self._embed_batch_sync, batch)
+
+        batches = [
+            texts[i : i + self.batch_size]
+            for i in range(0, len(texts), self.batch_size)
+        ]
+
+        results = await asyncio.gather(
+            *[_embed_with_semaphore(batch) for batch in batches]
+        )
 
         all_vectors: list[list[float]] = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            vectors = await loop.run_in_executor(None, self._embed_batch_sync, batch)
+        for vectors in results:
             all_vectors.extend(vectors)
 
         return all_vectors
