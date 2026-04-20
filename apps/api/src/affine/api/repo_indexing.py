@@ -459,7 +459,7 @@ class RepositoryIndexService:
             sql += " ORDER BY f.path ASC, s.start_line ASC"
 
             results = self._rank_search_results(
-                rows=connection.execute(sql, params).fetchall(),
+                rows=connection.execute(sql, tuple(params)).fetchall(),
                 query=request.query,
                 path_prefix=request.path,
                 limit=request.limit,
