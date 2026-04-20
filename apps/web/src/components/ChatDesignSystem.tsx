@@ -1,5 +1,3 @@
-import React from 'react'
-
 // Design tokens based on web search best practices
 export const chatDesignTokens = {
   // Colors following WCAG accessibility guidelines
@@ -15,7 +13,7 @@ export const chatDesignTokens = {
       success: '#28a745',
       warning: '#ffc107',
       error: '#dc3545',
-      hover: '#f8f9fa'
+      hover: '#f8f9fa',
     },
     dark: {
       background: '#1a1a1a',
@@ -28,57 +26,57 @@ export const chatDesignTokens = {
       success: '#51cf66',
       warning: '#ffd43b',
       error: '#ff6b6b',
-      hover: '#2d2d2d'
-    }
+      hover: '#2d2d2d',
+    },
   },
 
   // Typography following design system principles
   typography: {
     fontFamily: {
       sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      mono: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace'
+      mono: 'SF Mono, Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace',
     },
     fontSize: {
-      xs: '0.75rem',    // 12px
-      sm: '0.875rem',   // 14px
-      base: '1rem',     // 16px
-      lg: '1.125rem',   // 18px
-      xl: '1.25rem',    // 20px
-      '2xl': '1.5rem'   // 24px
+      xs: '0.75rem', // 12px
+      sm: '0.875rem', // 14px
+      base: '1rem', // 16px
+      lg: '1.125rem', // 18px
+      xl: '1.25rem', // 20px
+      '2xl': '1.5rem', // 24px
     },
     fontWeight: {
       normal: 400,
       medium: 500,
       semibold: 600,
-      bold: 700
+      bold: 700,
     },
     lineHeight: {
       tight: 1.25,
       normal: 1.5,
-      relaxed: 1.75
-    }
+      relaxed: 1.75,
+    },
   },
 
   // Spacing following 8px grid system
   spacing: {
-    xs: '0.25rem',   // 4px
-    sm: '0.5rem',    // 8px
-    md: '1rem',      // 16px
-    lg: '1.5rem',    // 24px
-    xl: '2rem',      // 32px
-    '2xl': '3rem',   // 48px
-    '3xl': '4rem'    // 64px
+    xs: '0.25rem', // 4px
+    sm: '0.5rem', // 8px
+    md: '1rem', // 16px
+    lg: '1.5rem', // 24px
+    xl: '2rem', // 32px
+    '2xl': '3rem', // 48px
+    '3xl': '4rem', // 64px
   },
 
   // Border radius for modern rounded design
   borderRadius: {
     none: '0',
-    sm: '0.25rem',   // 4px
-    md: '0.5rem',    // 8px
-    lg: '0.75rem',   // 12px
-    xl: '1rem',      // 16px
+    sm: '0.25rem', // 4px
+    md: '0.5rem', // 8px
+    lg: '0.75rem', // 12px
+    xl: '1rem', // 16px
     '2xl': '1.5rem', // 24px
-    full: '9999px'
+    full: '9999px',
   },
 
   // Shadows for depth and elevation
@@ -86,14 +84,14 @@ export const chatDesignTokens = {
     sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
     md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
     lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-    xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+    xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
   },
 
   // Transitions for smooth animations
   transitions: {
     fast: '150ms ease-in-out',
     normal: '250ms ease-in-out',
-    slow: '350ms ease-in-out'
+    slow: '350ms ease-in-out',
   },
 
   // Z-index for layering
@@ -103,9 +101,9 @@ export const chatDesignTokens = {
     fixed: 1030,
     modal: 1040,
     popover: 1050,
-    tooltip: 1060
-  }
-}
+    tooltip: 1060,
+  },
+};
 
 // Predefined themes based on research
 export const chatThemes = {
@@ -116,10 +114,10 @@ export const chatThemes = {
       secondary: '#6c757d',
       background: '#ffffff',
       surface: '#f8f9fa',
-      text: '#212529'
+      text: '#212529',
     },
     borderRadius: '0.75rem',
-    shadows: 'md'
+    shadows: 'md',
   },
 
   minimal: {
@@ -129,10 +127,10 @@ export const chatThemes = {
       secondary: '#666666',
       background: '#ffffff',
       surface: '#f5f5f5',
-      text: '#000000'
+      text: '#000000',
     },
     borderRadius: '0.25rem',
-    shadows: 'sm'
+    shadows: 'sm',
   },
 
   corporate: {
@@ -142,10 +140,10 @@ export const chatThemes = {
       secondary: '#4b5563',
       background: '#ffffff',
       surface: '#f9fafb',
-      text: '#111827'
+      text: '#111827',
     },
     borderRadius: '0.5rem',
-    shadows: 'lg'
+    shadows: 'lg',
   },
 
   playful: {
@@ -155,10 +153,10 @@ export const chatThemes = {
       secondary: '#ec4899',
       background: '#ffffff',
       surface: '#fdf2f8',
-      text: '#1f2937'
+      text: '#1f2937',
     },
     borderRadius: '1rem',
-    shadows: 'xl'
+    shadows: 'xl',
   },
 
   dark: {
@@ -168,12 +166,12 @@ export const chatThemes = {
       secondary: '#adb5bd',
       background: '#1a1a1a',
       surface: '#2d2d2d',
-      text: '#ffffff'
+      text: '#ffffff',
     },
     borderRadius: '0.75rem',
-    shadows: 'md'
-  }
-}
+    shadows: 'md',
+  },
+};
 
 // Component styles following design system principles
 export const chatComponentStyles = {
@@ -184,7 +182,7 @@ export const chatComponentStyles = {
       borderRadius: chatDesignTokens.borderRadius.lg,
       padding: chatDesignTokens.spacing.md,
       maxWidth: '70%',
-      wordWrap: 'break-word' as const
+      wordWrap: 'break-word' as const,
     }),
 
     assistant: (theme: 'light' | 'dark') => ({
@@ -194,7 +192,7 @@ export const chatComponentStyles = {
       padding: chatDesignTokens.spacing.md,
       maxWidth: '70%',
       wordWrap: 'break-word' as const,
-      border: `1px solid ${chatDesignTokens.colors[theme].border}`
+      border: `1px solid ${chatDesignTokens.colors[theme].border}`,
     }),
 
     system: (theme: 'light' | 'dark') => ({
@@ -202,8 +200,8 @@ export const chatComponentStyles = {
       color: chatDesignTokens.colors[theme].textSecondary,
       fontStyle: 'italic',
       textAlign: 'center' as const,
-      padding: chatDesignTokens.spacing.sm
-    })
+      padding: chatDesignTokens.spacing.sm,
+    }),
   },
 
   input: (theme: 'light' | 'dark') => ({
@@ -218,14 +216,13 @@ export const chatComponentStyles = {
     ':focus': {
       outline: 'none',
       borderColor: chatDesignTokens.colors[theme].primary,
-      boxShadow: `0 0 0 2px ${chatDesignTokens.colors[theme].primary}20`
-    }
+      boxShadow: `0 0 0 2px ${chatDesignTokens.colors[theme].primary}20`,
+    },
   }),
 
   button: (theme: 'light' | 'dark', variant: 'primary' | 'secondary' = 'primary') => ({
-    backgroundColor: variant === 'primary'
-      ? chatDesignTokens.colors[theme].primary
-      : chatDesignTokens.colors[theme].surface,
+    backgroundColor:
+      variant === 'primary' ? chatDesignTokens.colors[theme].primary : chatDesignTokens.colors[theme].surface,
     color: variant === 'primary' ? '#ffffff' : chatDesignTokens.colors[theme].text,
     border: variant === 'primary' ? 'none' : `1px solid ${chatDesignTokens.colors[theme].border}`,
     borderRadius: chatDesignTokens.borderRadius.md,
@@ -236,21 +233,21 @@ export const chatComponentStyles = {
     transition: chatDesignTokens.transitions.fast,
     ':hover': {
       opacity: 0.9,
-      transform: 'translateY(-1px)'
+      transform: 'translateY(-1px)',
     },
     ':disabled': {
       opacity: 0.5,
       cursor: 'not-allowed',
-      transform: 'none'
-    }
+      transform: 'none',
+    },
   }),
 
   avatar: (size: 'sm' | 'md' | 'lg' = 'md') => {
     const sizes = {
       sm: { width: '2rem', height: '2rem', fontSize: chatDesignTokens.typography.fontSize.sm },
       md: { width: '2.5rem', height: '2.5rem', fontSize: chatDesignTokens.typography.fontSize.base },
-      lg: { width: '3rem', height: '3rem', fontSize: chatDesignTokens.typography.fontSize.lg }
-    }
+      lg: { width: '3rem', height: '3rem', fontSize: chatDesignTokens.typography.fontSize.lg },
+    };
 
     return {
       width: sizes[size].width,
@@ -261,8 +258,8 @@ export const chatComponentStyles = {
       justifyContent: 'center',
       fontSize: sizes[size].fontSize,
       fontWeight: chatDesignTokens.typography.fontWeight.medium,
-      overflow: 'hidden'
-    }
+      overflow: 'hidden',
+    };
   },
 
   typingIndicator: {
@@ -270,7 +267,7 @@ export const chatComponentStyles = {
       display: 'flex',
       alignItems: 'center',
       gap: chatDesignTokens.spacing.xs,
-      padding: chatDesignTokens.spacing.sm
+      padding: chatDesignTokens.spacing.sm,
     },
 
     dot: (theme: 'light' | 'dark') => ({
@@ -278,10 +275,10 @@ export const chatComponentStyles = {
       height: '0.5rem',
       borderRadius: chatDesignTokens.borderRadius.full,
       backgroundColor: chatDesignTokens.colors[theme].textSecondary,
-      animation: 'typing 1.4s infinite ease-in-out'
-    })
-  }
-}
+      animation: 'typing 1.4s infinite ease-in-out',
+    }),
+  },
+};
 
 // CSS animations for chat components
 export const chatAnimations = `
@@ -327,7 +324,7 @@ export const chatAnimations = `
   .typing-indicator {
     animation: typing 1.4s infinite ease-in-out;
   }
-`
+`;
 
 // Accessibility features
 export const chatAccessibility = {
@@ -340,7 +337,7 @@ export const chatAccessibility = {
     minimizeButton: 'Minimize chat',
     agentAvatar: 'Agent avatar',
     userAvatar: 'Your avatar',
-    typingIndicator: 'Agent is typing'
+    typingIndicator: 'Agent is typing',
   },
 
   keyboardShortcuts: {
@@ -348,7 +345,7 @@ export const chatAccessibility = {
     newLine: 'Shift+Enter',
     closeChat: 'Escape',
     minimizeChat: 'M',
-    focusInput: 'Tab'
+    focusInput: 'Tab',
   },
 
   screenReaderAnnouncements: {
@@ -357,16 +354,16 @@ export const chatAccessibility = {
     chatOpened: 'Chat window opened',
     chatClosed: 'Chat window closed',
     fileUploaded: 'File uploaded successfully',
-    error: 'Error occurred'
-  }
-}
+    error: 'Error occurred',
+  },
+};
 
 // Responsive design breakpoints
 export const chatBreakpoints = {
   mobile: '(max-width: 640px)',
   tablet: '(max-width: 768px)',
-  desktop: '(min-width: 769px)'
-}
+  desktop: '(min-width: 769px)',
+};
 
 // Export everything as a comprehensive design system
 export const ChatDesignSystem = {
@@ -375,7 +372,7 @@ export const ChatDesignSystem = {
   components: chatComponentStyles,
   animations: chatAnimations,
   accessibility: chatAccessibility,
-  breakpoints: chatBreakpoints
-}
+  breakpoints: chatBreakpoints,
+};
 
-export default ChatDesignSystem
+export default ChatDesignSystem;

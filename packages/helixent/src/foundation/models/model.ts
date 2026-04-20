@@ -1,4 +1,4 @@
-import type { Message, NonSystemMessage } from "../messages";
+import type { Message, } from "../messages";
 import type { ModelContext } from "./model-context";
 import type { ModelProvider, ModelProviderInvokeParams } from "./model-provider";
 

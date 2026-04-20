@@ -2,13 +2,8 @@ import { exists, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import os from "node:os";
 import type { AgentMiddleware } from "../agent-middleware";
+import type { SkillFrontmatter } from "../index";
 import { readSkillFrontMatter } from "./skill-reader";
-
-export interface SkillFrontmatter {
-  path: string;
-  name?: string;
-  [key: string]: unknown;
-}
 
 export function createSkillsMiddleware(skillsDirs: string[] = [join(process.cwd(), ".agents/skills")]): AgentMiddleware {
   return {
@@ -37,7 +32,7 @@ export function createSkillsMiddleware(skillsDirs: string[] = [join(process.cwd(
           ? skills.find((s) => (s.name ?? "").toLowerCase() === (agentContext.requestedSkillName as string).toLowerCase())
           : null;
         return {
-          prompt: modelContext.prompt + `\n\n<skills>\n${JSON.stringify(skills, null, 2)}\n</skills>\n${requested ? `<explicit_skill>${requested.name}</explicit_skill>\n` : ""}`,
+          prompt: `${modelContext.prompt}\n\n<skills>\n${JSON.stringify(skills, null, 2)}\n</skills>\n${requested ? `<explicit_skill>${requested.name}</explicit_skill>\n` : ""}`,
         };
       }
     },

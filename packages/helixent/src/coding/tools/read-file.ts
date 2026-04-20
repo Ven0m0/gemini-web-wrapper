@@ -1,12 +1,17 @@
 import z from "zod";
 import { defineTool } from "@/foundation";
+import { assertFileExists } from "@/foundation/utils/file";
 export const readFileTool = defineTool({
   name: "read_file",
   description: "Read a file from an absolute path",
   parameters: z.object({ description: z.string(), path: z.string(), startLine: z.number().optional(), endLine: z.number().optional() }),
   invoke: async ({ path, startLine, endLine }) => {
-    const file = Bun.file(path);
-    if (!(await file.exists())) return `Error: File ${path} does not exist`;
+    let file;
+    try {
+      file = await assertFileExists(path);
+    } catch {
+      return `Error: File ${path} does not exist`;
+    }
     const text = await file.text();
     const lines = text.split("\n");
     const start = startLine ? startLine - 1 : 0;

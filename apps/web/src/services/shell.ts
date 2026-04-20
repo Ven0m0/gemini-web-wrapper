@@ -1,3 +1,6 @@
+import { generateId } from '../utils/id';
+import { normalizeString } from '../utils/string';
+
 export type ShellTerminalMode = 'classic' | 'ghostty';
 
 export interface ShellProfile {
@@ -33,10 +36,6 @@ const DEFAULT_PREFERENCES: ShellPreferences = {
   showAccessoryBar: true,
 };
 
-function normalizeText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function normalizeFontSize(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return DEFAULT_PREFERENCES.fontSize;
@@ -57,17 +56,17 @@ function normalizeProfile(candidate: unknown, index: number): ShellProfile | nul
     description?: unknown;
   };
 
-  const url = normalizeText(profile.url);
+  const url = normalizeString(profile.url);
   if (!url) {
     return null;
   }
 
-  const name = normalizeText(profile.name) || `Saved shell ${index + 1}`;
+  const name = normalizeString(profile.name) || `Saved shell ${index + 1}`;
   return {
-    id: normalizeText(profile.id) || crypto.randomUUID(),
+    id: normalizeString(profile.id) || generateId(),
     name,
     url,
-    description: normalizeText(profile.description),
+    description: normalizeString(profile.description),
   };
 }
 
@@ -80,10 +79,10 @@ export function createDefaultShellState(): ShellState {
 
 export function createShellProfile(values: Pick<ShellProfile, 'name' | 'url' | 'description'>): ShellProfile {
   return {
-    id: crypto.randomUUID(),
-    name: normalizeText(values.name) || 'Saved shell',
-    url: normalizeText(values.url),
-    description: normalizeText(values.description),
+    id: generateId(),
+    name: normalizeString(values.name) || 'Saved shell',
+    url: normalizeString(values.url),
+    description: normalizeString(values.description),
   };
 }
 
