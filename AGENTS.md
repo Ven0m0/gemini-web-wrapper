@@ -70,7 +70,7 @@ bun run typecheck
 bun run build
 ```
 
-- `bun run test` runs `vitest run`; use it when frontend behavior or release validation is affected.
+- `bun run test` runs `vitest run`; run it when you change frontend application code, test files, or release validation.
 
 ### API (`apps/api`)
 
