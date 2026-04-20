@@ -13,11 +13,11 @@ export default defineConfig({
     proxy: {
       // Proxy API requests to the backend API server
       '/v1': {
-        target: process.env.API_URL || 'http://localhost:9000',
+        target: import.meta.env.VITE_API_URL || 'http://localhost:9000',
         changeOrigin: true,
       },
       '/api': {
-        target: process.env.API_URL || 'http://localhost:9000',
+        target: import.meta.env.VITE_API_URL || 'http://localhost:9000',
         changeOrigin: true,
       },
     }
