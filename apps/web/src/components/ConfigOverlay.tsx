@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { clearConfig, hasSavedConfig, loadConfig, saveConfig } from '../services/storage';
 import {
   ensureModelSelection,
   ensureProviderSelection,
@@ -51,7 +52,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   const [repoInput, setRepoInput] = useState(() => formatRepositoryInput(config.owner, config.repo));
   const [showTokens, setShowTokens] = useState(false);
   const [rememberCredentials, setRememberCredentials] = useState(() =>
-    Boolean(localStorage.getItem('chat-github-config'))
+    hasSavedConfig()
   );
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false);
@@ -145,22 +146,19 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     setConfig(normalized);
 
     if (rememberCredentials) {
-      localStorage.setItem(
-        'chat-github-config',
-        JSON.stringify({
-          githubToken: normalized.githubToken,
-          openaiKey: normalized.openaiKey,
-          providers: normalized.providers,
-          provider: normalized.provider,
-          owner: normalized.owner,
-          repo: normalized.repo,
-          branch: normalized.branch,
-          model: normalized.model,
-          temperature: normalized.temperature,
-        })
-      );
+      saveConfig({
+        githubToken: normalized.githubToken,
+        openaiKey: normalized.openaiKey,
+        providers: normalized.providers,
+        provider: normalized.provider,
+        owner: normalized.owner,
+        repo: normalized.repo,
+        branch: normalized.branch,
+        model: normalized.model,
+        temperature: normalized.temperature,
+      });
     } else {
-      localStorage.removeItem('chat-github-config');
+      clearConfig();
     }
 
     setStorageMessage({
@@ -191,12 +189,12 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   };
 
   const handleLoadFromStorage = () => {
-    const saved = localStorage.getItem('chat-github-config');
+    const saved = loadConfig();
     if (saved) {
       try {
         const parsedConfig = migrateSavedConfig({
           ...localConfig,
-          ...JSON.parse(saved),
+          ...saved,
         });
         setLocalConfig(parsedConfig);
         setTemperatureInput(String(parsedConfig.temperature));
@@ -212,7 +210,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   };
 
   const handleClearStorage = () => {
-    localStorage.removeItem('chat-github-config');
+    clearConfig();
     setRememberCredentials(false);
     setStorageMessage({ tone: 'success', text: 'Cleared the saved configuration from local storage.' });
   };

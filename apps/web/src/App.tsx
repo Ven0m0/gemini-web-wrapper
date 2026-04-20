@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { loadConfig } from './services/storage';
 import { AgentChat } from './components/AgentChat';
 import { ChatDemo } from './components/ChatDemo';
 import { ConfigOverlay } from './components/ConfigOverlay';
@@ -159,10 +160,10 @@ function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    const savedConfig = localStorage.getItem('chat-github-config');
+    const savedConfig = loadConfig();
     if (savedConfig) {
       try {
-        setConfig(migrateSavedConfig(JSON.parse(savedConfig)));
+        setConfig(migrateSavedConfig(savedConfig));
       } catch {}
     }
     setShell(readSavedShellState());
