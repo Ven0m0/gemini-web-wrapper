@@ -17,7 +17,7 @@ Canonical repository guidance for Copilot, OpenCode, and other agents. Keep this
 - `apps/api` — FastAPI backend
   - App entrypoint: `apps/api/src/affine/api/server.py`
   - Module entrypoint: `apps/api/src/affine/api/__main__.py`
-  - Main routes include `/health`, `/v1/models`, `/v1/chat/completions`, `/v1/agent/chat`, and the repo/local indexing routers.
+  - Main routes include `/health`, `/v1/models`, `/v1/chat/completions`, `/v1/agent/chat`, `/v1/repo/*`, and `/v1/local-index/*`.
 - `packages/config` — typed settings and cached `get_settings()`
 - `packages/llm-core` — provider interfaces, factory, and built-in providers
 - `packages/shared/python` — shared schemas and OpenAI-style request/response models
@@ -70,14 +70,14 @@ bun run typecheck
 bun run build
 ```
 
-- `bun run test` runs `vitest run`; run it when you change frontend application code, test files, or release validation.
+- `bun run test` runs `vitest run`; run it when you change frontend application code, test files, or when performing release validation.
 
 ### API (`apps/api`)
 
 ```bash
 cd apps/api
-export PYTHONPATH=src:../../packages/config/src
 uv sync --all-extras
+export PYTHONPATH=src:../../packages/config/src
 uv run ruff format --check
 uv run ruff check
 uv run pyrefly check

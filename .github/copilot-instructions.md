@@ -17,11 +17,22 @@ Use `AGENTS.md` as the canonical repo-wide guide.
 ## Validation
 
 ```bash
-cd apps/web && bun install && bun run lint && bun run typecheck && bun run build
-cd apps/api && export PYTHONPATH=src:../../packages/config/src && uv sync --all-extras && uv run ruff format --check && uv run ruff check && uv run pyrefly check && uv run pytest
+cd apps/web
+bun install
+bun run lint
+bun run typecheck
+bun run build
+
+cd apps/api
+uv sync --all-extras
+export PYTHONPATH=src:../../packages/config/src
+uv run ruff format --check
+uv run ruff check
+uv run pyrefly check
+uv run pytest
 ```
 
-Use `bun run test` when you change frontend application code, test files, or release validation.
+Use `bun run test` when you change frontend application code, test files, or when performing release validation.
 
 ## Guardrails
 
