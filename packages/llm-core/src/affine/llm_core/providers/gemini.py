@@ -68,8 +68,22 @@ class GeminiProvider(LLMProvider):
 
     @staticmethod
     def _extract_text(data: dict[str, Any]) -> str:
-        parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-        return "".join(part.get("text", "") for part in parts)
+        candidates = data.get("candidates", [])
+        if not candidates or not isinstance(candidates, list):
+            return ""
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        if not isinstance(parts, list):
+            return ""
+
+        text_parts = []
+        for part in parts:
+            if isinstance(part, dict):
+                text = part.get("text", "")
+                if text is not None:
+                    text_parts.append(str(text))
+
+        return "".join(text_parts)
 
     async def generate(
         self,
