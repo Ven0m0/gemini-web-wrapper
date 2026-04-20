@@ -442,18 +442,24 @@ class RepositoryIndexService:
                     results=[],
                 )
 
+            path_prefix = request.path.strip().lower() if request.path else ""
+            sql = """
+                SELECT f.path, f.language, s.kind, s.name, s.start_line, s.end_line,
+                       s.snippet, f.snippet,
+                       LOWER(f.path), LOWER(s.name), LOWER(s.kind),
+                       LOWER(COALESCE(NULLIF(s.snippet, ''), f.snippet, ''))
+                FROM indexed_symbol AS s
+                INNER JOIN indexed_file AS f ON f.id = s.file_id
+                WHERE s.repo_index_id = ?
+            """
+            params: list[object] = [repo_id]
+            if path_prefix:
+                sql += " AND LOWER(f.path) LIKE ? || '%'"
+                params.append(path_prefix)
+            sql += " ORDER BY f.path ASC, s.start_line ASC"
+
             results = self._rank_search_results(
-                rows=connection.execute(
-                    """
-                    SELECT f.path, f.language, s.kind, s.name, s.start_line, s.end_line,
-                           s.snippet, f.snippet, f.path
-                    FROM indexed_symbol AS s
-                    INNER JOIN indexed_file AS f ON f.id = s.file_id
-                    WHERE s.repo_index_id = ?
-                    ORDER BY f.path ASC, s.start_line ASC
-                    """,
-                    (repo_id,),
-                ).fetchall(),
+                rows=connection.execute(sql, tuple(params)).fetchall(),
                 query=request.query,
                 path_prefix=request.path,
                 limit=request.limit,
@@ -650,10 +656,10 @@ class RepositoryIndexService:
             kind = str(row[2])
             snippet = str(row[6] or row[7] or "")
             haystacks = {
-                "path": path.lower(),
-                "name": name.lower(),
-                "kind": kind.lower(),
-                "snippet": snippet.lower(),
+                "path": str(row[8]),
+                "name": str(row[9]),
+                "kind": str(row[10]),
+                "snippet": str(row[11]),
             }
             score = self._score_match(tokens, haystacks)
             if score <= 0:

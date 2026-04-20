@@ -7,8 +7,8 @@ import { InstallPrompt } from './components/InstallPrompt';
 import { OpenRouterChat } from './components/OpenRouterChat';
 import { Tool } from './components/Tool';
 import { UnifiedShell } from './components/UnifiedShell';
-import { migrateSavedConfig } from './services/providers';
 import { readSavedShellState } from './services/shell';
+import { loadConfig } from './services/storage';
 import type { AppMode } from './store';
 import { useStore } from './store';
 import './App.css';
@@ -159,12 +159,7 @@ function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    const savedConfig = localStorage.getItem('chat-github-config');
-    if (savedConfig) {
-      try {
-        setConfig(migrateSavedConfig(JSON.parse(savedConfig)));
-      } catch {}
-    }
+    setConfig(loadConfig(config));
     setShell(readSavedShellState());
   }, [setConfig, setShell]);
 
