@@ -1,71 +1,64 @@
 # AGENTS.md — Gemini Web Wrapper
 
-Canonical agent guidance for this repository. `AGENTS.md` is the fuller source for assistant-facing instructions. `.github/copilot-instructions.md` must stay short and aligned with this file, and `CLAUDE.md` must remain a symlink to `AGENTS.md`.
+Canonical repository guidance for Copilot, OpenCode, and other agents. Keep this file as the long-form source of truth, keep `.github/copilot-instructions.md` short and aligned with it, and keep `CLAUDE.md` as a symlink to this file.
 
-## Repository Snapshot
+## Instruction precedence
 
-This is a mixed Bun + uv monorepo.
+1. `AGENTS.md` for repo-wide rules and workflows.
+2. `.github/instructions/*.instructions.md` for path-specific guidance.
+3. `.github/skills/*/SKILL.md` for reusable task workflows invoked on demand.
 
-Root tool versions are pinned in `mise.toml` for local development and automation bootstrap.
+## Repository map
 
-- **Frontend:** `apps/web`
-  - React 19 + TypeScript + Vite 8 PWA
-  - Shared client state in `src/store.ts` via Zustand
-  - API clients and non-trivial browser logic belong in `src/services/`
-  - Linting uses `oxlint` and `biome`
-- **Backend:** `apps/api`
-  - FastAPI app in `src/affine/api/server.py`
-  - Module entrypoint in `src/affine/api/__main__.py`
-  - Current HTTP routes include `/health`, `/v1/models`, and `/v1/chat/completions`
-- **Indexing package:** `packages/code-index`
-  - Core modules live in `src/affine/code_index/`
-  - Provides parsing, chunking, discovery, embedding, and search helpers used by the workspace
-- **Shared Python packages:**
-  - `packages/config` — typed settings
-  - `packages/llm-core` — provider interfaces and provider factory
-  - `packages/shared/python` — shared models and OpenAI-style schemas
-  - `packages/code-index` — repository indexing and code search primitives
+- `apps/web` — React 19 + TypeScript + Vite 8 PWA
+  - Shared state lives in `apps/web/src/store.ts`.
+  - API clients and non-trivial browser logic belong in `apps/web/src/services/`.
+  - Tooling comes from `apps/web/package.json` and the root Bun workspace.
+- `apps/api` — FastAPI backend
+  - App entrypoint: `apps/api/src/affine/api/server.py`
+  - Module entrypoint: `apps/api/src/affine/api/__main__.py`
+  - Main routes include `/health`, `/v1/models`, `/v1/chat/completions`, `/v1/agent/chat`, and the repo/local indexing routers.
+- `packages/config` — typed settings and cached `get_settings()`
+- `packages/llm-core` — provider interfaces, factory, and built-in providers
+- `packages/shared/python` — shared schemas and OpenAI-style request/response models
+- `packages/code-index` — repository discovery, parsing, chunking, embedding, and search helpers under `packages/code-index/src/affine/code_index/`
 
-## Source of Truth Order
+## Source of truth
 
-When docs or comments disagree, trust sources in this order:
+When guidance disagrees, prefer:
 
 1. Current code in `apps/` and `packages/`
 2. `.github/workflows/ci.yml`
 3. `README.md`
-4. Planning docs under `docs/`
+4. Other docs under `docs/`
 
-Do not copy aspirational architecture into agent guidance unless the code and CI already match it.
+Use the code and CI as the baseline, and update guidance when runtime behavior or validation changes.
 
-## Working Rules
+## Working rules
 
-- Keep edits focused, local, and reversible.
-- Prefer fixing the real source over adding compatibility layers.
-- Use the repository package managers only: `bun` for JS and TS, `uv` for Python.
-- Follow the existing file layout instead of introducing parallel patterns.
-- Update docs only when directly affected by the change.
-- Do not make unrelated cleanup edits while touching guidance files.
+- Keep changes focused, local, and easy to review.
+- Use the repository toolchains only: `bun` for JS/TS and `uv` for Python.
+- Follow the existing layout instead of introducing parallel patterns.
+- Keep repo-wide guidance here and keep path-specific details in `.github/instructions/`.
+- Update related guidance files together when commands, entrypoints, or workflows change.
 
-## Frontend Guidance
+## Frontend guidance
 
-- Keep React components typed and functional.
-- Keep rendering concerns in components; move API calls, adapters, and substantial logic into `apps/web/src/services/`.
-- Use Zustand for shared app state instead of creating ad hoc global patterns.
-- Preserve strict TypeScript expectations; avoid `any` unless there is no practical alternative.
-- Frontend validation should match current CI and package scripts.
+- Use typed functional React components.
+- Keep rendering concerns in components and move API adapters or substantial browser logic into `apps/web/src/services/`.
+- Reuse Zustand state in `apps/web/src/store.ts` for shared app state.
+- Preserve strict TypeScript expectations; prefer `interface` for object-shaped contracts and avoid `any` when a precise type is available.
+- Keep provider secrets and provider SDK calls out of the frontend.
 
-## Backend Guidance
+## Backend guidance
 
-- Keep FastAPI handlers async-first.
+- Keep FastAPI handlers async-first and explicit.
 - Route settings access through `packages/config/src/affine/config/settings.py`.
 - Route provider selection through `packages/llm-core/src/affine/llm_core/factory.py`.
-- Keep shared request and response schemas in `packages/shared/python/src/affine/shared/`.
-- Prefer explicit errors and clear control flow over deep nesting.
+- Reuse schemas from `packages/shared/python/src/affine/shared/`.
 - Add or update tests when backend behavior changes.
 
-## Validation Commands
-
-Use app-scoped commands that reflect current CI.
+## Validation commands
 
 ### Frontend (`apps/web`)
 
@@ -77,16 +70,14 @@ bun run typecheck
 bun run build
 ```
 
-Notes:
-- `bun run test` exists but currently prints `No tests configured` and exits successfully.
-- CI does **not** currently run frontend tests.
+- `bun run test` runs `vitest run`; use it when frontend behavior or release validation is affected.
 
 ### API (`apps/api`)
 
 ```bash
 cd apps/api
-uv sync --all-extras
 export PYTHONPATH=src:../../packages/config/src
+uv sync --all-extras
 uv run ruff format --check
 uv run ruff check
 uv run pyrefly check
@@ -96,18 +87,13 @@ uv run pytest
 ### Shared packages
 
 ```bash
-cd packages/config
-uv sync
-uv run ruff format --check src/
-uv run ruff check src/
-
-cd packages/shared/python
-uv sync
-uv run ruff format --check src/
-uv run ruff check src/
+cd packages/config && uv sync && uv run ruff format --check src/ && uv run ruff check src/
+cd packages/llm-core && uv sync && uv run ruff format --check src/ && uv run ruff check src/
+cd packages/shared/python && uv sync && uv run ruff format --check src/ && uv run ruff check src/
+cd packages/code-index && uv sync && uv run ruff format --check src/ && uv run ruff check src/
 ```
 
-## Common Local Commands
+## Common local commands
 
 ### Run the API
 
@@ -123,17 +109,9 @@ cd apps/web
 bun run dev
 ```
 
-## Agent Facing File Rules
+## Automation notes
 
-- Keep `AGENTS.md` as the canonical, fuller instruction file.
-- Keep `.github/copilot-instructions.md` short, high-signal, and consistent with this file.
-- Keep `CLAUDE.md` as a symlink to `AGENTS.md`.
-- If runtime behavior or validation changes, update this file and the short Copilot mirror together.
-
-## Practical Constraints
-
-- One web app lives in `apps/web`.
-- One API app lives in `apps/api`.
-- Frontend code must not embed provider secrets or call provider SDKs directly.
-- Prefer shared schemas and typed settings over duplicating request or response shapes.
-- Treat README feature claims as secondary to the actual codebase when they diverge.
+- `CLAUDE.md` should remain a symlink to `AGENTS.md`.
+- `.opencode/opencode.json` also points at `AGENTS.md`, so repo-wide changes here affect OpenCode sessions too.
+- `.github/workflows/release.yml` publishes on `v*` tags after frontend validation.
+- `.github/workflows/run-agent.yml` supports optional secrets: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `JULES_API_KEY`, `OPENCODE_API_KEY`, `OPENROUTER_API_KEY`, `KILO_API_KEY`, and `KILO_ORG_ID`.
