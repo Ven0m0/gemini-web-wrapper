@@ -252,8 +252,8 @@ Note: Preserve proper character encoding and formatting for all text content.`;
         // Try to extract error details from JSON if present
         let msg = text;
         try {
-          const err = JSON.parse(text)
-          msg = err?.error?.message || err?.message || text
+          const err = JSON.parse(text);
+          msg = err?.error?.message || err?.message || text;
         } catch {
           // If JSON parsing fails, we fall back to the raw response text
           // which was already assigned to 'msg' above.

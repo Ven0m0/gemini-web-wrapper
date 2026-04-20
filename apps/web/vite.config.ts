@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   build: {
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       // Prevent bundler from trying to resolve optional SDK at build time
       external: ['@wasmer/sdk']

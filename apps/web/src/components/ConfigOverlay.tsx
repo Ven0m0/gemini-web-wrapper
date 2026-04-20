@@ -51,9 +51,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature));
   const [repoInput, setRepoInput] = useState(() => formatRepositoryInput(config.owner, config.repo));
   const [showTokens, setShowTokens] = useState(false);
-  const [rememberCredentials, setRememberCredentials] = useState(() =>
-    hasSavedConfig()
-  );
+  const [rememberCredentials, setRememberCredentials] = useState(() => hasSavedConfig());
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [storageMessage, setStorageMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
