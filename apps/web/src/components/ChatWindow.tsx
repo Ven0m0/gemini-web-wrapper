@@ -56,8 +56,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [_showEmojiPicker, _setShowEmojiPicker] = useState(false);
-  const [_isRecording, _setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
