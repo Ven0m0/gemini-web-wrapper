@@ -1,5 +1,5 @@
 [build]
-  command = "cd apps/web && npm install -g bun && bun install && bun run build"
+  command = "cd apps/web && bun install && bun run build"
   publish = "apps/web/dist"
 
 [[redirects]]
@@ -10,6 +10,6 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
+    "X-Frame-Options" = "DENY"
+    "X-XSS-Protection" = "1; mode=block"
+    "X-Content-Type-Options" = "nosniff"
