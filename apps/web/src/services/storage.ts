@@ -58,7 +58,13 @@ export function loadConfigFromStorage(): Partial<ConfigState> | null {
       const parsed = JSON.parse(rawSaved);
       // Check if it contains secrets that need to be purged
       if (parsed.githubToken !== undefined || parsed.openaiKey !== undefined || (parsed.providers && parsed.providers.some((p: ProviderConfig) => p.apiKey !== undefined))) {
-        saveConfigToStorage(parsed, true);
+        // Remove secrets before re-saving back to localStorage
+        const safeParsed = sanitizeConfig(parsed);
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(safeParsed));
+
+        // Move extracted secrets to sessionStorage for the current tab
+        const secrets = extractSecrets(parsed);
+        sessionStorage.setItem(SECRETS_KEY, JSON.stringify(secrets));
       }
     } catch {}
   }
