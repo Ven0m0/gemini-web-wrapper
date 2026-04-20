@@ -1,201 +1,198 @@
-# AI Assistant App
->[![Maintainability](https://qlty.sh/gh/Ven0m0/projects/gemini-web-wrapper/maintainability.svg)](https://qlty.sh/gh/Ven0m0/projects/gemini-web-wrapper)
+# Gemini Web Wrapper
 
-A mobile-first Progressive Web App (PWA) for AI-assisted development with GitHub integration. Built with React, TypeScript, FastAPI, and Google's Gemini AI.
+A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the browser, backed by a configurable LLM gateway and repository indexing APIs.
 
-## Features
+## What is in the repo
 
-- **Multi-AI Support**: Google Gemini, Anthropic Claude
-- **PWA**: Installable on mobile/desktop with offline support
-- **GitHub Integration**: Edit files directly in repositories
-- **Multiple Interfaces**: CLI, Editor, Tool modes
-- **WebSocket Support**: Real-time file transfer
-- **Dark/light themes, responsive design**
-- **Environment-based configuration**
+- **`apps/web`** — React 19 + TypeScript + Vite 8 PWA with Chat, Agent, Shell, Editor, Files, and Settings views
+- **`apps/api`** — FastAPI gateway exposing OpenAI-compatible chat, agent streaming, GitHub repo indexing, and local code indexing APIs
+- **`packages/config`** — typed runtime settings and cached `get_settings()`
+- **`packages/llm-core`** — provider abstractions and the provider factory
+- **`packages/shared/python`** — shared request and response schemas
+- **`packages/code-index`** — local code indexing and semantic search helpers
+- **`packages/helixent`** — TypeScript agent-loop package used for ongoing agent work
 
-## Quick Start
+## Current capabilities
+
+- **Built-in providers:** Google Gemini, Anthropic Claude, GitHub Copilot, OpenCode Zen, and Kilo Gateway
+- **Custom providers:** request-level OpenAI-compatible backends via `x_provider` + `x_provider_base_url`
+- **Agent streaming:** SSE-based `/v1/agent/chat` for tool-aware agent conversations
+- **Repo indexing:** GitHub-backed symbol extraction and search through `/v1/repo/*`
+- **Local code indexing:** semantic search over a local workspace through `/v1/local-index/*`
+- **PWA frontend:** installable interface with repo browsing, editing, multi-pane shell sessions, and provider configuration
+- **Gateway auth modes:** optional server API key protection for `/v1/*` endpoints
+
+## Quick start
 
 ### Prerequisites
 
-- Node.js 24 LTS+, Bun 1.3.12+, and uv
-- Python 3.14+
+- Node.js **24.15.0**
+- Bun **1.3.13**
+- Python **3.14.4**
+- `uv`
 - Git
-- Optional: [mise](https://mise.jdx.dev/) to install the pinned project toolchain from `mise.toml`
+- Optional: [mise](https://mise.jdx.dev/) to install the pinned toolchain from `mise.toml`
 
-### 1. Clone & Setup
+### 1. Clone and configure
 
 ```bash
-git clone <your-repo>
-cd <your-repo>
-mise install  # Optional: installs the pinned Node, Bun, Python, and uv toolchain
+git clone https://github.com/Ven0m0/gemini-web-wrapper.git
+cd gemini-web-wrapper
+mise install   # optional but recommended
 cp .env.example .env
-# Edit .env with your API keys
 ```
 
-### 2. Install & Build
+Edit `.env` and set the provider credentials you want to use. For the default Gemini setup you only need `GOOGLE_API_KEY`.
 
-**Frontend:**
+### 2. Install dependencies
 
 ```bash
 cd apps/web
 bun install
-bun run build
-```
 
-**Backend:**
-
-```bash
-cd apps/api
+cd ../api
 uv sync --all-extras
 ```
 
-### 3. Start Development
+### 3. Start the API and web app
 
 ```bash
-# Start the API
-cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
+# Terminal 1
+cd apps/api
+PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload --host 0.0.0.0 --port 9000
 
-# Start the frontend (in another terminal)
-cd apps/web && bun run dev
+# Terminal 2
+cd apps/web
+bun run dev
 ```
 
-Visit: http://localhost:9000
+Open:
 
-## Usage Modes
+- **Frontend UI:** `http://localhost:5173`
+- **Backend API:** `http://localhost:9000`
 
-### CLI Mode
-
-Interactive command-line interface for AI conversations
-
-### Editor Mode
-
-Code editor with syntax highlighting and AI assistance
-
-### Tool Mode
-
-File transfer and GitHub repository management
+During local development, Vite proxies `/v1/*` and `/api/*` requests to the API server.
 
 ## Configuration
 
-### Environment Variables
+### Server authentication
 
-```bash
-GOOGLE_API_KEY=your_google_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here  # Optional
-COPILOT_API_KEY=your_github_copilot_token_here  # Optional
-MODEL_PROVIDER=gemini  # or anthropic or copilot
-MODEL_NAME=gemini-3.1-pro-preview
-PORT=9000
-```
+The API gateway supports two modes:
 
-### Model Support
+- **Open mode** — leave `API_KEY` unset and clients can call `/v1/*` without a bearer token
+- **Protected mode** — set `API_KEY` and clients must send `Authorization: Bearer <API_KEY>`
 
-- **Google Gemini**: gemini-3.1-pro-preview, gemini-3-flash-preview, gemini-3.1-flash-lite-preview
-- **Anthropic Claude**: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5
-- **GitHub Copilot**: claude-sonnet-4.6, claude-opus-4.6, gemini-3.1-pro
-- **OpenAI Compatible**: drop-in replacement for GPT models
+The frontend stores this value in the **Server API Key** field in Settings.
 
-## Deployment
+### Built-in provider settings
 
-### Vercel
+| Provider | Required key | Default base URL | Default model |
+| --- | --- | --- | --- |
+| Gemini | `GOOGLE_API_KEY` | Google Gemini API | `gemini-3.1-pro-preview` |
+| Anthropic | `ANTHROPIC_API_KEY` | Anthropic API | `claude-sonnet-4-6` |
+| Copilot | `COPILOT_API_KEY` | `https://api.githubcopilot.com` | `claude-sonnet-4.6` |
+| OpenCode Zen | `OPENCODE_API_KEY` | `http://localhost:4096/zen/v1` | `opencode/glm-5.1` |
+| Kilo Gateway | `KILO_API_KEY` | `https://api.kilo.ai/api/gateway` | `kilo-auto/balanced` |
 
-```bash
-npm i -g vercel
-vercel --prod
-```
+### Repo indexing settings
 
-### Render
+The API also supports GitHub repo indexing and optional Turso sync:
 
-- Connect GitHub repo
-- Build: `cd apps/api && uv sync --all-extras`
-- Start: `cd apps/api && PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --host 0.0.0.0 --port 9000`
+- `REPO_INDEX_ENABLED`
+- `REPO_INDEX_DB_PATH`
+- `REPO_INDEX_TURSO_SYNC_URL`
+- `REPO_INDEX_TURSO_AUTH_TOKEN`
+- `REPO_INDEX_MAX_FILES`
+- `REPO_INDEX_MAX_FILE_BYTES`
+- `REPO_INDEX_BASH_LSP_COMMAND`
+- `REPO_INDEX_PYTHON_LSP_COMMAND`
+- `REPO_INDEX_RUST_LSP_COMMAND`
 
-### Railway
+See `.env.example` for a complete template.
 
-- Deploy from GitHub
-- Automatic build and deploy
+## API surface
 
-See [DEPLOYMENT.md](docs/deployment.md) for detailed deployment instructions.
+### Public endpoint
 
-## PWA Features
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/health` | Health probe |
 
-- Offline functionality
-- Installable on mobile/desktop
-- Responsive design
+### Gateway endpoints
 
-## API Endpoints
+These endpoints require `Authorization: Bearer <API_KEY>` when `API_KEY` is configured.
 
-- `GET /health` - Health check
-- `GET /v1/models` - List available models
-- `POST /v1/chat/completions` - OpenAI-compatible chat completions (streaming supported)
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/v1/models` | Returns the built-in model catalog |
+| `POST` | `/v1/chat/completions` | OpenAI-compatible chat completions with optional streaming |
+| `POST` | `/v1/agent/chat` | Streams agent events over SSE |
+| `POST` | `/v1/repo/index` | Indexes a GitHub repository using a GitHub token |
+| `GET` | `/v1/repo/index/status` | Returns indexing status for a GitHub repo |
+| `POST` | `/v1/repo/search` | Searches the stored GitHub repo index |
+| `POST` | `/v1/local-index/index` | Builds a local semantic index |
+| `POST` | `/v1/local-index/search` | Searches the local semantic index |
+| `GET` | `/v1/local-index/stats` | Returns local index statistics |
 
-## Development
+## Frontend workflow
+
+The web app currently exposes these primary modes:
+
+- **Chat** — OpenAI-compatible chat UI with provider overrides and JSON healing helpers
+- **Agent** — SSE-driven agent session UI backed by `/v1/agent/chat`
+- **Shell** — saved WebSocket shell profiles, multi-pane layouts, Ghostty rendering, and a `webassembly.sh` fallback
+- **Editor** — code editing and review UI
+- **Files** — GitHub file browser plus repo index status and symbol search
+- **Settings** — GitHub token, gateway key, provider, and model management
+
+The Settings screen stores non-sensitive config in `localStorage` and session-only credentials in `sessionStorage`.
+
+## Development and validation
 
 ### Frontend
 
 ```bash
 cd apps/web
-bun run dev        # Development server
-bun run build      # Production build
-bun run lint       # Lint code
-bun run typecheck  # Type checking
+bun install
+bun run test
+bun run lint
+bun run typecheck
+bun run build
 ```
 
-### Backend
+### API
 
 ```bash
 cd apps/api
-PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
-PYTHONPATH=src:../../packages/config/src uv run pytest
+uv sync --all-extras
+export PYTHONPATH=src:../../packages/config/src
+uv run ruff format --check
+uv run ruff check
+uv run pyrefly check
+uv run pytest
 ```
 
-### Project Structure
+### Root workspace shortcuts
 
-```
-├── apps/
-│   ├── web/              # React TypeScript frontend (Vite PWA)
-│   │   ├── src/
-│   │   │   ├── components/  # UI components
-│   │   │   ├── services/    # API services
-│   │   │   └── store.ts     # Zustand state management
-│   │   └── dist/           # Built frontend
-│   └── api/              # FastAPI backend
-│       └── src/affine/api/
-├── packages/
-│   ├── config/           # Typed settings (Pydantic)
-│   ├── llm-core/         # LLM provider interfaces & factory
-│   └── shared/           # Shared Python models & schemas
-├── package.json          # Bun workspace scripts
-└── vercel.json           # Deployment config
+```bash
+bun run lint
+bun run typecheck
+bun run test
+bun run build
 ```
 
-## Security
+## Deployment
 
-- Input validation with Pydantic
-- CORS protection
-- Environment-based secrets
+- Frontend targets are documented in [`docs/deployment.md`](docs/deployment.md)
+- The release workflow publishes a built frontend tarball when you push a `v*` tag
+- The repo also includes `netlify.toml` for static frontend deployments
 
-## Monitoring
+## Additional docs
 
-- Vercel Analytics integration
-- Speed Insights
-- Health check endpoint
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+- [`docs/architecture.md`](docs/architecture.md) — current repository architecture
+- [`docs/runtime-modes.md`](docs/runtime-modes.md) — current runtime surfaces and frontend application modes
+- [`docs/deployment.md`](docs/deployment.md) — deployment and environment reference
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Support
-
-- Check [DEPLOYMENT.md](docs/deployment.md) for deployment issues
-- Review logs for error details
-- Ensure API keys are valid
-- Check quota limits
+MIT — see [`LICENSE`](LICENSE).
