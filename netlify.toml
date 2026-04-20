@@ -1,6 +1,7 @@
 [build]
-  command = "cd apps/web && bun install && bun run build"
-  publish = "apps/web/dist"
+  base = "apps/web"
+  command = "bun install && bun run build"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"
