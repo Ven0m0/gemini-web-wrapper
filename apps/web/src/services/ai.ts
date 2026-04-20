@@ -254,7 +254,10 @@ Note: Preserve proper character encoding and formatting for all text content.`
         try {
           const err = JSON.parse(text)
           msg = err?.error?.message || err?.message || text
-        } catch {}
+        } catch {
+          // If JSON parsing fails, we fall back to the raw response text
+          // which was already assigned to 'msg' above.
+        }
         throw new AIImageError(
           `OpenAI Image API error: ${response.status} ${response.statusText} - ${msg}`,
           response.status,
