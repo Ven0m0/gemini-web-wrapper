@@ -8,6 +8,7 @@ import {
   type ProviderConfig,
 } from '../services/providers';
 import { useStore } from '../store';
+import { clearConfigFromStorage, hasSavedSettings, loadConfigFromStorage, saveConfigToStorage } from '../services/storage';
 
 interface ConfigOverlayProps {
   /**
@@ -50,9 +51,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   const [temperatureInput, setTemperatureInput] = useState(() => String(config.temperature));
   const [repoInput, setRepoInput] = useState(() => formatRepositoryInput(config.owner, config.repo));
   const [showTokens, setShowTokens] = useState(false);
-  const [rememberCredentials, setRememberCredentials] = useState(() =>
-    Boolean(localStorage.getItem('chat-github-config'))
-  );
+  const [rememberSettings, setRememberSettings] = useState(() => hasSavedSettings());
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [storageMessage, setStorageMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
@@ -144,24 +143,20 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     });
     setConfig(normalized);
 
-    if (rememberCredentials) {
-      localStorage.setItem(
-        'chat-github-config',
-        JSON.stringify({
-          githubToken: normalized.githubToken,
-          openaiKey: normalized.openaiKey,
-          providers: normalized.providers,
-          provider: normalized.provider,
-          owner: normalized.owner,
-          repo: normalized.repo,
-          branch: normalized.branch,
-          model: normalized.model,
-          temperature: normalized.temperature,
-        })
-      );
-    } else {
-      localStorage.removeItem('chat-github-config');
-    }
+    saveConfigToStorage(
+      {
+        githubToken: normalized.githubToken,
+        openaiKey: normalized.openaiKey,
+        providers: normalized.providers,
+        provider: normalized.provider,
+        owner: normalized.owner,
+        repo: normalized.repo,
+        branch: normalized.branch,
+        model: normalized.model,
+        temperature: normalized.temperature,
+      },
+      rememberSettings
+    );
 
     setStorageMessage({
       tone: 'success',
@@ -191,17 +186,17 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   };
 
   const handleLoadFromStorage = () => {
-    const saved = localStorage.getItem('chat-github-config');
-    if (saved) {
+    const savedConfig = loadConfigFromStorage();
+    if (savedConfig) {
       try {
         const parsedConfig = migrateSavedConfig({
           ...localConfig,
-          ...JSON.parse(saved),
-        });
+          ...savedConfig,
+        } as any);
         setLocalConfig(parsedConfig);
         setTemperatureInput(String(parsedConfig.temperature));
         setRepoInput(formatRepositoryInput(parsedConfig.owner, parsedConfig.repo));
-        setRememberCredentials(true);
+        setRememberSettings(hasSavedSettings());
         setStorageMessage({ tone: 'success', text: 'Loaded saved configuration from local storage.' });
       } catch {
         setStorageMessage({ tone: 'error', text: 'Failed to load the saved configuration.' });
@@ -212,8 +207,8 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   };
 
   const handleClearStorage = () => {
-    localStorage.removeItem('chat-github-config');
-    setRememberCredentials(false);
+    clearConfigFromStorage();
+    setRememberSettings(false);
     setStorageMessage({ tone: 'success', text: 'Cleared the saved configuration from local storage.' });
   };
 
@@ -524,10 +519,10 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
           <label>
             <input
               type="checkbox"
-              checked={rememberCredentials}
-              onChange={(e) => setRememberCredentials(e.target.checked)}
+              checked={rememberSettings}
+              onChange={(e) => setRememberSettings(e.target.checked)}
             />
-            Remember credentials in local storage on this device
+            Remember settings in local storage on this device
           </label>
         </div>
         <div className="config-field">
