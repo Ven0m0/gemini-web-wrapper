@@ -18,7 +18,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from affine.api.server import app
+from affine.api.server import _extract_non_empty_text, app
 from affine.config.settings import Settings, get_settings
 
 # ---------------------------------------------------------------------------
@@ -26,6 +26,18 @@ from affine.config.settings import Settings, get_settings
 # ---------------------------------------------------------------------------
 
 VALID_MESSAGES = [{"role": "user", "content": "hello"}]
+
+
+def test_extract_non_empty_text() -> None:
+    assert _extract_non_empty_text(None) is None
+    assert _extract_non_empty_text(123) is None
+    assert _extract_non_empty_text({}) is None
+    assert _extract_non_empty_text([]) is None
+    assert _extract_non_empty_text("") is None
+    assert _extract_non_empty_text("   ") is None
+    assert _extract_non_empty_text("\t\n") is None
+    assert _extract_non_empty_text("hello") == "hello"
+    assert _extract_non_empty_text("  hello  ") == "hello"
 
 
 def make_settings(**kwargs: object) -> Settings:
