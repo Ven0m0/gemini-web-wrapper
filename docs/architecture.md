@@ -1,351 +1,181 @@
-> **Note:** This document describes the aspirational/target architecture. The current implementation may differ. See `apps/api/src/affine/api/server.py` and `apps/web/src/` for the actual codebase.
+# Architecture
 
-# Architecture — Merged AI Coding Workstation
+This document describes the **current** repository structure and runtime behavior.
 
-## 1. Product Scope
+## Repository layout
 
-An open-source, privacy-first AI coding workstation combining the backend/provider maturity of `Ven0m0/gemini-web-wrapper`, the plugin/MCP extensibility of `Ven0m0/coder-web`, and the IDE/workspace UX and chat-mode semantics of `Ven0m0/opencode-web`.
-
-### Primary Goals
-
-| Goal | Description |
-|------|-------------|
-| Privacy-first | No mandatory cloud services; prefer local execution |
-| OpenAI-compatible API | Drop-in replacement for OpenAI clients |
-| Multi-provider LLM gateway | Google Gemini, Anthropic Claude, GitHub Copilot, Bifrost |
-| Browser cookie auth | `gemini-webapi` path requires no API key |
-| Plugin architecture | MCP tool integration via Composio |
-| Workspace-aware chat | IDE-like context propagation and file editing |
-
-### Non-Goals (Out of Scope)
-
-- Mandatory cloud dependency of any kind
-- Closed-source components
-- Windows-specific tooling (first-class Linux/macOS support)
-- Native mobile apps (web-only for now)
-- Commercial licensing requirements beyond AGPL-3.0
-
----
-
-## 2. Package Architecture
-
-### 2.1 Monorepo Layout
-
-```
-/
+```text
+.
 ├── apps/
-│   ├── web/                  # React 19 PWA (Vite 7)
-│   │   ├── src/
-│   │   │   ├── App.tsx
-│   │   │   ├── store.ts      # Zustand global state
-│   │   │   ├── main.tsx
-│   │   │   ├── components/
-│   │   │   ├── services/
-│   │   │   ├── utils/
-│   │   │   └── codemirror/
-│   │   ├── public/
-│   │   └── package.json
-│   │
-│   └── api/                  # FastAPI + Uvicorn (uvloop)
-│       ├── server.py         # Main entry point
-│       ├── config.py         # Pydantic Settings (env vars)
-│       ├── lifespan.py       # Startup/shutdown
-│       ├── dependencies.py   # FastAPI DI
-│       ├── models.py         # Shared Pydantic models
-│       ├── endpoints/        # Router modules (one concern per file)
-│       ├── llm_core/          # Provider abstraction layer
-│       │   ├── interfaces.py # LLMProvider Protocol
-│       │   ├── factory.py    # ProviderFactory (structural match dispatch)
-│       │   └── providers/
-│       │       ├── gemini.py
-│       │       ├── anthropic.py
-│       │       ├── copilot.py
-│       │       └── bifrost.py
-│       ├── composio_service.py
-│       ├── cookie_manager.py # aiosqlite multi-profile cookie persistence
-│       ├── session_manager.py
-│       ├── gemini_client.py  # gemini-webapi client wrapper
-│       ├── github_service.py
-│       └── pyproject.toml
-│
+│   ├── api/                   # FastAPI gateway and indexing routes
+│   └── web/                   # React 19 + TypeScript + Vite 8 PWA
+├── docs/                      # Project documentation
 ├── packages/
-│   ├── shared/                # Shared Python + TypeScript types/schemas
-│   │   ├── python/
-│   │   │   ├── pyproject.toml
-│   │   │   └── src/affine/shared/
-│   │   │       ├── models.py
-│   │   │       ├── openai_schemas.py
-│   │   │       └── tool_parsing.py
-│   │   └── types/             # TypeScript shared types
-│   │       ├── package.json
-│   │       └── src/
-│   │
-│   ├── llm-core/              # Provider abstraction (mirrors llm_core/)
-│   │   ├── pyproject.toml
-│   │   └── src/affine/llm_core/
-│   │       ├── interfaces.py
-│   │       ├── factory.py
-│   │       └── providers/
-│   │
-│   ├── agent-runtime/         # Tool execution, session management
-│   │   ├── pyproject.toml
-│   │   └── src/affine/agent_runtime/
-│   │       ├── session.py
-│   │       ├── composio.py
-│   │       └── workspace.py
-│   │
-│   ├── mcp/                   # MCP client/server implementation
-│   │   ├── pyproject.toml
-│   │   └── src/affine/mcp/
-│   │
-│   ├── workspace/             # File system operations, git integration
-│   │   ├── pyproject.toml
-│   │   └── src/affine/workspace/
-│   │
-│   ├── github-integration/    # GitHub REST API, file/PR management
-│   │   ├── pyproject.toml
-│   │   └── src/affine/github/
-│   │
-│   ├── ui/                    # Shared React components
-│   │   ├── package.json
-│   │   └── src/
-│   │
-│   ├── config/                # Typed env/config loading
-│   │   ├── pyproject.toml
-│   │   └── src/affine/config/
-│   │
-│   └── observability/          # Logging, metrics, tracing
-│       ├── pyproject.toml
-│       └── src/affine/observability/
-│
-├── docs/
-│   ├── architecture.md        # This file
-│   ├── runtime-modes.md
-│   ├── migration-matrix.md
-│   └── examples/
-│
-├── scripts/
-│
-├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml            # web + api + shared CI
-│   │   ├── release.yml
-│   │   └── dependabot-automerge.yml
-│   └── skills/
-│
-├── pyproject.toml             # Root Python workspace
-├── package.json               # Root Bun workspace
-├── bun.lockb
-├── uv.lock
-├── CLAUDE.md -> AGENTS.md
-└── GEMINI.md -> AGENTS.md
+│   ├── code-index/            # Local indexing + semantic search helpers
+│   ├── config/                # Typed settings and cached get_settings()
+│   ├── helixent/              # TypeScript ReAct-style agent package
+│   ├── llm-core/              # Provider interfaces and implementations
+│   └── shared/python/         # Shared Python schemas
+├── .github/workflows/         # CI, tests, release, and automation
+├── mise.toml                  # Pinned Node/Bun/Python toolchain
+├── package.json               # Root workspace shortcuts
+└── pyproject.toml             # uv workspace definition
 ```
 
-### 2.2 Package Boundaries and Ownership
+## Frontend architecture (`apps/web`)
 
-| Package | Language | Owner | Responsibility |
-|---------|----------|-------|----------------|
-| `apps/web` | TypeScript/React | Frontend team | PWA UI, Zustand store, API calls |
-| `apps/api` | Python | Backend team | FastAPI app, endpoints, LLM providers |
-| `packages/shared` | Python + TypeScript | All | Shared Pydantic models, TypeScript types |
-| `packages/llm-core` | Python | Backend team | Provider abstraction, factory dispatch |
-| `packages/agent-runtime` | Python | Backend team | Session management, tool execution |
-| `packages/mcp` | Python | Backend team | MCP protocol client/server |
-| `packages/workspace` | Python | Backend team | File system, git operations |
-| `packages/github-integration` | Python | Backend team | GitHub REST API |
-| `packages/ui` | TypeScript/React | Frontend team | Shared React components |
-| `packages/config` | Python | Backend team | Typed environment loading |
-| `packages/observability` | Python | Backend team | Logging, metrics |
+### Shell
 
-### 2.3 API Ownership
+- React 19 + TypeScript application bundled with Vite 8
+- Progressive Web App support via `vite-plugin-pwa`
+- Shared application state in `src/store.ts`
+- Service modules in `src/services/` for API access, storage, provider metadata, repo indexing, shell sessions, and agent streaming
 
-All HTTP endpoints are owned by `apps/api`. Frontend (`apps/web`) consumes only the API — no shared API code.
+### Primary application modes
 
-| Prefix | Router | Status |
-|--------|--------|--------|
-| `/v1/chat/completions` | `openai.py` | **Mounted** |
-| `/tools/composio/*` | `tools.py` | **Mounted** |
-| `/profiles/*` | `profiles.py` | **Mounted** |
-| `/chat`, `/chatbot` | `chat.py` | Not mounted |
-| `/gemini/*` | `gemini.py` | Not mounted |
-| `/github/*` | `github.py` | Not mounted |
-| `/openwebui/*` | `openwebui.py` | Not mounted |
-| `/sessions/*` | `sessions.py` | Not mounted |
+The frontend currently routes between these modes:
 
-**Mounting new routers:** Import in `server.py` and call `app.include_router(...)`.
+| Mode | Purpose |
+| --- | --- |
+| `chat` | OpenAI-compatible chat UI |
+| `agent` | SSE-driven agent chat UI |
+| `shell` | WebSocket shell sessions, Ghostty rendering, and `webassembly.sh` fallback |
+| `editor` | File editing and review |
+| `tool` | GitHub browsing plus repo index status and search |
+| `settings` | Provider, GitHub, and gateway configuration |
 
----
+### Frontend configuration flow
 
-## 3. Execution Modes
+- The Settings view manages the selected provider, model, gateway key, GitHub repo, and GitHub token.
+- Sensitive values are persisted in `sessionStorage`.
+- Sanitized non-sensitive settings can optionally be remembered in `localStorage`.
+- Built-in providers are defined in `apps/web/src/services/providers.ts`.
+- Users can add custom OpenAI-compatible providers by supplying a provider ID and base URL.
 
-Three mutually exclusive runtime modes control which features are available.
+## Backend architecture (`apps/api`)
 
-| Mode | Flag | Description |
-|------|------|-------------|
-| **server-managed** | `RUNTIME_MODE=server-managed` | Full API server; frontend is built static assets served by API |
-| **browser-only** | `RUNTIME_MODE=browser-only` | No API server; frontend runs standalone with browser-only providers |
-| **local-workspace-enabled** | `RUNTIME_MODE=local-workspace-enabled` | Full API + local workspace daemon for file system operations |
+### API surface
 
-Default: `server-managed`.
+The FastAPI app in `apps/api/src/affine/api/server.py` mounts these active routes:
 
-Feature availability by mode:
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Health probe |
+| `GET` | `/v1/models` | Returns the built-in model catalog |
+| `POST` | `/v1/chat/completions` | OpenAI-compatible chat completions |
+| `POST` | `/v1/agent/chat` | Agent streaming over SSE |
+| `POST` | `/v1/repo/index` | GitHub repository indexing |
+| `GET` | `/v1/repo/index/status` | Repo index status lookup |
+| `POST` | `/v1/repo/search` | Search the stored repo index |
+| `POST` | `/v1/local-index/index` | Build a local semantic index |
+| `POST` | `/v1/local-index/search` | Search the local semantic index |
+| `GET` | `/v1/local-index/stats` | Local index statistics |
 
-| Feature | server-managed | browser-only | local-workspace-enabled |
-|---------|----------------|--------------|-------------------------|
-| OpenAI-compatible API | Yes | No | Yes |
-| Cookie profile auth | Yes | No | Yes |
-| Composio tools | Yes | No | Yes |
-| GitHub integration | Yes | No | Yes |
-| Local file editing | No | No | Yes |
-| Gemini webapi | Yes | Yes | Yes |
-| Gemini API key | Yes | No | Yes |
+### Authentication model
 
----
+- `GET /health` is public.
+- `/v1/*` endpoints are protected only when `API_KEY` is configured.
+- If `API_KEY` is unset, the gateway operates in open mode and clients can authenticate only with provider-specific keys supplied in the request.
 
-## 4. Trust Model
+### Provider selection
 
-Four trust tiers; all code execution is gated by the effective tier of the current session.
+Provider settings live in `packages/config/src/affine/config/settings.py`.
 
-| Tier | Name | Description | Shell exec | Remote plugins | Local workspace |
-|------|------|-------------|------------|----------------|-----------------|
-| **safe** | Safe | No execution of untrusted content | No | No | No |
-| **trusted-local** | Trusted Local | Local code only, no network | Yes | No | Yes |
-| **trusted-remote** | Trusted Remote | Local + verified remote tools | Yes | Yes (verified) | Yes |
-| **experimental** | Experimental | All features enabled | Yes | Yes (any) | Yes |
+The server supports:
 
-**Trust tier assignment:** Environment variable `TRUST_TIER` (default: `trusted-local`).
+- **Built-in providers:** `gemini`, `anthropic`, `copilot`
+- **Gateway presets through shared OpenAI-compatible transport:** `opencode-zen`, `kilo-gateway`
+- **Request-level custom providers:** any provider name with `x_provider_base_url`
 
----
+`packages/llm-core/src/affine/llm_core/factory.py` returns:
 
-## 5. Feature Flags
+- a native provider implementation for registered providers, or
+- `OpenAICompatibleProvider` when an unknown provider is supplied with a `base_url`
 
-Feature flags gate experimental or heavyweight capabilities.
+### Chat flow
 
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `localWorkspace` | bool | `false` | Enable local workspace daemon (implies `local-workspace-enabled` mode) |
-| `browserOnlyProviders` | bool | `false` | Only allow browser-based LLM providers |
-| `vision` | bool | `true` | Enable vision/multimodal input |
-| `shellExec` | bool | `false` | Enable shell command execution |
-| `remotePlugins` | bool | `false` | Allow loading MCP plugins from remote sources |
-| `experimentalMcp` | bool | `false` | Enable experimental MCP protocol features |
+1. The client calls `/v1/chat/completions` or `/v1/agent/chat`.
+2. The server resolves provider overrides from the request body.
+3. If no override is usable, the server falls back to the configured provider in `Settings`.
+4. The selected provider generates a response or SSE stream.
+5. Agent streams and chat streams both close provider resources explicitly.
 
----
+## Indexing subsystems
 
-## 6. Data Flows
+### GitHub repository index
 
-### 6.1 OpenAI-Compatible Chat Completion
+The GitHub repo index API lives in:
 
-```
-Client → POST /v1/chat/completions
-       → dependencies.get_model_config()
-       → ProviderFactory.create(provider_type)
-       → LLMProvider.chat(messages, tools, params)
-       → response_builder.build_sse_response()
-       → SSE stream or JSON
-```
+- `apps/api/src/affine/api/repo_index.py`
+- `apps/api/src/affine/api/repo_indexing.py`
 
-### 6.2 Tool Execution (Composio)
+Characteristics:
 
-```
-LLM returns tool_call
-→ openai_transforms.parse_tool_calls()
-→ tool_parsing.parse_tool_call()
-→ composio_service.execute_tool(action, params)
-→ SSE event back to client
-```
+- indexes repository trees fetched through the GitHub API,
+- stores index metadata in `REPO_INDEX_DB_PATH` (default `.cache/repo-index.db`),
+- extracts language-aware symbols and snippets,
+- records available Bash/Python/Rust language servers, and
+- optionally syncs to Turso when `REPO_INDEX_TURSO_SYNC_URL` is configured.
 
-### 6.3 Cookie Profile Management
+### Local semantic index
 
-```
-Client → /profiles/*
-       → cookie_manager.CookieManager
-       → aiosqlite (cookie_store.db)
-       → gemini_client.use_profile(profile_id)
-```
+The local index API lives in `apps/api/src/affine/api/local_index.py` and delegates to `packages/code-index`.
 
----
+Characteristics:
 
-## 7. Security Considerations
+- indexes a local workspace rooted at the requested path,
+- stores embeddings and records in a LanceDB directory under `.cache/lancedb`,
+- exposes index, search, and stats endpoints, and
+- uses the configured embedder factory from `apps/api/src/affine/api/utils.py`.
 
-1. **Input validation at boundaries**: All env vars validated via Pydantic; request bodies validated at FastAPI endpoints.
-2. **No API key required for `gemini-webapi`**: Cookie-based auth only; keys stored server-side.
-3. **Trust tier enforcement**: Shell exec and remote plugins gated by trust tier.
-4. **Stateless requests**: Server maintains no conversation state; client sends full history.
-5. **Session isolation**: Each conversation session is isolated; cookies stored per-profile.
+## Shared packages
 
----
+| Package | Responsibility |
+| --- | --- |
+| `packages/config` | typed settings, provider defaults, repo index config |
+| `packages/llm-core` | provider protocol, Gemini/Anthropic/Copilot implementations, OpenAI-compatible fallback |
+| `packages/shared/python` | chat, agent, and repo-index request/response schemas |
+| `packages/code-index` | local code indexing, AST extraction, storage, and search |
+| `packages/helixent` | TypeScript agent-loop package for ongoing agent work |
 
-## 8. Testing Strategy
+## Tooling and validation
 
-Tests are organized by package. Async tests use **anyio** (not asyncio directly).
+### Workspace toolchain
 
-| Package | Test file | Runner |
-|---------|-----------|--------|
-| `apps/api` | `test_*.py` | `uv run pytest` |
-| `packages/llm-core` | `test_bifrost.py` | `uv run pytest` |
-| `packages/config` | (to be added) | `uv run pytest` |
-| `packages/shared` | (to be added) | `uv run pytest` |
+- Node.js `24.15.0`
+- Bun `1.3.13`
+- Python `3.14.4`
+- `uv`
 
-**Quality gate (run before every commit):**
+### CI workflows
+
+- `ci.yml`
+  - frontend lint/typecheck/build
+  - API format/lint/typecheck/test
+  - config package format/lint
+  - shared package format/lint
+- `test.yml`
+  - frontend `bun run test`
+- `release.yml`
+  - frontend test/lint/typecheck/build on `v*` tags, then packages `apps/web/dist`
+
+### Verified commands
 
 ```bash
-uv run ruff format .          # 1. Format
-pyrefly check                 # 2. Type check
-uv run ruff check . --fix     # 3. Lint (auto-fix)
-uv run pytest                 # 4. Tests
+# Frontend
+cd apps/web
+bun install
+bun run test
+bun run lint
+bun run typecheck
+bun run build
+
+# API
+cd apps/api
+uv sync --all-extras
+export PYTHONPATH=src:../../packages/config/src
+uv run ruff format --check
+uv run ruff check
+uv run pyrefly check
+uv run pytest
 ```
-
-Frontend:
-
-```bash
-cd apps/web && bun run build  # Catches TypeScript errors
-```
-
----
-
-## 9. Environment Variables
-
-### Required
-
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_API_KEY` | Google AI API key (Gemini) |
-
-### Optional
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MODEL_PROVIDER` | `gemini` | `gemini` \| `anthropic` \| `copilot` \| `bifrost` |
-| `MODEL_NAME` | provider default | Override model name |
-| `ANTHROPIC_API_KEY` | — | Anthropic API key |
-| `GITHUB_TOKEN` | — | GitHub personal access token |
-| `BIFROST_URL` | `http://localhost:8080/v1` | Bifrost gateway base URL |
-| `BIFROST_API_KEY` | — | Bifrost API key |
-| `COMPOSIO_API_KEY` | — | Composio API key; omit to disable tool endpoints |
-| `PORT` | `9000` | Server port |
-| `FRONTEND_DIST_DIR` | `apps/web/dist` | Path to built frontend |
-| `DEBUG` | `false` | Enable debug logging |
-| `LOG_LEVEL` | `INFO` | Log verbosity |
-| `RUNTIME_MODE` | `server-managed` | Execution mode |
-| `TRUST_TIER` | `trusted-local` | Trust tier |
-| `localWorkspace` | `false` | Feature flag |
-| `browserOnlyProviders` | `false` | Feature flag |
-| `vision` | `true` | Feature flag |
-| `shellExec` | `false` | Feature flag |
-| `remotePlugins` | `false` | Feature flag |
-| `experimentalMcp` | `false` | Feature flag |
-
----
-
-## 10. Gate Structure (Implementation Milestones)
-
-| Gate | Focus | Key deliverables |
-|------|-------|-----------------|
-| G1 | Foundation | Monorepo structure, shared packages, API shell |
-| G2 | LLM Core | All providers wired to shared interfaces |
-| G3 | API | All endpoints mounted and functional |
-| G4 | Frontend shell | PWA installs, basic chat works end-to-end |
-| M4 | Full merge | All legacy features migrated, tested |
-| M5 | Observability | Metrics, tracing, logging complete |
-| M6 | Release | Public launch, docs, versioning |
