@@ -1,5 +1,5 @@
 [build]
-  command = "cd apps/web && npm install -g bun && bun install && bun run build"
+  command = "bun install && bun run build"
   publish = "apps/web/dist"
 
 [[redirects]]
