@@ -11,8 +11,8 @@ from affine.code_index import (
     CodeIndexer,
     CodeSearchEngine,
     CodeIndexStore,
-    EmbedderFactory,
 )
+from affine.api.utils import create_local_embedder
 from affine.config.settings import get_settings
 
 
@@ -21,23 +21,10 @@ async def index_command(args: argparse.Namespace) -> int:
     settings = get_settings()
 
     # Select embedder based on settings
-    provider = settings.model_provider
-    api_key = settings.provider_api_key()
-    base_url = settings.provider_base_url()
-
-    if provider == "gemini" and settings.google_api_key:
-        embedder = EmbedderFactory.create(
-            provider="gemini",
-            api_key=settings.google_api_key,
-        )
-    elif api_key:
-        embedder = EmbedderFactory.create(
-            provider="openai",
-            api_key=api_key,
-            base_url=base_url,
-        )
-    else:
-        print("Error: No API key configured for embedding", file=sys.stderr)
+    try:
+        embedder = create_local_embedder(settings)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
     root = Path(args.root or ".").resolve()
@@ -71,23 +58,10 @@ async def search_command(args: argparse.Namespace) -> int:
     settings = get_settings()
 
     # Same embedder selection as index
-    provider = settings.model_provider
-    api_key = settings.provider_api_key()
-    base_url = settings.provider_base_url()
-
-    if provider == "gemini" and settings.google_api_key:
-        embedder = EmbedderFactory.create(
-            provider="gemini",
-            api_key=settings.google_api_key,
-        )
-    elif api_key:
-        embedder = EmbedderFactory.create(
-            provider="openai",
-            api_key=api_key,
-            base_url=base_url,
-        )
-    else:
-        print("Error: No API key configured for embedding", file=sys.stderr)
+    try:
+        embedder = create_local_embedder(settings)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
     db_path = Path(args.db or ".index/lancedb").resolve()
@@ -125,15 +99,11 @@ async def stats_command(args: argparse.Namespace) -> int:
     settings = get_settings()
 
     # Need an embedder just to get dimension
-    api_key = settings.provider_api_key()
-    if not api_key:
-        print("Error: No API key configured", file=sys.stderr)
+    try:
+        embedder = create_local_embedder(settings)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
-
-    embedder = EmbedderFactory.create(
-        provider="openai" if settings.model_provider != "gemini" else "gemini",
-        api_key=api_key or settings.google_api_key or "",
-    )
 
     db_path = Path(args.db or ".index/lancedb").resolve()
 
