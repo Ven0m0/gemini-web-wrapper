@@ -134,12 +134,11 @@ def verify_api_key(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     settings: Settings = Depends(get_settings),
 ):
-    # If no server API key is configured operate in open/public mode so that
-    # users can authenticate only via their own provider keys in the request body.
-    # credentials may be None here (HTTPBearer auto_error=False) which is fine —
-    # the endpoint does not use the credentials object directly.
     if not settings.api_key:
-        return credentials
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server API key is not configured",
+        )
     if not credentials or not secrets.compare_digest(
         credentials.credentials, settings.api_key
     ):

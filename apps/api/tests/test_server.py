@@ -98,21 +98,20 @@ def test_chat_completions_requires_auth_when_key_configured(
     assert resp.status_code == 401
 
 
-def test_chat_completions_open_mode_no_auth_required(
+def test_chat_completions_fails_closed_when_unconfigured(
     client_open: TestClient,
 ) -> None:
-    with patch("affine.api.server.ProviderFactory.create") as mock_create:
-        mock_create.return_value = _mock_provider("hi")
-        resp = client_open.post(
-            "/v1/chat/completions",
-            json={
-                "model": "gemini-3.1-pro-preview",
-                "messages": VALID_MESSAGES,
-                "x_provider": "gemini",
-                "x_provider_api_key": "user-gemini-key",
-            },
-        )
-    assert resp.status_code == 200
+    resp = client_open.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gemini-3.1-pro-preview",
+            "messages": VALID_MESSAGES,
+            "x_provider": "gemini",
+            "x_provider_api_key": "user-gemini-key",
+        },
+    )
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "Server API key is not configured"
 
 
 # ---------------------------------------------------------------------------
