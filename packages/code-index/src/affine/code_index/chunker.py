@@ -27,9 +27,9 @@ class SlidingWindowChunker:
 
     def chunk_file(self, path: str, content: str) -> list[Chunk]:
         """Split file into overlapping chunks."""
-        lines = content.split("\n")
-        if not lines:
+        if not content:
             return []
+        lines = content.split("\n")
 
         chunks: list[Chunk] = []
         start_line = 0
