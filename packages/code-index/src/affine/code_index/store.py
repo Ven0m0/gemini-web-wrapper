@@ -143,6 +143,16 @@ class CodeIndexStore:
             return
         await self._table.delete(f"file_hash = '{file_hash}'")
 
+    async def delete_by_file_hashes(self, file_hashes: set[str]) -> None:
+        """Remove all entries for a given set of file hashes (batch optimization)."""
+        if self._table is None or not file_hashes:
+            return
+
+        # LanceDB supports IN clause for batch deletion
+        hash_list = list(file_hashes)
+        formatted_hashes = ", ".join(f"'{h}'" for h in hash_list)
+        await self._table.delete(f"file_hash IN ({formatted_hashes})")
+
     async def get_indexed_file_hashes(self) -> set[str]:
         """Get all file hashes currently in index."""
         if self._table is None:
