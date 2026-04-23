@@ -134,6 +134,8 @@ class CursorLike(Protocol):
 class ConnectionLike(Protocol):
     def execute(self, sql: str, parameters: tuple[object, ...] = ()) -> CursorLike: ...
 
+    def executemany(self, sql: str, parameters: Iterable[tuple[object, ...]]) -> CursorLike: ...
+
     def commit(self) -> None: ...
 
     def close(self) -> None: ...
@@ -309,18 +311,18 @@ class RepositoryIndexService:
 
             self._clear_repo_rows(connection, repo_id)
 
-            indexed_files = 0
-            symbol_count = 0
+            indexed_results: list[IndexedFile] = []
             for entry in selected_entries:
                 try:
                     content = await client.get_blob_text(entry.sha)
                 except UnicodeDecodeError:
                     skipped_files += 1
                     continue
-                indexed = self._index_file(entry, content)
-                self._insert_file(connection, repo_id, indexed)
-                indexed_files += 1
-                symbol_count += len(indexed.symbols)
+                indexed_results.append(self._index_file(entry, content))
+
+            self._insert_files(connection, repo_id, indexed_results)
+            indexed_files = len(indexed_results)
+            symbol_count = sum(len(f.symbols) for f in indexed_results)
 
             self._upsert_status(
                 connection,
@@ -783,49 +785,70 @@ class RepositoryIndexService:
             (repo_id,),
         )
 
-    def _insert_file(
-        self, connection: ConnectionLike, repo_id: int, indexed: IndexedFile
+    def _insert_files(
+        self,
+        connection: ConnectionLike,
+        repo_id: int,
+        indexed_files: list[IndexedFile],
     ) -> None:
-        connection.execute(
+        if not indexed_files:
+            return
+
+        connection.executemany(
             """
             INSERT INTO indexed_file (
                 repo_index_id, path, sha, language, line_count, size, snippet, content_hash
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                repo_id,
-                indexed.path,
-                indexed.sha,
-                indexed.language,
-                indexed.line_count,
-                indexed.size,
-                indexed.snippet,
-                indexed.content_hash,
-            ),
+            [
+                (
+                    repo_id,
+                    indexed.path,
+                    indexed.sha,
+                    indexed.language,
+                    indexed.line_count,
+                    indexed.size,
+                    indexed.snippet,
+                    indexed.content_hash,
+                )
+                for indexed in indexed_files
+            ],
         )
-        file_row = connection.execute(
-            "SELECT id FROM indexed_file WHERE repo_index_id = ? AND path = ?",
-            (repo_id, indexed.path),
-        ).fetchone()
-        if file_row is None:
-            raise ValueError(f"Failed to persist indexed file for {indexed.path}")
-        file_id = self._as_int(file_row[0])
-        for symbol in indexed.symbols:
-            connection.execute(
+
+        file_id_map: dict[str, int] = {
+            str(row[0]): self._as_int(row[1])
+            for row in connection.execute(
+                "SELECT path, id FROM indexed_file WHERE repo_index_id = ?",
+                (repo_id,),
+            ).fetchall()
+        }
+
+        symbol_params: list[tuple[object, ...]] = []
+        for indexed in indexed_files:
+            file_id = file_id_map.get(indexed.path)
+            if file_id is None:
+                raise ValueError(f"Failed to persist indexed file for {indexed.path}")
+            for symbol in indexed.symbols:
+                symbol_params.append(
+                    (
+                        repo_id,
+                        file_id,
+                        symbol.kind,
+                        symbol.name,
+                        symbol.start_line,
+                        symbol.end_line,
+                        symbol.snippet,
+                    )
+                )
+
+        if symbol_params:
+            connection.executemany(
                 """
                 INSERT INTO indexed_symbol (
                     repo_index_id, file_id, kind, name, start_line, end_line, snippet
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (
-                    repo_id,
-                    file_id,
-                    symbol.kind,
-                    symbol.name,
-                    symbol.start_line,
-                    symbol.end_line,
-                    symbol.snippet,
-                ),
+                symbol_params,
             )
 
     def _upsert_status(
