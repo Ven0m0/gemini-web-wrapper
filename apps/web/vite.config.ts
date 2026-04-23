@@ -57,6 +57,7 @@ export default defineConfig({
       minify: false,
       registerType: 'autoUpdate',
       workbox: {
+        maximumFileSizeToCacheInBytes: 5242880,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
