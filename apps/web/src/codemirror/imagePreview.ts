@@ -5,15 +5,33 @@ import { Decoration, EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@cod
 type ImgRef = { alt: string; src: string };
 
 // Simple sanitizer: allow http(s), safe data:image URLs, or relative paths; block javascript:/vbscript:/data: URIs
-function isSafeSrc(src: string): boolean {
+export function isSafeSrc(src: string): boolean {
   const trimmed = src.trim();
   const lower = trimmed.toLowerCase();
-  // Only allow data URLs that are clearly images
-  if (lower.startsWith('data:image/')) return true;
-  // Block scripting or generic data schemes regardless of casing/whitespace
-  if (['javascript:', 'vbscript:', 'data:'].some((scheme) => lower.startsWith(scheme))) return false;
+
+  // Block known dangerous schemes
+  if (['javascript:', 'vbscript:'].some((scheme) => lower.startsWith(scheme))) return false;
+
+  // For data: URLs, only allow specific safe image MIME types (no SVG)
+  if (lower.startsWith('data:')) {
+    const safeImageMimes = [
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+      'image/gif',
+      'image/webp',
+      'image/avif',
+      'image/apng',
+    ];
+    return safeImageMimes.some(
+      (mime) => lower.startsWith(`data:${mime};`) || lower.startsWith(`data:${mime},`)
+    );
+  }
+
   // Allow standard http(s) URLs
   if (['http://', 'https://'].some((scheme) => lower.startsWith(scheme))) return true;
+
+  // Allow relative paths or same-origin paths
   return trimmed.startsWith('/') || !trimmed.includes('://');
 }
 
