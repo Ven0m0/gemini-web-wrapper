@@ -278,22 +278,6 @@ class LocalEmbedder:
                 ) from exc
         return self._model
 
-    async def embed(
-        self, texts: list[str], input_type: str = "document"
-    ) -> list[list[float]]:
-        """Embed texts locally in batches."""
-        import asyncio
-
-        loop = asyncio.get_event_loop()
-
-        all_vectors: list[list[float]] = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            vectors = await loop.run_in_executor(None, self._embed_batch_sync, batch)
-            all_vectors.extend(vectors)
-
-        return all_vectors
-
     def _embed_batch_sync(self, texts: list[str]) -> list[list[float]]:
         """Synchronous batch embedding."""
         model = self._load_model()
