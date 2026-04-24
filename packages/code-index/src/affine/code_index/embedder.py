@@ -206,7 +206,9 @@ class VoyageEmbedder:
 
         return all_vectors
 
-    async def _embed_batch(self, texts: list[str], input_type: str) -> list[list[float]]:
+    async def _embed_batch(
+        self, texts: list[str], input_type: str
+    ) -> list[list[float]]:
         """Embed a single batch."""
         client = self._get_client()
         # voyage-code-3 uses input_type="document" for indexing

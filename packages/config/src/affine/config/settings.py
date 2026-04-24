@@ -6,7 +6,9 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-ProviderName = Literal["gemini", "anthropic", "copilot", "opencode-zen", "kilo-gateway", "voyage"]
+ProviderName = Literal[
+    "gemini", "anthropic", "copilot", "opencode-zen", "kilo-gateway", "voyage"
+]
 
 
 class Settings(BaseSettings):
