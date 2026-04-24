@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+export DEBIAN_FRONTEND=noninteractive DEBCONF_NOWARNINGS=yes
+
+bun install --frozen-lockfile || true
+uv sync --all-extras --all-packages --all-groups --link-mode symlink --locked || true
+cd apps/web && bun install --frozen-lockfile || true
+cd apps/api && uv sync --all-extras --all-packages --all-groups --link-mode symlink --locked || true
