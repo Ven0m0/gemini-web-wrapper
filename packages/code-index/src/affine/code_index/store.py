@@ -27,6 +27,7 @@ class CodeIndexStore:
                 ("path", pa.string()),
                 ("kind", pa.string()),
                 ("name", pa.string()),
+                ("signature", pa.string()),
                 ("code", pa.string()),
                 ("start_byte", pa.int64()),
                 ("end_byte", pa.int64()),
@@ -111,10 +112,11 @@ class CodeIndexStore:
         self,
         kind: str | None = None,
         name_pattern: str | None = None,
+        code_pattern: str | None = None,
         path_prefix: str | None = None,
         k: int = 10,
     ) -> list[dict[str, Any]]:
-        """Structural search by kind and name (without vector search)."""
+        """Structural search by kind, name, and code (without vector search)."""
         if self._table is None:
             raise RuntimeError("Store not initialized")
 
@@ -127,6 +129,8 @@ class CodeIndexStore:
             conditions.append(f"kind = '{kind}'")
         if name_pattern:
             conditions.append(f"name LIKE '%{name_pattern}%'")
+        if code_pattern:
+            conditions.append(f"code LIKE '%{code_pattern}%'")
         if path_prefix:
             conditions.append(f"path LIKE '{path_prefix}%'")
 

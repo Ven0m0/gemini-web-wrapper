@@ -76,6 +76,33 @@ class LocalSearchRequest(BaseModel):
     )
 
 
+class LocalStructuralSearchRequest(BaseModel):
+    """Request to structural search local codebase."""
+
+    kind: str | None = Field(
+        default=None,
+        description="Symbol kind filter",
+    )
+    name_pattern: str | None = Field(
+        default=None,
+        description="Name pattern filter",
+    )
+    code_pattern: str | None = Field(
+        default=None,
+        description="Code pattern filter",
+    )
+    path_prefix: str | None = Field(
+        default=None,
+        description="Path prefix filter",
+    )
+    k: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Number of results",
+    )
+
+
 class LocalSearchResult(BaseModel):
     """Single search result."""
 
@@ -85,9 +112,17 @@ class LocalSearchResult(BaseModel):
     code: str
     start_line: int
     end_line: int
+    signature: str | None = None
     score: float
     is_ast_node: bool
     pattern: str | None = None
+
+
+class LocalOutlineResponse(BaseModel):
+    """Response with repository or file outline."""
+
+    path: str | None = None
+    results: list[LocalSearchResult]
 
 
 class LocalSearchResponse(BaseModel):
@@ -201,7 +236,176 @@ async def search_local(
                 path=r.path,
                 kind=r.kind,
                 name=r.name,
+                signature=r.signature,
                 code=r.code[:500],  # Truncate for response
+                start_line=r.start_line,
+                end_line=r.end_line,
+                score=r.score,
+                is_ast_node=r.is_ast_node,
+                pattern=r.pattern,
+            )
+            for r in results
+        ],
+    )
+
+
+@router.post("/search/structural", response_model=LocalSearchResponse)
+async def search_structural(
+    request: LocalStructuralSearchRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Structural search local codebase index.
+
+    Performs literal search on symbol names, kinds, and code.
+    Returns results matching filters.
+    """
+    try:
+        embedder = get_embedder(settings)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize embedder: {exc}",
+        ) from exc
+
+    db_path = settings.repo_index_db_path.parent / "lancedb"
+
+    store = CodeIndexStore(db_path, embedder.dimension)
+    await store.initialize()
+
+    engine = CodeSearchEngine(store, embedder)
+
+    try:
+        results = await engine.search_structural(
+            kind=request.kind,
+            name_pattern=request.name_pattern,
+            code_pattern=request.code_pattern,
+            path_prefix=request.path_prefix,
+            k=request.k,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Structural search failed: {exc}",
+        ) from exc
+    finally:
+        await embedder.aclose()
+
+    return LocalSearchResponse(
+        query=f"structural:{request.name_pattern or ''}:{request.kind or ''}",
+        results=[
+            LocalSearchResult(
+                path=r.path,
+                kind=r.kind,
+                name=r.name,
+                signature=r.signature,
+                code=r.code[:500],
+                start_line=r.start_line,
+                end_line=r.end_line,
+                score=r.score,
+                is_ast_node=r.is_ast_node,
+                pattern=r.pattern,
+            )
+            for r in results
+        ],
+    )
+
+
+@router.get("/outline/file", response_model=LocalOutlineResponse)
+async def file_outline(
+    path: str,
+    settings: Settings = Depends(get_settings),
+):
+    """Get symbol outline for a specific file."""
+    try:
+        embedder = get_embedder(settings)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize embedder: {exc}",
+        ) from exc
+
+    db_path = settings.repo_index_db_path.parent / "lancedb"
+
+    store = CodeIndexStore(db_path, embedder.dimension)
+    await store.initialize()
+
+    engine = CodeSearchEngine(store, embedder)
+
+    try:
+        results = await engine.get_file_outline(path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get file outline: {exc}",
+        ) from exc
+    finally:
+        await embedder.aclose()
+
+    return LocalOutlineResponse(
+        path=path,
+        results=[
+            LocalSearchResult(
+                path=r.path,
+                kind=r.kind,
+                name=r.name,
+                signature=r.signature,
+                code=r.code[:500],
+                start_line=r.start_line,
+                end_line=r.end_line,
+                score=r.score,
+                is_ast_node=r.is_ast_node,
+                pattern=r.pattern,
+            )
+            for r in results
+        ],
+    )
+
+
+@router.get("/outline/repo", response_model=LocalOutlineResponse)
+async def repo_outline(
+    k: int = 500,
+    settings: Settings = Depends(get_settings),
+):
+    """Get repository symbol outline."""
+    try:
+        embedder = get_embedder(settings)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize embedder: {exc}",
+        ) from exc
+
+    db_path = settings.repo_index_db_path.parent / "lancedb"
+
+    store = CodeIndexStore(db_path, embedder.dimension)
+    await store.initialize()
+
+    engine = CodeSearchEngine(store, embedder)
+
+    try:
+        results = await engine.get_repo_outline(k=k)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get repo outline: {exc}",
+        ) from exc
+    finally:
+        await embedder.aclose()
+
+    return LocalOutlineResponse(
+        results=[
+            LocalSearchResult(
+                path=r.path,
+                kind=r.kind,
+                name=r.name,
+                signature=r.signature,
+                code=r.code[:500],
                 start_line=r.start_line,
                 end_line=r.end_line,
                 score=r.score,

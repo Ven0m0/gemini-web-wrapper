@@ -17,6 +17,11 @@ def create_local_embedder(settings: Settings) -> Embedder:
             provider="gemini",
             api_key=settings.google_api_key,
         )
+    elif provider == "voyage" and settings.voyage_api_key:
+        return EmbedderFactory.create(
+            provider="voyage",
+            api_key=settings.voyage_api_key,
+        )
     elif api_key:
         return EmbedderFactory.create(
             provider="openai",

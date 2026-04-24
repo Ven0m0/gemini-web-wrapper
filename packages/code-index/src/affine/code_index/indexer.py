@@ -145,7 +145,8 @@ class CodeIndexer:
             if isinstance(node, PatternMatch):
                 pattern = node.pattern
 
-            # Determine doc and symbol_kind
+            # Determine metadata fields
+            signature = node.signature if isinstance(node, ASTNode) else ""
             doc = node.doc if isinstance(node, ASTNode) else None
             symbol_kind = node.symbol_kind if isinstance(node, ASTNode) else None
 
@@ -155,7 +156,8 @@ class CodeIndexer:
                     "path": node.path,
                     "kind": node.kind,
                     "name": node.name,
-                    "code": node.code if isinstance(node, ASTNode) else node.code,
+                    "signature": signature or "",
+                    "code": node.code,
                     "start_byte": node.start_byte,
                     "end_byte": node.end_byte,
                     "start_line": node.start_line,
@@ -186,6 +188,7 @@ class CodeIndexer:
                         "path": chunk.path,
                         "kind": "chunk",
                         "name": f"chunk_{chunk.index}",
+                        "signature": "",
                         "code": chunk.content,
                         "start_byte": chunk.start_byte,
                         "end_byte": chunk.end_byte,
@@ -211,7 +214,7 @@ class CodeIndexer:
             batch = records[i : i + self.embedding_batch_size]
             texts = [self._format_for_embedding(r) for r in batch]
 
-            vectors = await self.embedder.embed(texts)
+            vectors = await self.embedder.embed(texts, input_type="document")
 
             for record, vector in zip(batch, vectors):
                 record["vector"] = vector
@@ -221,7 +224,9 @@ class CodeIndexer:
     def _format_for_embedding(self, record: dict[str, Any]) -> str:
         """Format record for embedding."""
         parts: list[str] = []
-        if record.get("name"):
+        if record.get("signature"):
+            parts.append(record["signature"])
+        elif record.get("name"):
             parts.append(f"{record['kind']}: {record['name']}")
         if record.get("doc"):
             parts.append(record["doc"])
