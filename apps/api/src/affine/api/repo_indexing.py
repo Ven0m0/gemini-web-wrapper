@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import logging
@@ -311,10 +312,23 @@ class RepositoryIndexService:
 
             indexed_files = 0
             symbol_count = 0
-            for entry in selected_entries:
-                try:
-                    content = await client.get_blob_text(entry.sha)
-                except UnicodeDecodeError:
+            semaphore = asyncio.Semaphore(50)
+
+            async def fetch_entry(
+                entry: GitHubTreeEntry,
+            ) -> tuple[GitHubTreeEntry, str | None]:
+                async with semaphore:
+                    try:
+                        content = await client.get_blob_text(entry.sha)
+                        return entry, content
+                    except UnicodeDecodeError:
+                        return entry, None
+
+            fetch_tasks = [fetch_entry(entry) for entry in selected_entries]
+            fetch_results = await asyncio.gather(*fetch_tasks)
+
+            for entry, content in fetch_results:
+                if content is None:
                     skipped_files += 1
                     continue
                 indexed = self._index_file(entry, content)
