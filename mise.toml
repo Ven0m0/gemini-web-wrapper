@@ -1,3 +1,18 @@
+min_version = "2024.9.5"
+
+[settings]
+experimental = true
+color = true
+yes = true
+auto_install = true
+
+[settings.python]
+uv_venv_auto = "create|source"
+uv_venv_create_args = ["--seed", "--system-site-packages"]
+
+[settings.pipx]
+uvx = true
+
 [tools]
 node = { version = "24", postinstall = "corepack enable" }
 bun = "1.3.13"
@@ -5,4 +20,19 @@ python = "3.14.4"
 uv = "latest"
 
 [env]
+PROJECT_ROOT = "{{config_root}}"
 UV_PYTHON = { value = "{{ tools.python.path }}", tools = true }
+UV_LINK_MODE = "symlink"
+_.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed", "--system-site-packages"] }
+
+[tasks.install]
+description = 'Mise ci install'
+file = '.mise/tasks/install'
+
+[tasks.test]
+description = "Run tests"
+run = "pytest tests/"
+
+[tasks.lint]
+description = "Lint the code"
+run = "ruff ."
