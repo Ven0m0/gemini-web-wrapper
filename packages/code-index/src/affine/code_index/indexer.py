@@ -54,9 +54,7 @@ class CodeIndexer:
 
         # Discover files (run in executor to avoid blocking event loop)
         loop = asyncio.get_running_loop()
-        files = await loop.run_in_executor(
-            None, lambda: list(self.discovery.discover())
-        )
+        files = await loop.run_in_executor(None, lambda: list(self.discovery.discover()))
 
         if not files:
             return {"status": "no_files", "files": 0, "indexed": 0}
