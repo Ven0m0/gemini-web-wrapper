@@ -21,6 +21,7 @@ class SearchResult:
     end_line: int
     score: float
     is_ast_node: bool
+    signature: str | None = None
     pattern: str | None = None
     symbol_kind: str | None = None
     doc: str | None = None
@@ -42,7 +43,7 @@ class CodeSearchEngine:
     ) -> list[SearchResult]:
         """Search with hybrid ranking."""
         # Embed query
-        vectors = await self.embedder.embed([query])
+        vectors = await self.embedder.embed([query], input_type="query")
         query_vector = vectors[0]
 
         # Search with optional filters
@@ -70,7 +71,7 @@ class CodeSearchEngine:
         path_prefix: str | None = None,
     ) -> list[SearchResult]:
         """Search only AST nodes (no chunks)."""
-        vectors = await self.embedder.embed([query])
+        vectors = await self.embedder.embed([query], input_type="query")
         query_vector = vectors[0]
 
         results = await self.store.search(
@@ -86,17 +87,55 @@ class CodeSearchEngine:
         self,
         kind: str | None = None,
         name_pattern: str | None = None,
+        code_pattern: str | None = None,
         path_prefix: str | None = None,
         k: int = 10,
     ) -> list[SearchResult]:
-        """Structural search by kind and name (no semantic search)."""
+        """Structural search by kind, name, and code (no semantic search)."""
         results = await self.store.search_structural(
             kind=kind,
             name_pattern=name_pattern,
+            code_pattern=code_pattern,
             path_prefix=path_prefix,
             k=k,
         )
         return [self._to_result(r) for r in results]
+
+    async def get_file_outline(self, path: str) -> list[SearchResult]:
+        """Get all symbols in a specific file."""
+        results = await self.store.search_structural(
+            path_prefix=path,
+            k=1000,
+        )
+        # Filter for exact path and AST nodes
+        file_results = [
+            r for r in results if r["path"] == path and r["kind"] != "chunk"
+        ]
+        # Sort by line number
+        file_results.sort(key=lambda r: r["start_line"])
+        return [self._to_result(r) for r in file_results]
+
+    async def get_repo_outline(self, k: int = 500) -> list[SearchResult]:
+        """Get top symbols across the repository."""
+        results = await self.store.search_structural(
+            kind=None,
+            k=k,
+        )
+        # Filter out chunks
+        repo_results = [r for r in results if r["kind"] != "chunk"]
+        return [self._to_result(r) for r in repo_results]
+
+    async def get_symbol(self, path: str, kind: str, name: str) -> SearchResult | None:
+        """Get a specific symbol by path, kind and name."""
+        results = await self.store.search_structural(
+            kind=kind,
+            path_prefix=path,
+            k=100,
+        )
+        for r in results:
+            if r["path"] == path and r["kind"] == kind and r["name"] == name:
+                return self._to_result(r)
+        return None
 
     def _to_result(self, record: dict[str, Any]) -> SearchResult:
         """Convert DB record to SearchResult."""
@@ -114,6 +153,7 @@ class CodeSearchEngine:
             end_line=int(record["end_line"]),
             score=round(score, 3),
             is_ast_node=record["kind"] != "chunk",
+            signature=record.get("signature"),
             pattern=record.get("pattern"),
             symbol_kind=record.get("symbol_kind"),
             doc=record.get("doc"),

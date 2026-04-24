@@ -6,7 +6,9 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-ProviderName = Literal["gemini", "anthropic", "copilot", "opencode-zen", "kilo-gateway"]
+ProviderName = Literal[
+    "gemini", "anthropic", "copilot", "opencode-zen", "kilo-gateway", "voyage"
+]
 
 
 class Settings(BaseSettings):
@@ -20,6 +22,7 @@ class Settings(BaseSettings):
     copilot_api_key: str | None = None
     opencode_api_key: str | None = None
     kilo_api_key: str | None = None
+    voyage_api_key: str | None = None
     model_provider: ProviderName = "gemini"
     model_name: str | None = None
     copilot_base_url: str = "https://api.githubcopilot.com"
@@ -63,6 +66,8 @@ class Settings(BaseSettings):
             return self.opencode_api_key
         if self.model_provider == "kilo-gateway":
             return self.kilo_api_key
+        if self.model_provider == "voyage":
+            return self.voyage_api_key
         return self.google_api_key
 
     def provider_base_url(self) -> str | None:
@@ -83,6 +88,8 @@ class Settings(BaseSettings):
             return "opencode/glm-5.1"
         if self.model_provider == "kilo-gateway":
             return "kilo-auto/balanced"
+        if self.model_provider == "voyage":
+            return "voyage-code-3"
         return "gemini-3.1-pro-preview"
 
 

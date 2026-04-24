@@ -16,8 +16,14 @@ class Embedder(Protocol):
         """Return embedding dimension."""
         ...
 
-    async def embed(self, texts: list[str]) -> list[list[float]]:
+    async def embed(
+        self, texts: list[str], input_type: str = "document"
+    ) -> list[list[float]]:
         """Embed texts, return L2-normalized vectors."""
+        ...
+
+    async def aclose(self) -> None:
+        """Close client resources."""
         ...
 
 
@@ -57,7 +63,9 @@ class OpenAIEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
-    async def embed(self, texts: list[str]) -> list[list[float]]:
+    async def embed(
+        self, texts: list[str], input_type: str = "document"
+    ) -> list[list[float]]:
         """Embed texts in batches, return L2-normalized vectors."""
         all_vectors: list[list[float]] = []
 
@@ -116,7 +124,9 @@ class GeminiEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
-    async def embed(self, texts: list[str]) -> list[list[float]]:
+    async def embed(
+        self, texts: list[str], input_type: str = "document"
+    ) -> list[list[float]]:
         """Embed texts in batches, return L2-normalized vectors."""
         all_vectors: list[list[float]] = []
 
@@ -150,6 +160,73 @@ class GeminiEmbedder:
         await self._client.aclose()
 
 
+class VoyageEmbedder:
+    """Voyage AI embedding provider."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str = "voyage-code-3",
+        batch_size: int = 72,
+    ) -> None:
+        self.api_key = api_key
+        self.model = model
+        self.batch_size = batch_size
+        self._dimension = 1024  # voyage-code-3 dimension
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            try:
+                import voyageai
+
+                self._client = voyageai.AsyncClient(api_key=self.api_key)
+            except ImportError as exc:
+                raise ImportError(
+                    "voyageai required for VoyageEmbedder. "
+                    "Install with: pip install voyageai"
+                ) from exc
+        return self._client
+
+    @property
+    def dimension(self) -> int:
+        return self._dimension
+
+    async def embed(
+        self, texts: list[str], input_type: str = "document"
+    ) -> list[list[float]]:
+        """Embed texts in batches, return L2-normalized vectors."""
+        all_vectors: list[list[float]] = []
+
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i : i + self.batch_size]
+            vectors = await self._embed_batch(batch, input_type)
+            all_vectors.extend(vectors)
+
+        return all_vectors
+
+    async def _embed_batch(
+        self, texts: list[str], input_type: str
+    ) -> list[list[float]]:
+        """Embed a single batch."""
+        client = self._get_client()
+        # voyage-code-3 uses input_type="document" for indexing
+        # and input_type="query" for search queries.
+        response = await client.embed(
+            texts,
+            model=self.model,
+            input_type=input_type,
+        )
+
+        # Voyage AI embeddings are already normalized
+        return response.embeddings
+
+    async def aclose(self) -> None:
+        if self._client is not None:
+            await self._client.aclose()
+
+
 class LocalEmbedder:
     """Local sentence-transformers fallback (lazy-loaded)."""
 
@@ -168,6 +245,25 @@ class LocalEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
+    async def embed(
+        self, texts: list[str], input_type: str = "document"
+    ) -> list[list[float]]:
+        """Embed texts locally in batches."""
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+
+        all_vectors: list[list[float]] = []
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i : i + self.batch_size]
+            vectors = await loop.run_in_executor(None, self._embed_batch_sync, batch)
+            all_vectors.extend(vectors)
+
+        return all_vectors
+
+    async def aclose(self) -> None:
+        pass
+
     def _load_model(self):
         """Lazy load the sentence-transformers model."""
         if self._model is None:
@@ -181,20 +277,6 @@ class LocalEmbedder:
                     "Install with: pip install sentence-transformers"
                 ) from exc
         return self._model
-
-    async def embed(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts locally in batches."""
-        import asyncio
-
-        loop = asyncio.get_event_loop()
-
-        all_vectors: list[list[float]] = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            vectors = await loop.run_in_executor(None, self._embed_batch_sync, batch)
-            all_vectors.extend(vectors)
-
-        return all_vectors
 
     def _embed_batch_sync(self, texts: list[str]) -> list[list[float]]:
         """Synchronous batch embedding."""
@@ -231,6 +313,13 @@ class EmbedderFactory:
                 api_key=api_key,
                 model=model or "text-embedding-3-small",
                 base_url=base_url,
+            )
+        elif provider == "voyage":
+            if not api_key:
+                raise ValueError("Voyage embedder requires api_key")
+            return VoyageEmbedder(
+                api_key=api_key,
+                model=model or "voyage-code-3",
             )
         elif provider == "local":
             return LocalEmbedder(model=model or "all-MiniLM-L6-v2")

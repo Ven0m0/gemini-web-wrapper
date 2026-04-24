@@ -227,6 +227,8 @@ class ASTParser:
                     if language == "python" and kind in ("function", "class", "method"):
                         doc = self._extract_python_docstring(node, content_bytes)
 
+                    signature = self._extract_signature(node, content_bytes, language)
+
                     yield ASTNode(
                         path=path,
                         kind=kind,
@@ -236,6 +238,7 @@ class ASTParser:
                         start_line=node.start_point[0] + 1,
                         end_line=node.end_point[0] + 1,
                         code=content[node.start_byte : node.end_byte],
+                        signature=signature,
                         doc=doc,
                     )
             for child in node.children:
@@ -325,3 +328,31 @@ class ASTParser:
                                 # Clean up quotes
                                 return text.strip("\"'\n ")
         return None
+
+    def _extract_signature(
+        self, node: Node, content_bytes: bytes, language: str
+    ) -> str | None:
+        """Extract signature from node."""
+        try:
+            # Find the start of the body/block to determine signature boundary
+            body_types = {
+                "python": ["block"],
+                "typescript": ["statement_block", "class_body", "interface_body"],
+                "javascript": ["statement_block", "class_body"],
+                "rust": ["block", "declaration_list", "enum_variant_list"],
+            }
+
+            targets = body_types.get(language, ["block", "statement_block"])
+            for child in node.children:
+                if child.type in targets:
+                    sig_bytes = content_bytes[node.start_byte : child.start_byte]
+                    sig = sig_bytes.decode("utf-8").strip()
+                    # Remove trailing separators
+                    return sig.rstrip(": {")
+
+            # Fallback: take first line
+            code = content_bytes[node.start_byte : node.end_byte].decode("utf-8")
+            first_line = code.split("\n", 1)[0].strip()
+            return first_line.rstrip(": {")
+        except Exception:
+            return None
