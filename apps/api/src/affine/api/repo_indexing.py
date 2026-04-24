@@ -314,7 +314,9 @@ class RepositoryIndexService:
             symbol_count = 0
             semaphore = asyncio.Semaphore(50)
 
-            async def fetch_entry(entry: GitHubTreeEntry) -> tuple[GitHubTreeEntry, str | None]:
+            async def fetch_entry(
+                entry: GitHubTreeEntry,
+            ) -> tuple[GitHubTreeEntry, str | None]:
                 async with semaphore:
                     try:
                         content = await client.get_blob_text(entry.sha)
