@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from collections.abc import Iterator
 from datetime import datetime
@@ -51,8 +52,11 @@ class CodeIndexer:
         if self.store is None:
             raise RuntimeError("Indexer not initialized")
 
-        # Discover files
-        files = list(self.discovery.discover())
+        # Discover files (run in executor to avoid blocking event loop)
+        loop = asyncio.get_running_loop()
+        files = await loop.run_in_executor(
+            None, lambda: list(self.discovery.discover())
+        )
 
         if not files:
             return {"status": "no_files", "files": 0, "indexed": 0}
