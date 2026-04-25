@@ -80,3 +80,40 @@ def test_settings_default_cors_origins() -> None:
 def test_settings_empty_cors_origins() -> None:
     settings = Settings(cors_allow_origins=["", " "])
     assert settings.cors_allow_origins == []
+
+def test_get_settings_env_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Clear cache to ensure a fresh start
+    get_settings.cache_clear()
+
+    # Set initial environment variables
+    monkeypatch.setenv("MODEL_PROVIDER", "anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-1")
+
+    # Load settings and verify it picks up the env vars
+    settings = get_settings()
+    assert settings.model_provider == "anthropic"
+    assert settings.anthropic_api_key == "test-key-1"
+
+    # Change environment variables
+    monkeypatch.setenv("MODEL_PROVIDER", "copilot")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-2")
+    monkeypatch.setenv("COPILOT_API_KEY", "copilot-key-1")
+
+    # Load settings again, should return the cached instance, unmodified
+    cached_settings = get_settings()
+    assert cached_settings is settings
+    assert cached_settings.model_provider == "anthropic"
+    assert cached_settings.anthropic_api_key == "test-key-1"
+    assert cached_settings.copilot_api_key is None
+
+    # Clear the cache, now it should pick up the new env vars
+    get_settings.cache_clear()
+    new_settings = get_settings()
+
+    assert new_settings is not settings
+    assert new_settings.model_provider == "copilot"
+    assert new_settings.anthropic_api_key == "test-key-2"
+    assert new_settings.copilot_api_key == "copilot-key-1"
+
+    # Clean up cache at the end to avoid polluting other tests
+    get_settings.cache_clear()
