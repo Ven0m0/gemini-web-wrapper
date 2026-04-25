@@ -30,6 +30,7 @@ def test_normalize_l2_zero_vector():
     # Check non-zero vector is normalized
     np.testing.assert_array_equal(normalized[1], np.array([1.0, 0.0, 0.0]))
 
+
 def test_normalize_l2_1d():
     # Test with standard 1D vector
     vector = np.array([3.0, 4.0])
