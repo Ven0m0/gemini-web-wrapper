@@ -30,6 +30,7 @@ def test_normalize_l2_zero_vector():
     # Check non-zero vector is normalized
     np.testing.assert_array_equal(normalized[1], np.array([1.0, 0.0, 0.0]))
 
+
 def test_normalize_l2_1d_vector():
     # Test with 1D vector
     vector = np.array([3.0, 4.0])
@@ -61,7 +62,9 @@ def test_normalize_l2_3d_vector():
     np.testing.assert_allclose(norms, expected_norms, rtol=1e-5)
 
     # Check specific values
-    expected = np.array([[[0.6, 0.8], [0.0, 1.0]], [[1 / np.sqrt(2), 1 / np.sqrt(2)], [0.0, 0.0]]])
+    expected = np.array(
+        [[[0.6, 0.8], [0.0, 1.0]], [[1 / np.sqrt(2), 1 / np.sqrt(2)], [0.0, 0.0]]]
+    )
     np.testing.assert_allclose(normalized, expected, rtol=1e-5)
 
 
