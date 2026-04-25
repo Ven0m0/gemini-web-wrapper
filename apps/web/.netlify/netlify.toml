@@ -1,3 +1,5 @@
+headersOrigin = "config"
+redirectsOrigin = "config"
 plugins = []
 
 [functions]
