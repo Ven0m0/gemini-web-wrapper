@@ -29,7 +29,7 @@ class Embedder(Protocol):
 
 def normalize_l2(vectors: np.ndarray) -> np.ndarray:
     """L2 normalize vectors along last axis."""
-    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms = np.linalg.norm(vectors, axis=-1, keepdims=True)
     norms = np.where(norms == 0, 1, norms)
     return vectors / norms
 
