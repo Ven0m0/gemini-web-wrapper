@@ -20,7 +20,12 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["ruff>=0.6.0", "pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
+dev = [
+    "ruff>=0.6.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=7.1.0",
+]
 
 [tool.uv.sources]
 affine-config = { workspace = true }
