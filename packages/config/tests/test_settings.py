@@ -81,7 +81,6 @@ def test_settings_empty_cors_origins() -> None:
     settings = Settings(cors_allow_origins=["", " "])
     assert settings.cors_allow_origins == []
 
-
 def test_get_settings_env_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     # Clear cache to ensure a fresh start
     get_settings.cache_clear()
