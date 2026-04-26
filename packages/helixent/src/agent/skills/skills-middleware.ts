@@ -15,12 +15,16 @@ export function createSkillsMiddleware(skillsDirs: string[] = [join(process.cwd(
         if (!(await exists(dir))) continue;
         let folders: any[];
         try { folders = await readdir(dir, { withFileTypes: true }); } catch { continue; }
-        for (const folder of folders) {
+        const folderPromises = folders.map(async (folder) => {
           const skillPath = join(dir, folder.name, "SKILL.md");
-          if (!folder.isDirectory() || seen.has(skillPath)) continue;
-          if (!(await exists(skillPath))) continue;
+          if (!folder.isDirectory() || seen.has(skillPath)) return null;
           seen.add(skillPath);
-          try { skills.push(await readSkillFrontMatter(skillPath)); } catch {}
+          if (!(await exists(skillPath))) return null;
+          try { return await readSkillFrontMatter(skillPath); } catch { return null; }
+        });
+        const results = await Promise.all(folderPromises);
+        for (const res of results) {
+          if (res) skills.push(res);
         }
       }
       return { skills };
