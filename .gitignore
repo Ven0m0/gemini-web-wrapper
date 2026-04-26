@@ -113,6 +113,9 @@ pyrefly.toml
 # Vercel
 .vercel
 
+# Netlify
+.netlify/
+
 # PWA
 dev-dist/
 *.local
