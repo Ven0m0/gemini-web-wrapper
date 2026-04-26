@@ -135,6 +135,10 @@ class CursorLike(Protocol):
 class ConnectionLike(Protocol):
     def execute(self, sql: str, parameters: tuple[object, ...] = ()) -> CursorLike: ...
 
+    def executemany(
+        self, sql: str, parameters: Iterable[tuple[object, ...]] = ()
+    ) -> CursorLike: ...
+
     def commit(self) -> None: ...
 
     def close(self) -> None: ...
@@ -824,22 +828,25 @@ class RepositoryIndexService:
         if file_row is None:
             raise ValueError(f"Failed to persist indexed file for {indexed.path}")
         file_id = self._as_int(file_row[0])
-        for symbol in indexed.symbols:
-            connection.execute(
+        if indexed.symbols:
+            connection.executemany(
                 """
                 INSERT INTO indexed_symbol (
                     repo_index_id, file_id, kind, name, start_line, end_line, snippet
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (
-                    repo_id,
-                    file_id,
-                    symbol.kind,
-                    symbol.name,
-                    symbol.start_line,
-                    symbol.end_line,
-                    symbol.snippet,
-                ),
+                [
+                    (
+                        repo_id,
+                        file_id,
+                        symbol.kind,
+                        symbol.name,
+                        symbol.start_line,
+                        symbol.end_line,
+                        symbol.snippet,
+                    )
+                    for symbol in indexed.symbols
+                ],
             )
 
     def _upsert_status(
