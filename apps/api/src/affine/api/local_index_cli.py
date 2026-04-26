@@ -89,8 +89,12 @@ async def search_command(args: argparse.Namespace) -> int:
     logger.info(f"\nFound {len(results)} results:\n")
     for i, result in enumerate(results, 1):
         node_type = "AST" if result.is_ast_node else "CHUNK"
-        logger.info(f"{i}. [{node_type}] {result.path}:{result.start_line}-{result.end_line}")
-        logger.info(f"   kind={result.kind} name={result.name} score={result.score:.3f}")
+        logger.info(
+            f"{i}. [{node_type}] {result.path}:{result.start_line}-{result.end_line}"
+        )
+        logger.info(
+            f"   kind={result.kind} name={result.name} score={result.score:.3f}"
+        )
         code_preview = result.code[:200].replace("\n", " ")
         logger.info(f"   {code_preview}...\n")
 
