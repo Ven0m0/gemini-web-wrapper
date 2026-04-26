@@ -28,19 +28,13 @@ command = "cd apps/web && bun install && bun run build"
 for = "/*"
 
 [headers.values]
-X-Frame-Options = "DENY"
-X-XSS-Protection = "1; mode=block"
-X-Content-Type-Options = "nosniff"
-Referrer-Policy = "strict-origin-when-cross-origin"
+"X-Frame-Options" = "DENY"
+"X-XSS-Protection" = "1; mode=block"
+"X-Content-Type-Options" = "nosniff"
+"Referrer-Policy" = "strict-origin-when-cross-origin"
 
 [[redirects]]
 from = "/*"
 to = "/index.html"
-status = 200.0
+status = 200
 force = false
-
-[redirects.query]
-
-[redirects.conditions]
-
-[redirects.headers]
