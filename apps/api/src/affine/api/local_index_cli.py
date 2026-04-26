@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import logging
+
 import asyncio
 import sys
 from pathlib import Path
@@ -15,6 +17,8 @@ from affine.code_index import (
 from affine.api.utils import create_local_embedder
 from affine.config.settings import get_settings
 
+logger = logging.getLogger(__name__)
+
 
 async def index_command(args: argparse.Namespace) -> int:
     """Run indexing on local codebase."""
@@ -24,13 +28,13 @@ async def index_command(args: argparse.Namespace) -> int:
     try:
         embedder = create_local_embedder(settings)
     except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        logger.error(f"Error: {exc}")
         return 1
 
     root = Path(args.root or ".").resolve()
     db_path = Path(args.db or ".index/lancedb").resolve()
 
-    print(f"Indexing {root} -> {db_path}")
+    logger.info(f"Indexing {root} -> {db_path}")
 
     indexer = CodeIndexer(
         root=root,
@@ -41,13 +45,13 @@ async def index_command(args: argparse.Namespace) -> int:
     await indexer.initialize()
     result = await indexer.index(force=args.force)
 
-    print("\nIndexing complete:")
-    print(f"  Status: {result['status']}")
-    print(f"  Files processed: {result.get('files', 0)}")
-    print(f"  AST nodes: {result.get('ast_nodes', 0)}")
-    print(f"  Chunks: {result.get('chunks', 0)}")
+    logger.info("\nIndexing complete:")
+    logger.info(f"  Status: {result['status']}")
+    logger.info(f"  Files processed: {result.get('files', 0)}")
+    logger.info(f"  AST nodes: {result.get('ast_nodes', 0)}")
+    logger.info(f"  Chunks: {result.get('chunks', 0)}")
     if result.get("errors", 0) > 0:
-        print(f"  Errors: {result['errors']}")
+        logger.info(f"  Errors: {result['errors']}")
 
     await embedder.aclose()
     return 0
@@ -61,7 +65,7 @@ async def search_command(args: argparse.Namespace) -> int:
     try:
         embedder = create_local_embedder(settings)
     except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        logger.error(f"Error: {exc}")
         return 1
 
     db_path = Path(args.db or ".index/lancedb").resolve()
@@ -78,17 +82,17 @@ async def search_command(args: argparse.Namespace) -> int:
     )
 
     if not results:
-        print("No results found.")
+        logger.info("No results found.")
         await embedder.aclose()
         return 0
 
-    print(f"\nFound {len(results)} results:\n")
+    logger.info(f"\nFound {len(results)} results:\n")
     for i, result in enumerate(results, 1):
         node_type = "AST" if result.is_ast_node else "CHUNK"
-        print(f"{i}. [{node_type}] {result.path}:{result.start_line}-{result.end_line}")
-        print(f"   kind={result.kind} name={result.name} score={result.score:.3f}")
+        logger.info(f"{i}. [{node_type}] {result.path}:{result.start_line}-{result.end_line}")
+        logger.info(f"   kind={result.kind} name={result.name} score={result.score:.3f}")
         code_preview = result.code[:200].replace("\n", " ")
-        print(f"   {code_preview}...\n")
+        logger.info(f"   {code_preview}...\n")
 
     await embedder.aclose()
     return 0
@@ -102,7 +106,7 @@ async def stats_command(args: argparse.Namespace) -> int:
     try:
         embedder = create_local_embedder(settings)
     except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        logger.error(f"Error: {exc}")
         return 1
 
     db_path = Path(args.db or ".index/lancedb").resolve()
@@ -113,9 +117,9 @@ async def stats_command(args: argparse.Namespace) -> int:
     stats = await store.get_stats()
     hashes = await store.get_indexed_file_hashes()
 
-    print(f"Index location: {db_path}")
-    print(f"Total records: {stats.get('total_records', 0)}")
-    print(f"Indexed files: {len(hashes)}")
+    logger.info(f"Index location: {db_path}")
+    logger.info(f"Total records: {stats.get('total_records', 0)}")
+    logger.info(f"Indexed files: {len(hashes)}")
 
     await embedder.aclose()
     return 0
