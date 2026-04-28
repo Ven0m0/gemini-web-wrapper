@@ -77,6 +77,10 @@ class CodeIndexStore:
 
         await self._table.add(unique_records, mode="upsert")
 
+    def _escape_sql_string(self, value: str) -> str:
+        """Escape single quotes to prevent SQL injection in LanceDB queries."""
+        return value.replace("'", "''")
+
     async def search(
         self,
         query_vector: list[float],
@@ -95,9 +99,11 @@ class CodeIndexStore:
         # Build where clause
         conditions: list[str] = []
         if path_filter:
-            conditions.append(f"path LIKE '{path_filter}%'")
+            escaped_path = self._escape_sql_string(path_filter)
+            conditions.append(f"path LIKE '{escaped_path}%'")
         if kind_filter:
-            conditions.append(f"kind = '{kind_filter}'")
+            escaped_kind = self._escape_sql_string(kind_filter)
+            conditions.append(f"kind = '{escaped_kind}'")
         if exclude_chunks:
             conditions.append("kind != 'chunk'")
 
@@ -126,13 +132,17 @@ class CodeIndexStore:
         # Build where clause
         conditions: list[str] = []
         if kind:
-            conditions.append(f"kind = '{kind}'")
+            escaped_kind = self._escape_sql_string(kind)
+            conditions.append(f"kind = '{escaped_kind}'")
         if name_pattern:
-            conditions.append(f"name LIKE '%{name_pattern}%'")
+            escaped_name = self._escape_sql_string(name_pattern)
+            conditions.append(f"name LIKE '%{escaped_name}%'")
         if code_pattern:
-            conditions.append(f"code LIKE '%{code_pattern}%'")
+            escaped_code = self._escape_sql_string(code_pattern)
+            conditions.append(f"code LIKE '%{escaped_code}%'")
         if path_prefix:
-            conditions.append(f"path LIKE '{path_prefix}%'")
+            escaped_prefix = self._escape_sql_string(path_prefix)
+            conditions.append(f"path LIKE '{escaped_prefix}%'")
 
         if conditions:
             where_clause = " AND ".join(conditions)
@@ -145,7 +155,8 @@ class CodeIndexStore:
         """Remove all entries for a given file hash (for re-indexing)."""
         if self._table is None:
             return
-        await self._table.delete(f"file_hash = '{file_hash}'")
+        escaped_hash = self._escape_sql_string(file_hash)
+        await self._table.delete(f"file_hash = '{escaped_hash}'")
 
     async def get_indexed_file_hashes(self) -> set[str]:
         """Get all file hashes currently in index."""
