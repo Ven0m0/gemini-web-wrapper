@@ -1,5 +1,3 @@
-min_version = "2024.9.5"
-
 [settings]
 experimental = true
 color = true
@@ -14,12 +12,16 @@ uv_venv_create_args = ["--seed", "--system-site-packages"]
 uvx = true
 
 [tools]
-node = { version = "24", postinstall = "corepack enable" }
-bun = "1.3.13"
-python = "3.14.4"
+#node = { version = "24", postinstall = "corepack enable" }
+node = "24"
+bun = "latest"
+python = "3.14"
 uv = "latest"
 ruff = "latest"
+ty = "latest"
 prek = "latest"
+"pipx:pytest" = "latest"
+"pipx:basedpyright" = "latest"
 
 [env]
 PROJECT_ROOT = "{{config_root}}"
