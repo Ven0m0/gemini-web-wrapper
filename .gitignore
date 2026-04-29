@@ -137,5 +137,3 @@ $RECYCLE.BIN/
 
 # GitHub App credentials
 gha-creds-*.json
-.netlify/
-.netlify/
