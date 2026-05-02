@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const AgentChat: React.FC<Props> = ({ className }) => {
-  const { config, repoIndexStatus } = useStore();
+  const { config } = useStore();
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

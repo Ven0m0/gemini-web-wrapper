@@ -53,7 +53,7 @@ export const PwaDiagnostics: React.FC = () => {
             status: res.status,
             textSnippet: text.slice(0, 200),
           };
-        } catch (_e) {
+        } catch (_e: unknown) {
           m = { href: manifestUrl, ok: false };
         }
       }

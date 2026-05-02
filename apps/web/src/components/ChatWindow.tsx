@@ -42,7 +42,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   customGreeting = 'Hello! How can I help you today?',
   agentName = 'AI Assistant',
   agentAvatar = 'Bot',
-  companyLogo,
+
   primaryColor = '#007acc',
   backgroundColor,
   textColor,
