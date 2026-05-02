@@ -379,7 +379,7 @@ export class JSONHealer {
         }
       }
       if (schema.properties) {
-        for (const key of Object.keys(schema.properties)) {
+        for (const key in schema.properties) {
           if (key in data) {
             JSONHealer._validateValue(data[key], schema.properties[key], path ? `${path}.${key}` : key, errors);
           }
