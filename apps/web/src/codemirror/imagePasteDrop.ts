@@ -34,7 +34,7 @@ async function insertImages(
       const alt = file.name.replace(/\[(.*?)\]|\(|\)/g, '_');
       dataUrls.push(url);
       parts.push(`![${alt}](${url})`);
-    } catch (_e) {}
+    } catch {}
   }
   if (!parts.length) return false;
 
