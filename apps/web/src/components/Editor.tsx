@@ -83,7 +83,7 @@ export const Editor: React.FC = () => {
     }
   };
 
-  const uploadImagesToRepo = async (files: File[], dataUrls: string[]): Promise<string[] | void> => {
+  const uploadImagesToRepo = async (files: File[], _dataUrls: string[]): Promise<string[] | void> => {
     try {
       const { githubToken, owner, repo, branch } = config;
       if (!githubToken || !owner || !repo) return;

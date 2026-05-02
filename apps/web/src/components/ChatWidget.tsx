@@ -39,7 +39,7 @@ interface ChatWidgetProps {
 export const ChatWidget: React.FC<ChatWidgetProps> = ({
   position = 'bottom-right',
   offset = { x: 20, y: 20 },
-  companyName = 'AI Assistant',
+  companyName: _companyName = 'AI Assistant',
   companyLogo,
   agentName = 'AI Assistant',
   agentAvatar = 'Bot',
@@ -57,11 +57,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   notificationsEnabled = true,
   autoOpen = false,
   minimizeOnOutsideClick = true,
-  persistentChat = true,
+  persistentChat: _persistentChat = true,
 }) => {
   const [isOpen, setIsOpen] = useState(autoOpen);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const { config } = useStore();
+  const { config: _config } = useStore();
 
   // Request notification permission
   useEffect(() => {
