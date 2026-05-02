@@ -180,7 +180,22 @@ export function getFlattenedProviderModels(providers: ProviderConfig[]) {
   );
 }
 
+
+let cachedNullConfig: ProviderConfig[] | undefined;
+let cachedUndefinedConfig: ProviderConfig[] | undefined;
+const configCache = new WeakMap<object, ProviderConfig[]>();
+
 export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): ProviderConfig[] {
+
+  if (configLike === null) {
+    if (cachedNullConfig) return cachedNullConfig;
+  } else if (configLike === undefined) {
+    if (cachedUndefinedConfig) return cachedUndefinedConfig;
+  } else if (typeof configLike === 'object') {
+    const cached = configCache.get(configLike);
+    if (cached) return cached;
+  }
+
   const defaults = createDefaultProviders();
   const normalizedProviders = Array.isArray(configLike?.providers)
     ? configLike.providers.map(normalizeProvider).filter((provider): provider is ProviderConfig => provider !== null)
@@ -235,7 +250,19 @@ export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): 
           : [{ id: createFallbackModelId(provider.id, 0), name: 'Default Model', uid: generateId() }],
     }));
 
-  return [...mergedProviders, ...customProviders];
+
+  const result = [...mergedProviders, ...customProviders];
+
+  if (configLike === null) {
+    cachedNullConfig = result;
+  } else if (configLike === undefined) {
+    cachedUndefinedConfig = result;
+  } else if (typeof configLike === 'object') {
+    configCache.set(configLike, result);
+  }
+
+  return result;
+
 }
 
 export function ensureProviderSelection(providerId: string, providers: ProviderConfig[]): string {
