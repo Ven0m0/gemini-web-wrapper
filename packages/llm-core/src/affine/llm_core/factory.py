@@ -1,6 +1,6 @@
 from typing import Any
 
-from affine.config import ProviderName
+from affine.config.settings import ProviderName
 from affine.llm_core.providers.copilot import CopilotProvider
 from affine.llm_core.interfaces import LLMProvider
 from affine.llm_core.providers.anthropic import AnthropicProvider

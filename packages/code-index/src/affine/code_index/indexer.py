@@ -77,9 +77,10 @@ class CodeIndexer:
 
         # Clear index if forcing
         if force:
-            # Delete all existing entries
-            for file_hash in await self.store.get_indexed_file_hashes():
-                await self.store.delete_by_file_hash(file_hash)
+            # Delete all existing entries in a single batch
+            existing_hashes = await self.store.get_indexed_file_hashes()
+            if existing_hashes:
+                await self.store.delete_by_file_hashes(existing_hashes)
 
         # Process in parallel batches
         stats: dict[str, int] = {

@@ -1,3 +1,3 @@
-from affine.config.settings import ProviderName, Settings, get_settings
+from affine.config.settings import Settings, get_settings
 
-__all__ = ["ProviderName", "Settings", "get_settings"]
+__all__ = ["Settings", "get_settings"]

@@ -1,4 +1,5 @@
 import json
+import logging
 import secrets
 import uuid
 from datetime import datetime
@@ -25,6 +26,7 @@ from affine.api.local_index import router as local_index_router
 
 app = FastAPI(title="Affine AI Workstation API")
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 MODEL_CATALOG = [
     {
@@ -119,10 +121,12 @@ MODEL_CATALOG = [
     },
 ]
 
+allow_all_origins = "*" in settings.cors_allow_origins
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,
-    allow_credentials=True,
+    allow_credentials=not allow_all_origins,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
@@ -292,7 +296,7 @@ async def agent_chat(
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as e:
-            print(f"Agent stream failed: {e}", flush=True)
+            logger.error(f"Agent stream failed: {e}")
             error_event = {
                 "type": "error",
                 "error": "An internal error has occurred.",

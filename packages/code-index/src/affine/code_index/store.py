@@ -19,6 +19,17 @@ class CodeIndexStore:
         self._db: Any = None
         self._table: Any = None
 
+    @staticmethod
+    def _escape_sql_string(s: str) -> str:
+        """Escape single quotes for DataFusion/SQL injection prevention."""
+        return s.replace("'", "''")
+
+    @staticmethod
+    def _escape_like_string(s: str) -> str:
+        """Escape characters for LIKE clause including wildcards."""
+        s = CodeIndexStore._escape_sql_string(s)
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
     def _get_schema(self) -> pa.Schema:
         """Build schema with correct embedding dimension."""
         return pa.schema(
@@ -95,9 +106,9 @@ class CodeIndexStore:
         # Build where clause
         conditions: list[str] = []
         if path_filter:
-            conditions.append(f"path LIKE '{path_filter}%'")
+            conditions.append(f"path LIKE '{self._escape_like_string(path_filter)}%'")
         if kind_filter:
-            conditions.append(f"kind = '{kind_filter}'")
+            conditions.append(f"kind = '{self._escape_sql_string(kind_filter)}'")
         if exclude_chunks:
             conditions.append("kind != 'chunk'")
 
@@ -126,13 +137,13 @@ class CodeIndexStore:
         # Build where clause
         conditions: list[str] = []
         if kind:
-            conditions.append(f"kind = '{kind}'")
+            conditions.append(f"kind = '{self._escape_sql_string(kind)}'")
         if name_pattern:
-            conditions.append(f"name LIKE '%{name_pattern}%'")
+            conditions.append(f"name LIKE '%{self._escape_like_string(name_pattern)}%'")
         if code_pattern:
-            conditions.append(f"code LIKE '%{code_pattern}%'")
+            conditions.append(f"code LIKE '%{self._escape_like_string(code_pattern)}%'")
         if path_prefix:
-            conditions.append(f"path LIKE '{path_prefix}%'")
+            conditions.append(f"path LIKE '{self._escape_like_string(path_prefix)}%'")
 
         if conditions:
             where_clause = " AND ".join(conditions)
@@ -145,7 +156,17 @@ class CodeIndexStore:
         """Remove all entries for a given file hash (for re-indexing)."""
         if self._table is None:
             return
-        await self._table.delete(f"file_hash = '{file_hash}'")
+        await self._table.delete(f"file_hash = '{self._escape_sql_string(file_hash)}'")
+
+    async def delete_by_file_hashes(self, file_hashes: set[str]) -> None:
+        """Remove all entries for a given set of file hashes (batch optimization)."""
+        if self._table is None or not file_hashes:
+            return
+
+        # LanceDB supports IN clause for batch deletion
+        hash_list = list(file_hashes)
+        formatted_hashes = ", ".join(f"'{self._escape_sql_string(h)}'" for h in hash_list)
+        await self._table.delete(f"file_hash IN ({formatted_hashes})")
 
     async def get_indexed_file_hashes(self) -> set[str]:
         """Get all file hashes currently in index."""

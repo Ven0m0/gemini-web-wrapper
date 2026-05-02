@@ -29,7 +29,11 @@ class Embedder(Protocol):
 
 def normalize_l2(vectors: np.ndarray) -> np.ndarray:
     """L2 normalize vectors along last axis."""
-    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    if vectors.ndim == 1:
+        norm = np.linalg.norm(vectors)
+        return vectors if norm == 0 else vectors / norm
+
+    norms = np.linalg.norm(vectors, axis=-1, keepdims=True)
     norms = np.where(norms == 0, 1, norms)
     return vectors / norms
 
@@ -67,11 +71,23 @@ class OpenAIEmbedder:
         self, texts: list[str], input_type: str = "document"
     ) -> list[list[float]]:
         """Embed texts in batches, return L2-normalized vectors."""
-        all_vectors: list[list[float]] = []
+        import asyncio
 
+        sem = asyncio.Semaphore(10)
+
+        async def _process_batch(batch: list[str]) -> list[list[float]]:
+            async with sem:
+                return await self._embed_batch(batch)
+
+        tasks = []
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i : i + self.batch_size]
-            vectors = await self._embed_batch(batch)
+            tasks.append(_process_batch(batch))
+
+        results = await asyncio.gather(*tasks)
+
+        all_vectors: list[list[float]] = []
+        for vectors in results:
             all_vectors.extend(vectors)
 
         return all_vectors
@@ -128,11 +144,23 @@ class GeminiEmbedder:
         self, texts: list[str], input_type: str = "document"
     ) -> list[list[float]]:
         """Embed texts in batches, return L2-normalized vectors."""
-        all_vectors: list[list[float]] = []
+        import asyncio
 
+        sem = asyncio.Semaphore(10)
+
+        async def _process_batch(batch: list[str]) -> list[list[float]]:
+            async with sem:
+                return await self._embed_batch(batch)
+
+        tasks = []
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i : i + self.batch_size]
-            vectors = await self._embed_batch(batch)
+            tasks.append(_process_batch(batch))
+
+        results = await asyncio.gather(*tasks)
+
+        all_vectors: list[list[float]] = []
+        for vectors in results:
             all_vectors.extend(vectors)
 
         return all_vectors
@@ -197,11 +225,23 @@ class VoyageEmbedder:
         self, texts: list[str], input_type: str = "document"
     ) -> list[list[float]]:
         """Embed texts in batches, return L2-normalized vectors."""
-        all_vectors: list[list[float]] = []
+        import asyncio
 
+        sem = asyncio.Semaphore(10)
+
+        async def _process_batch(batch: list[str]) -> list[list[float]]:
+            async with sem:
+                return await self._embed_batch(batch, input_type)
+
+        tasks = []
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i : i + self.batch_size]
-            vectors = await self._embed_batch(batch, input_type)
+            tasks.append(_process_batch(batch))
+
+        results = await asyncio.gather(*tasks)
+
+        all_vectors: list[list[float]] = []
+        for vectors in results:
             all_vectors.extend(vectors)
 
         return all_vectors
@@ -251,12 +291,22 @@ class LocalEmbedder:
         """Embed texts locally in batches."""
         import asyncio
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
+        sem = asyncio.Semaphore(10)
 
-        all_vectors: list[list[float]] = []
+        async def _process_batch(batch: list[str]) -> list[list[float]]:
+            async with sem:
+                return await loop.run_in_executor(None, self._embed_batch_sync, batch)
+
+        tasks = []
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i : i + self.batch_size]
-            vectors = await loop.run_in_executor(None, self._embed_batch_sync, batch)
+            tasks.append(_process_batch(batch))
+
+        results = await asyncio.gather(*tasks)
+
+        all_vectors: list[list[float]] = []
+        for vectors in results:
             all_vectors.extend(vectors)
 
         return all_vectors

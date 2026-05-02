@@ -233,7 +233,6 @@ Note: Preserve proper character encoding and formatting for all text content.`;
 
   async generateImage(prompt: string, size: '256x256' | '512x512' | '1024x1024' = '1024x1024'): Promise<string> {
     if (!prompt.trim()) throw new Error('Image prompt is empty');
-    try {
       const response = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: {
@@ -252,8 +251,8 @@ Note: Preserve proper character encoding and formatting for all text content.`;
         // Try to extract error details from JSON if present
         let msg = text;
         try {
-          const err = JSON.parse(text)
-          msg = err?.error?.message || err?.message || text
+          const err = JSON.parse(text);
+          msg = err?.error?.message || err?.message || text;
         } catch {
           // If JSON parsing fails, we fall back to the raw response text
           // which was already assigned to 'msg' above.
@@ -287,8 +286,5 @@ Note: Preserve proper character encoding and formatting for all text content.`;
         return btoa(binary);
       }
       throw new Error('Unsupported image response format from AI');
-    } catch (e) {
-      throw e;
-    }
   }
 }

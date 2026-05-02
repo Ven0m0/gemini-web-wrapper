@@ -53,7 +53,7 @@ export const PwaDiagnostics: React.FC = () => {
             status: res.status,
             textSnippet: text.slice(0, 200),
           };
-        } catch (_e) {
+        } catch {
           m = { href: manifestUrl, ok: false };
         }
       }
@@ -75,12 +75,12 @@ export const PwaDiagnostics: React.FC = () => {
               swInfo.scope = ready.scope;
               swInfo.controller = !!navigator.serviceWorker.controller;
               swInfo.state = 'active';
-            } catch (e) {
-              swInfo.error = String(e);
+            } catch (err) {
+              swInfo.error = String(err);
             }
           }
-        } catch (e) {
-          swInfo.error = String(e);
+        } catch (err) {
+          swInfo.error = String(err);
         }
       }
       setSw(swInfo);
