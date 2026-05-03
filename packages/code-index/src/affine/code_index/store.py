@@ -165,7 +165,9 @@ class CodeIndexStore:
 
         # LanceDB supports IN clause for batch deletion
         hash_list = list(file_hashes)
-        formatted_hashes = ", ".join(f"'{self._escape_sql_string(h)}'" for h in hash_list)
+        formatted_hashes = ", ".join(
+            f"'{self._escape_sql_string(h)}'" for h in hash_list
+        )
         await self._table.delete(f"file_hash IN ({formatted_hashes})")
 
     async def get_indexed_file_hashes(self) -> set[str]:
