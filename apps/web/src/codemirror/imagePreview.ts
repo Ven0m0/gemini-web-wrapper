@@ -23,9 +23,7 @@ export function isSafeSrc(src: string): boolean {
       'image/avif',
       'image/apng',
     ];
-    return safeImageMimes.some(
-      (mime) => lower.startsWith(`data:${mime};`) || lower.startsWith(`data:${mime},`)
-    );
+    return safeImageMimes.some((mime) => lower.startsWith(`data:${mime};`) || lower.startsWith(`data:${mime},`));
   }
 
   // Allow standard http(s) URLs

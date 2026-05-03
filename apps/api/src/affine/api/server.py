@@ -170,7 +170,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
         data = response.json()
-    except JSONDecodeError:
+    except (JSONDecodeError, orjson.JSONDecodeError):
         return _extract_non_empty_text(response.text) or (
             f"Upstream provider returned {response.status_code}"
         )

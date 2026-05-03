@@ -7,7 +7,7 @@ import {
   migrateSavedConfig,
   ProviderConfig,
   DEFAULT_PROVIDER_ID,
-  DEFAULT_MODEL_ID
+  DEFAULT_MODEL_ID,
 } from './providers';
 
 describe('providers service', () => {
@@ -19,18 +19,16 @@ describe('providers service', () => {
       baseUrl: 'url-1',
       models: [
         { id: 'model-1a', name: 'Model 1A' },
-        { id: 'model-1b', name: 'Model 1B' }
-      ]
+        { id: 'model-1b', name: 'Model 1B' },
+      ],
     },
     {
       id: 'provider-2',
       name: 'Provider 2',
       apiKey: 'key-2',
       baseUrl: 'url-2',
-      models: [
-        { id: 'model-2a', name: 'Model 2A' }
-      ]
-    }
+      models: [{ id: 'model-2a', name: 'Model 2A' }],
+    },
   ];
 
   describe('getProviderById', () => {
@@ -75,9 +73,7 @@ describe('providers service', () => {
     });
 
     it('returns DEFAULT_MODEL_ID if resolved provider has no models', () => {
-      const providersWithNoModels: ProviderConfig[] = [
-        { ...mockProviders[0], models: [] }
-      ];
+      const providersWithNoModels: ProviderConfig[] = [{ ...mockProviders[0], models: [] }];
       expect(ensureModelSelection('provider-1', 'model-1a', providersWithNoModels)).toBe(DEFAULT_MODEL_ID);
     });
   });
@@ -86,22 +82,22 @@ describe('providers service', () => {
     it('returns default providers when config is undefined', () => {
       const providers = normalizeProvidersConfig(undefined);
       expect(providers.length).toBeGreaterThan(0);
-      expect(providers.some(p => p.id === 'gemini')).toBe(true);
+      expect(providers.some((p) => p.id === 'gemini')).toBe(true);
     });
 
     it('returns default providers when config is null', () => {
       const providers = normalizeProvidersConfig(null);
       expect(providers.length).toBeGreaterThan(0);
-      expect(providers.some(p => p.id === 'gemini')).toBe(true);
+      expect(providers.some((p) => p.id === 'gemini')).toBe(true);
     });
 
     it('merges custom API keys for built-in providers', () => {
       const providers = normalizeProvidersConfig({
         geminiKey: 'custom-gemini-key',
-        anthropicKey: 'custom-anthropic-key'
+        anthropicKey: 'custom-anthropic-key',
       });
-      const gemini = providers.find(p => p.id === 'gemini');
-      const anthropic = providers.find(p => p.id === 'anthropic');
+      const gemini = providers.find((p) => p.id === 'gemini');
+      const anthropic = providers.find((p) => p.id === 'anthropic');
 
       expect(gemini?.apiKey).toBe('custom-gemini-key');
       expect(anthropic?.apiKey).toBe('custom-anthropic-key');
@@ -115,12 +111,12 @@ describe('providers service', () => {
             name: 'Custom Provider',
             apiKey: 'custom-key',
             baseUrl: 'custom-url',
-            models: [{ id: 'custom-model', name: 'Custom Model' }]
-          }
-        ]
+            models: [{ id: 'custom-model', name: 'Custom Model' }],
+          },
+        ],
       });
 
-      const custom = providers.find(p => p.id === 'custom-provider');
+      const custom = providers.find((p) => p.id === 'custom-provider');
       expect(custom).toBeDefined();
       expect(custom?.name).toBe('Custom Provider');
       expect(custom?.models[0].id).toBe('custom-model');
@@ -134,12 +130,12 @@ describe('providers service', () => {
             name: 'Custom Provider',
             apiKey: 'custom-key',
             baseUrl: 'custom-url',
-            models: []
-          }
-        ]
+            models: [],
+          },
+        ],
       });
 
-      const custom = providers.find(p => p.id === 'custom-provider-no-models');
+      const custom = providers.find((p) => p.id === 'custom-provider-no-models');
       expect(custom).toBeDefined();
       expect(custom?.models.length).toBe(1);
       expect(custom?.models[0].id).toContain('__fallback_');
@@ -150,7 +146,7 @@ describe('providers service', () => {
     it('migrates from legacy config formats', () => {
       const result = migrateSavedConfig({
         provider: 'unknown-provider',
-        model: 'unknown-model'
+        model: 'unknown-model',
       });
 
       expect(result.providers).toBeDefined();
@@ -161,7 +157,7 @@ describe('providers service', () => {
     it('resets legacy GPT model selection to default', () => {
       const result = migrateSavedConfig({
         provider: 'openai',
-        model: 'gpt-4o'
+        model: 'gpt-4o',
       });
 
       expect(result.provider).toBe(DEFAULT_PROVIDER_ID);
@@ -175,7 +171,7 @@ describe('providers service', () => {
 
       const result = migrateSavedConfig({
         provider: firstBuiltinId,
-        model: firstBuiltinModelId
+        model: firstBuiltinModelId,
       });
 
       expect(result.provider).toBe(firstBuiltinId);

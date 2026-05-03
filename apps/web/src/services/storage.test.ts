@@ -58,13 +58,17 @@ describe('storage service', () => {
   });
 
   it('loadConfig merges localStorage and sessionStorage', () => {
-    vi.mocked(localStorage.getItem).mockReturnValue(JSON.stringify({
-      owner: 'test-owner',
-      githubToken: '',
-    }));
-    vi.mocked(sessionStorage.getItem).mockReturnValue(JSON.stringify({
-      githubToken: 'ghp_session_token',
-    }));
+    vi.mocked(localStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        owner: 'test-owner',
+        githubToken: '',
+      })
+    );
+    vi.mocked(sessionStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        githubToken: 'ghp_session_token',
+      })
+    );
 
     const loaded = loadConfig({} as ConfigState);
     expect(loaded.owner).toBe('test-owner');

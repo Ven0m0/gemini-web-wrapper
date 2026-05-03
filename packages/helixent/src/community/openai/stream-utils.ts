@@ -36,7 +36,7 @@ export class StreamAccumulator {
     const content: (TextContent | ThinkingContent | ToolUseContent)[] = [];
     if (this._thinking) content.push({ type: "thinking", thinking: this._thinking });
     if (this._text) content.push({ type: "text", text: this._text });
-    const sortedKeys = [...this._toolCalls.keys()].sort((a, b) => a - b);
+    const sortedKeys = [...this._toolCalls.keys()].toSorted((a, b) => a - b);
     for (const key of sortedKeys) {
       const tc = this._toolCalls.get(key)!;
       let input: Record<string, unknown> = {};

@@ -83,7 +83,6 @@ dependencies = [
     { name = "lancedb" },
     { name = "numpy" },
     { name = "pydantic" },
-    { name = "sentence-transformers" },
     { name = "tree-sitter" },
     { name = "tree-sitter-bash" },
     { name = "tree-sitter-javascript" },
@@ -91,6 +90,11 @@ dependencies = [
     { name = "tree-sitter-rust" },
     { name = "tree-sitter-typescript" },
     { name = "voyageai" },
+]
+
+[package.optional-dependencies]
+local-embeddings = [
+    { name = "sentence-transformers" },
 ]
 
 [package.dev-dependencies]
@@ -110,7 +114,7 @@ requires-dist = [
     { name = "lancedb", specifier = ">=0.21.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "sentence-transformers", specifier = ">=2.2.0" },
+    { name = "sentence-transformers", marker = "extra == 'local-embeddings'", specifier = ">=2.2.0" },
     { name = "tree-sitter", specifier = ">=0.25.2" },
     { name = "tree-sitter-bash", specifier = ">=0.25.1" },
     { name = "tree-sitter-javascript", specifier = ">=0.23.0" },
@@ -119,6 +123,7 @@ requires-dist = [
     { name = "tree-sitter-typescript", specifier = ">=0.23.0" },
     { name = "voyageai", specifier = ">=0.3.7" },
 ]
+provides-extras = ["local-embeddings"]
 
 [package.metadata.requires-dev]
 dev = [

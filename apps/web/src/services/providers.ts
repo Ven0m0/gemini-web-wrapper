@@ -180,13 +180,11 @@ export function getFlattenedProviderModels(providers: ProviderConfig[]) {
   );
 }
 
-
 let cachedNullConfig: ProviderConfig[] | undefined;
 let cachedUndefinedConfig: ProviderConfig[] | undefined;
 const configCache = new WeakMap<object, ProviderConfig[]>();
 
 export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): ProviderConfig[] {
-
   if (configLike === null) {
     if (cachedNullConfig) return cachedNullConfig;
   } else if (configLike === undefined) {
@@ -250,7 +248,6 @@ export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): 
           : [{ id: createFallbackModelId(provider.id, 0), name: 'Default Model', uid: generateId() }],
     }));
 
-
   const result = [...mergedProviders, ...customProviders];
 
   if (configLike === null) {
@@ -262,7 +259,6 @@ export function normalizeProvidersConfig(configLike?: LegacyConfigLike | null): 
   }
 
   return result;
-
 }
 
 export function ensureProviderSelection(providerId: string, providers: ProviderConfig[]): string {

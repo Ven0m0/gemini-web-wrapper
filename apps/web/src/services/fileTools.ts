@@ -79,7 +79,7 @@ export function searchAnnotatedContent(content: string, pattern: string, context
   });
 
   const matchSet = new Set(matchIndexes);
-  const ordered = [...included].sort((a, b) => a - b);
+  const ordered = [...included].toSorted((a, b) => a - b);
   const output: string[] = [];
   let previous = -1;
 

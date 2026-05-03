@@ -119,7 +119,7 @@ export const Editor: React.FC = () => {
       }
       return urls;
     } catch (e) {
-      throw new Error(`Image upload failed: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`Image upload failed: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
     }
   };
 
