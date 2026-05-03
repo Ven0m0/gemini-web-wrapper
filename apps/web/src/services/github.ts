@@ -91,7 +91,7 @@ export class GitHubService {
       this.setCachedFile(path, branch, file);
       return file;
     } catch (error) {
-      throw new Error(`Failed to fetch file: ${error}`);
+      throw new Error(`Failed to fetch file: ${error}`, { cause: error });
     }
   }
 
@@ -123,7 +123,7 @@ export class GitHubService {
       this.invalidateFile(path, branch);
       return data.content.sha;
     } catch (error) {
-      throw new Error(`Failed to commit file: ${error}`);
+      throw new Error(`Failed to commit file: ${error}`, { cause: error });
     }
   }
 
@@ -148,7 +148,7 @@ export class GitHubService {
       this.invalidateFile(path, branch);
       return { sha: data.content.sha, download_url: (data.content as any)?.download_url };
     } catch (error) {
-      throw new Error(`Failed to commit binary file: ${error}`);
+      throw new Error(`Failed to commit binary file: ${error}`, { cause: error });
     }
   }
 
@@ -165,7 +165,7 @@ export class GitHubService {
         }),
       });
     } catch (error) {
-      throw new Error(`Failed to create branch: ${error}`);
+      throw new Error(`Failed to create branch: ${error}`, { cause: error });
     }
   }
 
@@ -174,7 +174,7 @@ export class GitHubService {
       const branches = await this.request(`branches`);
       return branches.map((branch: { name: string }) => branch.name);
     } catch (error) {
-      throw new Error(`Failed to list branches: ${error}`);
+      throw new Error(`Failed to list branches: ${error}`, { cause: error });
     }
   }
 
@@ -202,7 +202,7 @@ export class GitHubService {
         },
       ];
     } catch (error) {
-      throw new Error(`Failed to list directory: ${error}`);
+      throw new Error(`Failed to list directory: ${error}`, { cause: error });
     }
   }
 }

@@ -27,7 +27,7 @@ class GeminiProvider(LLMProvider):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
-        self._client = httpx.AsyncClient()
+        self._client = httpx.AsyncClient(http2=True)
 
     @property
     def name(self) -> str:

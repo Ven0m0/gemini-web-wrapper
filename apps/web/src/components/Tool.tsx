@@ -47,7 +47,7 @@ function getAncestorDirectories(path: string): string[] {
 }
 
 function sortTreeItems(items: GitHubDirectoryItem[]): GitHubDirectoryItem[] {
-  return [...items].sort((left, right) => {
+  return [...items].toSorted((left, right) => {
     if (left.type !== right.type) {
       return left.type === 'dir' ? -1 : 1;
     }

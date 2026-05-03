@@ -1,5 +1,5 @@
-import json
 import logging
+import orjson
 import secrets
 import uuid
 from datetime import datetime
@@ -170,7 +170,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
         data = response.json()
-    except JSONDecodeError:
+    except JSONDecodeError, orjson.JSONDecodeError:
         return _extract_non_empty_text(response.text) or (
             f"Upstream provider returned {response.status_code}"
         )
@@ -292,16 +292,16 @@ async def agent_chat(
                 user_message, system=system_prompt, history=history
             ):
                 event_data = {"type": "text_delta", "text": chunk}
-                yield f"data: {json.dumps(event_data)}\n\n"
+                yield f"data: {orjson.dumps(event_data).decode()}\n\n"
 
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            yield f"data: {orjson.dumps({'type': 'done'}).decode()}\n\n"
         except Exception as e:
             logger.error(f"Agent stream failed: {e}")
             error_event = {
                 "type": "error",
                 "error": "An internal error has occurred.",
             }
-            yield f"data: {json.dumps(error_event)}\n\n"
+            yield f"data: {orjson.dumps(error_event).decode()}\n\n"
         finally:
             await provider.aclose()
 
