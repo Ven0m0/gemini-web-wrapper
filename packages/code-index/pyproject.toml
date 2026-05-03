@@ -17,6 +17,7 @@ dependencies = [
     "affine-config",
     "affine-llm-core",
     "voyageai>=0.3.7",
+    "sentence-transformers>=2.2.0",
 ]
 
 [dependency-groups]
