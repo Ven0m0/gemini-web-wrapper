@@ -12,7 +12,6 @@ uv_venv_create_args = ["--seed", "--system-site-packages"]
 uvx = true
 
 [tools]
-#node = { version = "24", postinstall = "corepack enable" }
 node = "24"
 bun = "latest"
 python = "3.14"
@@ -22,12 +21,17 @@ ty = "latest"
 prek = "latest"
 "pipx:pytest" = "latest"
 "pipx:basedpyright" = "latest"
+ripgrep = "latest"
+fd = "latest"
 
 [env]
 PROJECT_ROOT = "{{config_root}}"
 UV_PYTHON = { value = "{{ tools.python.path }}", tools = true }
 UV_LINK_MODE = "symlink"
 _.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed", "--system-site-packages"] }
+
+[hooks]
+enter = "mise i -yq"
 
 [tasks.install]
 description = 'Mise ci install'
@@ -39,4 +43,4 @@ run = "pytest tests/"
 
 [tasks.lint]
 description = "Lint the code"
-run = "ruff ."
+run = "ruff apps/ packages/"
