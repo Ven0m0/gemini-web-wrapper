@@ -35,7 +35,7 @@ class OpenAICompatibleProvider(LLMProvider):
         self.headers = {"content-type": "application/json"}
         if api_key:
             self.headers["authorization"] = f"Bearer {api_key}"
-        self._client = httpx.AsyncClient()
+        self._client = httpx.AsyncClient(http2=True)
 
     @property
     def name(self) -> str:

@@ -31,7 +31,7 @@ class AnthropicProvider(LLMProvider):
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
-        self._client = httpx.AsyncClient()
+        self._client = httpx.AsyncClient(http2=True)
 
     async def aclose(self) -> None:
         if not self._client.is_closed:
