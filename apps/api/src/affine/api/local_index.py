@@ -161,9 +161,16 @@ async def index_local(
 
     db_path = settings.repo_index_db_path.parent / "lancedb"
 
-    root_path = Path(request.root).resolve()
+    # Securely resolve path and ensure it's within the workspace
     cwd = Path.cwd().resolve()
-    if not (root_path == cwd or cwd in root_path.parents):
+    try:
+        root_path = Path(request.root).resolve(strict=True)
+    except FileNotFoundError:
+        # Fallback to non-strict if directory doesn't exist yet,
+        # but still validate after resolution
+        root_path = Path(request.root).resolve()
+
+    if not root_path.is_relative_to(cwd):
         raise HTTPException(
             status_code=400,
             detail=f"Root directory {request.root} is outside the allowed workspace",
