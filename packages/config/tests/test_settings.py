@@ -121,11 +121,17 @@ def test_get_settings_env_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_settings_wildcard_cors_origin_rejected() -> None:
-    with pytest.raises(ValueError, match=r"Wildcard '\*' is not allowed in CORS origins"):
+    with pytest.raises(
+        ValueError, match=r"Wildcard '\*' is not allowed in CORS origins"
+    ):
         Settings(cors_allow_origins=["*"])
 
-    with pytest.raises(ValueError, match=r"Wildcard '\*' is not allowed in CORS origins"):
+    with pytest.raises(
+        ValueError, match=r"Wildcard '\*' is not allowed in CORS origins"
+    ):
         Settings(cors_allow_origins="*")
 
-    with pytest.raises(ValueError, match=r"Wildcard '\*' is not allowed in CORS origins"):
+    with pytest.raises(
+        ValueError, match=r"Wildcard '\*' is not allowed in CORS origins"
+    ):
         Settings(cors_allow_origins="http://localhost:3000, *")

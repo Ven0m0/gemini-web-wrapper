@@ -409,6 +409,3 @@ def test_cors_middleware_configuration() -> None:
     # Assert that allow_credentials is True and origins match settings
     assert cors_middleware.kwargs["allow_credentials"] is True
     assert cors_middleware.kwargs["allow_origins"] == settings.cors_allow_origins
-
-
-
