@@ -161,8 +161,16 @@ async def index_local(
 
     db_path = settings.repo_index_db_path.parent / "lancedb"
 
+    root_path = Path(request.root).resolve()
+    cwd = Path.cwd().resolve()
+    if not (root_path == cwd or cwd in root_path.parents):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Root directory {request.root} is outside the allowed workspace",
+        )
+
     indexer = CodeIndexer(
-        root=Path(request.root).resolve(),
+        root=root_path,
         embedder=embedder,
         db_path=db_path,
     )
