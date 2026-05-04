@@ -26,11 +26,9 @@ function isValidGitUrl(url: string): boolean {
 /** Build the clone command string. */
 function buildCloneCommand(url: string, useToken: boolean, token: string): string {
   if (useToken && token && url.startsWith('https://github.com/')) {
-    // Inject token as Basic-auth credential so git doesn't prompt.
-    // The token is percent-encoded to handle any special characters safely.
-    // NOTE: The token will be visible in the shell; the user has opted in.
-    const withCreds = url.replace('https://github.com/', `https://oauth2:${encodeURIComponent(token)}@github.com/`);
-    return `git clone ${withCreds}`;
+    // Set token via environment variable and use a temporary git credential helper
+    // This prevents the token from leaking into the git URL or shell history
+    return `GITHUB_TOKEN="${token}" git -c credential.helper='!f() { echo "username=oauth2"; echo "password=$GITHUB_TOKEN"; }; f' clone ${url}`;
   }
   return `git clone ${url}`;
 }
@@ -201,7 +199,9 @@ export const WebShell: React.FC = () => {
             onClick={handleCopy}
             style={{ whiteSpace: 'pre-wrap', overflow: 'auto', fontSize: 12, cursor: 'pointer' }}
           >
-            {webShell.prepared}
+            {config.githubToken && webShell.prepared.includes(config.githubToken)
+              ? webShell.prepared.replace(new RegExp(config.githubToken, 'g'), '***')
+              : webShell.prepared}
           </pre>
         </div>
       )}
