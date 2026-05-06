@@ -329,12 +329,18 @@ class RepositoryIndexService:
             fetch_tasks = [fetch_entry(entry) for entry in selected_entries]
             fetch_results = await asyncio.gather(*fetch_tasks)
 
-            indexed_results: list[IndexedFile] = []
+            loop = asyncio.get_running_loop()
+            index_tasks = []
             for entry, content in fetch_results:
                 if content is None:
                     skipped_files += 1
                     continue
-                indexed_results.append(self._index_file(entry, content))
+                index_tasks.append(
+                    loop.run_in_executor(None, self._index_file, entry, content)
+                )
+            indexed_results: list[IndexedFile] = list(
+                await asyncio.gather(*index_tasks)
+            )
 
             self._insert_files(connection, repo_id, indexed_results)
             indexed_files = len(indexed_results)
