@@ -51,7 +51,7 @@ requires-dist = [
     { name = "affine-shared", editable = "packages/shared/python" },
     { name = "ast-grep-py", specifier = ">=0.42.1" },
     { name = "fastapi", specifier = ">=0.100.0" },
-    { name = "httpx", extras = ["http2"], specifier = ">=0.24.0" },
+    { name = "httpx", extras = ["http2"], specifier = ">=0.28.1" },
     { name = "libsql", specifier = ">=0.1.11" },
     { name = "orjson", specifier = ">=3.9.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
