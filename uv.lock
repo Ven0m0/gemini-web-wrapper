@@ -114,7 +114,7 @@ requires-dist = [
     { name = "lancedb", specifier = ">=0.21.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "sentence-transformers", marker = "extra == 'local-embeddings'", specifier = ">=2.2.0" },
+    { name = "sentence-transformers", marker = "extra == 'local-embeddings'", specifier = ">=5.5.0" },
     { name = "tree-sitter", specifier = ">=0.25.2" },
     { name = "tree-sitter-bash", specifier = ">=0.25.1" },
     { name = "tree-sitter-javascript", specifier = ">=0.23.0" },
@@ -348,16 +348,16 @@ wheels = [
 
 [[package]]
 name = "ast-grep-py"
-version = "0.42.1"
+version = "0.42.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/47/89/0f394db4e52f6109688294961cbc3753f29f5e310914133efc308709531b/ast_grep_py-0.42.1.tar.gz", hash = "sha256:8a5edf393a4879511c5a4012b058e4309ae85bd78181c7a3cbd59df0dbd12e12", size = 148848, upload-time = "2026-04-04T16:11:13.714Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/e1/add749936f35b7fc9dcb320af00abdb555372611ccce7265b37ae66a40cf/ast_grep_py-0.42.2.tar.gz", hash = "sha256:3ef99ad62d518e10acff88d57b2d36082bcd14e24193724d45e86fce3ab87cfb", size = 148677, upload-time = "2026-05-10T22:09:54.48Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/8c/fb1d2cf32fca0e229fc330f37d32e5b768a061ac6c98bca6f17cce92684c/ast_grep_py-0.42.1-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:246c60d9b452d199585fb37d6d7c2455c002bb1f8d585cd8608ce658c4d09157", size = 5152777, upload-time = "2026-04-04T16:11:03.284Z" },
-    { url = "https://files.pythonhosted.org/packages/23/5b/edeba2baaabc4a9c10d626aa84ae863b0c8127698dfe1d94255dc516213b/ast_grep_py-0.42.1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:094d88cffe0daa65a940cea9e14038aa1563145fe2777d477d9589a9a7b75d1b", size = 5306977, upload-time = "2026-04-04T16:11:05.138Z" },
-    { url = "https://files.pythonhosted.org/packages/6e/43/033d780de522e79f9b26cb1f888dd365088406762104f348f8da85a2192c/ast_grep_py-0.42.1-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:954da8bf4779daed5f1f3fac097bd17cfd1b794102cc235e92e64ed3c8c0bdf5", size = 5125803, upload-time = "2026-04-04T16:11:06.964Z" },
-    { url = "https://files.pythonhosted.org/packages/0a/29/24305399142b14ae61dc5146cadb5e6c1d88cdeff83b7f28f49fbfc147bc/ast_grep_py-0.42.1-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:17f09feae710fcfe98d97c5e5ece416c7d1884db5daeb3b8f9862f008f5b5b7c", size = 5244658, upload-time = "2026-04-04T16:11:08.687Z" },
-    { url = "https://files.pythonhosted.org/packages/c7/2c/033e099c4981b3a764df9ad5ecb21a29a25776badd414c47cbace2a13971/ast_grep_py-0.42.1-cp314-cp314-win32.whl", hash = "sha256:1aac1bd917d14c29c093ae68e8b4f2b0984986571ebd9721185e41b63150c0bb", size = 4859575, upload-time = "2026-04-04T16:11:10.414Z" },
-    { url = "https://files.pythonhosted.org/packages/f4/2c/010f57547595a5b7f1771497da9f43675f0f2cd56fb2fedb8e40a689ed2e/ast_grep_py-0.42.1-cp314-cp314-win_amd64.whl", hash = "sha256:ba06299a780e6cb3442fbcc673479738df867d0ca91ccb4556db020769b8e536", size = 4995918, upload-time = "2026-04-04T16:11:12.122Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/95/b3c8fec9c95e7d985463764aaa49449fe35cd42067aecf889828417e4024/ast_grep_py-0.42.2-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:7db74c12daa713dfb94d057f38b8e21c343ec2730cb48fb3222c8a3dd585a06a", size = 5300003, upload-time = "2026-05-10T22:09:44.836Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/3f/1380ba2d5392c25b3f153c7ef357fc31a72b12f56270a92e11a094c25026/ast_grep_py-0.42.2-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:7e701ec3f9842c855a8c1bf0863a0827335f440355ce4c86f60d0234f9d36d5b", size = 5463027, upload-time = "2026-05-10T22:09:46.226Z" },
+    { url = "https://files.pythonhosted.org/packages/50/30/8a8312790a956951de342d4b8cb7be9b9f4621b4fb129d42b819983551f8/ast_grep_py-0.42.2-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:adeb6feaa911552196da7c7704327ac4d13819e62d569196d404c7ae4ec1c010", size = 5275440, upload-time = "2026-05-10T22:09:47.783Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/60/f616509f1f0c2b73d59617a091889a010e5b45cae0aecf89d58673b71fd2/ast_grep_py-0.42.2-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:8792057945409b74f2dac257d706ab91ee7d26c96c1c16786bd209859ae9b4d2", size = 5392414, upload-time = "2026-05-10T22:09:49.609Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/1c/e526c27dda6ab46e4594a15eb096ba26bbe3a8b125e2621c253c667543d7/ast_grep_py-0.42.2-cp314-cp314-win32.whl", hash = "sha256:b211f0ac572f49997214ee58c3af5440ec67b26495f71c52740be97f972d5dac", size = 5001184, upload-time = "2026-05-10T22:09:51.402Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/80/31a670361282005006cd185b169c99b747a6319a5fb9454c1012fb101009/ast_grep_py-0.42.2-cp314-cp314-win_amd64.whl", hash = "sha256:0efcec0e7970a5a5fe175ad4b997ec2cfc6d01bb583b1d857b299e5cd6ba9511", size = 5136484, upload-time = "2026-05-10T22:09:52.69Z" },
 ]
 
 [[package]]
@@ -1451,16 +1451,16 @@ wheels = [
 
 [[package]]
 name = "pydantic-settings"
-version = "2.14.0"
+version = "2.14.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/98/c8345dccdc31de4228c039a98f6467a941e39558da41c1744fbe29fa5666/pydantic_settings-2.14.0.tar.gz", hash = "sha256:24285fd4b0e0c06507dd9fdfd331ee23794305352aaec8fc4eb92d4047aeb67d", size = 235709, upload-time = "2026-04-20T13:37:40.293Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/60/1d1e59c9c90d54591469ada7d268251f71c24bdb765f1a8a832cee8c6653/pydantic_settings-2.14.1.tar.gz", hash = "sha256:e874d3bec7e787b0c9958277956ed9b4dd5de6a80e162188fdaff7c5e26fd5fa", size = 235551, upload-time = "2026-05-08T13:40:06.542Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/dd/bebff3040138f00ae8a102d426b27349b9a49acc310fcae7f92112d867e3/pydantic_settings-2.14.0-py3-none-any.whl", hash = "sha256:fc8d5d692eb7092e43c8647c1c35a3ecd00e040fcf02ed86f4cb5458ca62182e", size = 60940, upload-time = "2026-04-20T13:37:38.586Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/8d/f1af3832f5e6eb13ba94ee809e72b8ecb5eef226d27ee0bef7d963d943c7/pydantic_settings-2.14.1-py3-none-any.whl", hash = "sha256:6e3c7edfd8277687cdc598f56e5cff0e9bfff0910a3749deaa8d4401c3a2b9de", size = 60964, upload-time = "2026-05-08T13:40:04.958Z" },
 ]
 
 [[package]]
@@ -1764,7 +1764,7 @@ wheels = [
 
 [[package]]
 name = "sentence-transformers"
-version = "5.4.1"
+version = "5.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -1776,9 +1776,9 @@ dependencies = [
     { name = "transformers" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4d/68/7f98c221940ce783b492ad6140384daf2e2918cd7175009d6a362c22b9ee/sentence_transformers-5.4.1.tar.gz", hash = "sha256:436bcb1182a0ff42a8fb2b1c43498a70d0a75b688d182f2cd0d1dd115af61ddc", size = 428910, upload-time = "2026-04-14T13:34:59.006Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/27/16d127a61303e05847d878b23687f3371868c76e738557fa80b4373a8c2b/sentence_transformers-5.5.0.tar.gz", hash = "sha256:9cec675e68bfe09d07466d1f13ab06d1d79d60a0f45b154baf433bde6ae159cb", size = 444908, upload-time = "2026-05-12T14:05:42.383Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c5/d9/3a9b6f2ccdedc9dc00fe37b2fc58f58f8efbff44565cf4bf39d8568bb13a/sentence_transformers-5.4.1-py3-none-any.whl", hash = "sha256:a6d640fc363849b63affb8e140e9d328feabab86f83d58ac3e16b1c28140b790", size = 571311, upload-time = "2026-04-14T13:34:57.731Z" },
+    { url = "https://files.pythonhosted.org/packages/55/20/18416624bcbae866ec0b111979766cebabe8e5ff7563ab953ecbaf3ff9e7/sentence_transformers-5.5.0-py3-none-any.whl", hash = "sha256:75313fdcc2397ec4b58297c25d6187fcca5a6b2aeb09570a72eff5a3223d8d58", size = 588665, upload-time = "2026-05-12T14:05:40.899Z" },
 ]
 
 [[package]]
