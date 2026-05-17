@@ -49,12 +49,16 @@ class Settings(BaseSettings):
             if not all(isinstance(origin, str) for origin in value):
                 raise ValueError("CORS origins must be strings.")
             origins = [origin.strip() for origin in value if origin.strip()]
+            if "*" in origins:
+                raise ValueError("Wildcard '*' is not allowed in CORS origins.")
             return origins
 
         if not isinstance(value, str):
             return value
 
         origins = [origin.strip() for origin in value.split(",") if origin.strip()]
+        if "*" in origins:
+            raise ValueError("Wildcard '*' is not allowed in CORS origins.")
         return origins
 
     def provider_api_key(self) -> str | None:

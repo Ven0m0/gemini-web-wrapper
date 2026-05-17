@@ -121,12 +121,10 @@ MODEL_CATALOG = [
     },
 ]
 
-allow_all_origins = "*" in settings.cors_allow_origins
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,
-    allow_credentials=not allow_all_origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
