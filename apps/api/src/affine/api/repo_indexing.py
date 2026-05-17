@@ -279,20 +279,25 @@ class RepositoryIndexService:
         connection = self._connect()
 
         try:
-            self._init_schema(connection)
-            self._upsert_status(
-                connection,
-                owner=request.owner,
-                repo=request.repo,
-                branch=request.branch,
-                status="indexing",
-                indexed_files=0,
-                skipped_files=0,
-                symbol_count=0,
-                last_error=None,
-                lsp_servers=lsp_servers,
-            )
-            connection.commit()
+            loop = asyncio.get_running_loop()
+
+            def _init_db() -> None:
+                self._init_schema(connection)
+                self._upsert_status(
+                    connection,
+                    owner=request.owner,
+                    repo=request.repo,
+                    branch=request.branch,
+                    status="indexing",
+                    indexed_files=0,
+                    skipped_files=0,
+                    symbol_count=0,
+                    last_error=None,
+                    lsp_servers=lsp_servers,
+                )
+                connection.commit()
+
+            await loop.run_in_executor(None, _init_db)
 
             tree = await client.list_tree(request.branch)
             text_entries = [
@@ -303,16 +308,19 @@ class RepositoryIndexService:
             selected_entries = text_entries[:max_files]
             skipped_files = max(0, len(text_entries) - len(selected_entries))
 
-            repo_id = self._repo_id(
-                connection,
-                owner=request.owner,
-                repo=request.repo,
-                branch=request.branch,
-            )
-            if repo_id is None:
-                raise ValueError("Failed to initialise repository index")
+            def _clear_db() -> int:
+                rid = self._repo_id(
+                    connection,
+                    owner=request.owner,
+                    repo=request.repo,
+                    branch=request.branch,
+                )
+                if rid is None:
+                    raise ValueError("Failed to initialise repository index")
+                self._clear_repo_rows(connection, rid)
+                return rid
 
-            self._clear_repo_rows(connection, repo_id)
+            repo_id = await loop.run_in_executor(None, _clear_db)
 
             semaphore = asyncio.Semaphore(50)
 
@@ -329,53 +337,68 @@ class RepositoryIndexService:
             fetch_tasks = [fetch_entry(entry) for entry in selected_entries]
             fetch_results = await asyncio.gather(*fetch_tasks)
 
-            indexed_results: list[IndexedFile] = []
-            for entry, content in fetch_results:
-                if content is None:
-                    skipped_files += 1
-                    continue
-                indexed_results.append(self._index_file(entry, content))
+            def _insert_and_commit() -> RepoIndexStatus:
+                nonlocal skipped_files
+                indexed_results: list[IndexedFile] = []
+                for entry, blob_content in fetch_results:
+                    if blob_content is None:
+                        skipped_files += 1
+                        continue
+                    indexed_results.append(self._index_file(entry, blob_content))
 
-            self._insert_files(connection, repo_id, indexed_results)
-            indexed_files = len(indexed_results)
-            symbol_count = sum(len(f.symbols) for f in indexed_results)
+                self._insert_files(connection, repo_id, indexed_results)
+                indexed_files = len(indexed_results)
+                symbol_count = sum(len(f.symbols) for f in indexed_results)
 
-            self._upsert_status(
-                connection,
-                owner=request.owner,
-                repo=request.repo,
-                branch=request.branch,
-                status="indexed",
-                indexed_files=indexed_files,
-                skipped_files=skipped_files,
-                symbol_count=symbol_count,
-                last_error=None,
-                lsp_servers=lsp_servers,
-            )
-            connection.commit()
-            status_result = self.get_status(
-                owner=request.owner,
-                repo=request.repo,
-                branch=request.branch,
-                connection=connection,
-            )
-            if status_result is None:
-                raise ValueError("Repository index was not persisted")
+                self._upsert_status(
+                    connection,
+                    owner=request.owner,
+                    repo=request.repo,
+                    branch=request.branch,
+                    status="indexed",
+                    indexed_files=indexed_files,
+                    skipped_files=skipped_files,
+                    symbol_count=symbol_count,
+                    last_error=None,
+                    lsp_servers=lsp_servers,
+                )
+                connection.commit()
+                status_res = self.get_status(
+                    owner=request.owner,
+                    repo=request.repo,
+                    branch=request.branch,
+                    connection=connection,
+                )
+                if status_res is None:
+                    raise ValueError("Repository index was not persisted")
+                return status_res
+
+            status_result = await loop.run_in_executor(None, _insert_and_commit)
             return status_result
         except Exception as exc:
-            self._upsert_status(
-                connection,
-                owner=request.owner,
-                repo=request.repo,
-                branch=request.branch,
-                status="error",
-                indexed_files=0,
-                skipped_files=0,
-                symbol_count=0,
-                last_error=str(exc),
-                lsp_servers=lsp_servers,
-            )
-            connection.commit()
+            error_msg = str(exc)
+
+            def _handle_error() -> None:
+                self._upsert_status(
+                    connection,
+                    owner=request.owner,
+                    repo=request.repo,
+                    branch=request.branch,
+                    status="error",
+                    indexed_files=0,
+                    skipped_files=0,
+                    symbol_count=0,
+                    last_error=error_msg,
+                    lsp_servers=lsp_servers,
+                )
+                connection.commit()
+
+            try:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, _handle_error)
+            except Exception:
+                _handle_error()
+
             raise
         finally:
             connection.close()
@@ -719,7 +742,7 @@ class RepositoryIndexService:
         db_path = self._settings.repo_index_db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
         if not self._settings.repo_index_turso_sync_url:
-            return sqlite3.connect(str(db_path))
+            return sqlite3.connect(str(db_path), check_same_thread=False)
         connect_kwargs: dict[str, str] = {}
         if self._settings.repo_index_turso_sync_url:
             connect_kwargs["sync_url"] = self._settings.repo_index_turso_sync_url
