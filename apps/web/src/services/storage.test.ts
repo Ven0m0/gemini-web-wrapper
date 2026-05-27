@@ -75,6 +75,46 @@ describe('storage service', () => {
     expect(loaded.githubToken).toBe('ghp_session_token');
   });
 
+  it('loadConfig handles malicious or unexpected data safely', () => {
+    // Prototype pollution attempt
+    vi.mocked(localStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        owner: 'attack-owner',
+        '__proto__': { 'polluted': true },
+        'constructor': { 'prototype': { 'polluted': true } }
+      })
+    );
+    // Unexpected types
+    vi.mocked(sessionStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        temperature: 'hot', // should be number
+        githubToken: 12345, // should be string
+        providers: 'not-an-array' // should be array
+      })
+    );
+
+    const initialConfig = {
+      owner: 'initial-owner',
+      temperature: 0.3,
+      githubToken: 'initial-token',
+      providers: []
+    } as any as ConfigState;
+
+    const loaded = loadConfig(initialConfig);
+
+    // Should ignore invalid types and retain initial/default values
+    expect(loaded.owner).toBe('attack-owner'); // Valid string field is merged
+    expect(loaded.temperature).toBe(0.3); // Invalid type 'hot' is ignored
+    expect(loaded.githubToken).toBe('initial-token'); // Invalid type 12345 is ignored
+
+    // Prototype should not be polluted
+    expect((loaded as any).polluted).toBeUndefined();
+    expect(({} as any).polluted).toBeUndefined();
+
+    // providers should remain an array (or default from migrateSavedConfig)
+    expect(Array.isArray(loaded.providers)).toBe(true);
+  });
+
   it('clearStorage removes data from both storages', () => {
     clearStorage();
     expect(localStorage.removeItem).toHaveBeenCalledWith('chat-github-config');
