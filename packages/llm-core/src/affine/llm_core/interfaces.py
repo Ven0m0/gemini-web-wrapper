@@ -9,7 +9,7 @@ class LLMProvider(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        pass
+        ...
 
     @abstractmethod
     async def generate(
@@ -20,7 +20,7 @@ class LLMProvider(ABC):
         history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> str:
-        pass
+        ...
 
     @abstractmethod
     def stream(
@@ -31,7 +31,7 @@ class LLMProvider(ABC):
         history: list[TextMessage] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
-        pass
+        ...
 
     async def aclose(self) -> None:
-        pass
+        ...
