@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from .chunker import Chunk, SlidingWindowChunker
-from .discovery import FileDiscovery, FileInfo
+from .chunker import SlidingWindowChunker
+from .discovery import FileDiscovery
 from .embedder import (
     Embedder,
     EmbedderFactory,
@@ -13,7 +13,7 @@ from .embedder import (
     normalize_l2,
 )
 from .indexer import CodeIndexer
-from .parser import ASTNode, ASTParser, PatternMatch
+from .parser import ASTParser
 from .search import CodeSearchEngine, SearchResult
 from .store import CodeIndexStore
 
@@ -26,14 +26,10 @@ __all__ = [
     "LocalEmbedder",
     "normalize_l2",
     # Parser
-    "ASTNode",
-    "PatternMatch",
     "ASTParser",
     # Chunker
-    "Chunk",
     "SlidingWindowChunker",
     # Discovery
-    "FileInfo",
     "FileDiscovery",
     # Store
     "CodeIndexStore",
