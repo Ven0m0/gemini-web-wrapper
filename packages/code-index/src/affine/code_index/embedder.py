@@ -312,6 +312,8 @@ class LocalEmbedder:
         return all_vectors
 
     async def aclose(self) -> None:
+        """Close any resources."""
+        # Local models do not use network clients or async resources requiring cleanup
         pass
 
     def _load_model(self):
