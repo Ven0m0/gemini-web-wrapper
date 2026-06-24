@@ -65,12 +65,12 @@ function safeParseConfig(raw: string | null): Partial<ConfigState> {
                   uid: typeof m.uid === 'string' ? m.uid : undefined,
                 } as ProviderModelOption;
               })
-              .filter((m): m is ProviderModelOption => m !== null && m.id !== '');
+              .filter((m: ProviderModelOption | null): m is ProviderModelOption => m !== null && m.id !== '');
           }
 
           return provider.id ? provider : null;
         })
-        .filter((p): p is ProviderConfig => p !== null);
+        .filter((p: ProviderConfig | null): p is ProviderConfig => p !== null);
     }
 
     return validated;
