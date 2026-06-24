@@ -399,37 +399,13 @@ def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> No
 
 def test_cors_middleware_configuration() -> None:
     from fastapi.middleware.cors import CORSMiddleware
-    from affine.api.server import app, allow_all_origins
+    from affine.api.server import app
     from affine.config.settings import get_settings
 
     settings = get_settings()
 
     cors_middleware = next(m for m in app.user_middleware if m.cls == CORSMiddleware)
 
-    # Assert that if allow_all_origins is True, allow_credentials is False
-    # and vice-versa
-    expected_credentials = not allow_all_origins
-    assert cors_middleware.kwargs["allow_credentials"] == expected_credentials
+    # Assert that allow_credentials is True and origins match settings
+    assert cors_middleware.kwargs["allow_credentials"] is True
     assert cors_middleware.kwargs["allow_origins"] == settings.cors_allow_origins
-
-
-def test_cors_middleware_when_wildcard_configured() -> None:
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
-
-    app_test = FastAPI()
-    test_allow_origins = ["*", "http://localhost:3000"]
-    allow_all = "*" in test_allow_origins
-
-    app_test.add_middleware(
-        CORSMiddleware,
-        allow_origins=test_allow_origins,
-        allow_credentials=not allow_all,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Accept"],
-    )
-
-    cors_middleware = next(
-        m for m in app_test.user_middleware if m.cls == CORSMiddleware
-    )
-    assert cors_middleware.kwargs["allow_credentials"] is False

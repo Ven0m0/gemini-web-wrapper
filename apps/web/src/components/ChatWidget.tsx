@@ -60,7 +60,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   persistentChat: _persistentChat = true,
 }) => {
   const [isOpen, setIsOpen] = useState(autoOpen);
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const [hasInteracted, _setHasInteracted] = useState(false);
   useStore();
 
   // Request notification permission
@@ -96,23 +96,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [minimizeOnOutsideClick, isOpen]);
 
-  const _handleOpen = () => {
-    setIsOpen(true);
-    setHasInteracted(true);
-  };
-
   const handleClose = () => {
     setIsOpen(false);
-  };
-
-  const _getPositionStyles = () => {
-    const positions = {
-      'bottom-right': { bottom: offset.y, right: offset.x },
-      'bottom-left': { bottom: offset.y, left: offset.x },
-      'top-right': { top: offset.y, right: offset.x },
-      'top-left': { top: offset.y, left: offset.x },
-    };
-    return positions[position];
   };
 
   const getThemeStyles = () => {

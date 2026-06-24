@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -161,8 +162,32 @@ async def index_local(
 
     db_path = settings.repo_index_db_path.parent / "lancedb"
 
+    # Securely validate that the requested root is within the current workspace.
+    # We use os.path.realpath to resolve symlinks and '..' components, and then
+    # ensure the result starts with the canonical path of the current directory.
+    try:
+        # Canonicalize paths to handle symlinks and '..'
+        workspace_path = os.path.realpath(os.getcwd())
+        requested_path = os.path.realpath(request.root)
+
+        # Check that requested_path is within workspace_path
+        # Using commonpath is a robust way to verify the relationship
+        if os.path.commonpath([workspace_path, requested_path]) != workspace_path:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Root directory {request.root} is outside the allowed workspace",
+            )
+        root_path = Path(requested_path)
+    except Exception as exc:
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid root directory: {exc}",
+        ) from exc
+
     indexer = CodeIndexer(
-        root=Path(request.root).resolve(),
+        root=root_path,
         embedder=embedder,
         db_path=db_path,
     )

@@ -68,10 +68,11 @@ class ImagesWidget extends WidgetType {
   }
 }
 
-function collectLineImages(text: string, maxPerLine = 3): ImgRef[] {
+export function collectLineImages(text: string, maxPerLine = 3): ImgRef[] {
+  if (text.length > 1000) return [];
   const results: ImgRef[] = [];
   // Markdown image: ![alt](url)
-  const mdImg = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+  const mdImg = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
   let m: RegExpExecArray | null;
   while ((m = mdImg.exec(text)) && results.length < maxPerLine) {
     const alt = (m[1] || '').trim();
@@ -79,7 +80,7 @@ function collectLineImages(text: string, maxPerLine = 3): ImgRef[] {
     if (isSafeSrc(src)) results.push({ alt, src });
   }
   // Basic HTML <img src="..."> support
-  const htmlImg = /<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi;
+  const htmlImg = /<img\s+[^>]*?src=["']([^"']+)["'][^>]*?>/gi;
   while ((m = htmlImg.exec(text)) && results.length < maxPerLine) {
     const src = (m[1] || '').trim();
     if (isSafeSrc(src)) results.push({ alt: '', src });

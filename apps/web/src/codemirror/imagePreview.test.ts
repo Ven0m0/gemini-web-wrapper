@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSafeSrc } from './imagePreview';
+import { collectLineImages, isSafeSrc } from './imagePreview';
 
 describe('isSafeSrc', () => {
   it('should allow standard http/https URLs', () => {
@@ -56,5 +56,57 @@ describe('isSafeSrc', () => {
     expect(isSafeSrc('   javascript:alert(1)')).toBe(false);
     expect(isSafeSrc('JAVASCRIPT:alert(1)')).toBe(false);
     expect(isSafeSrc('data:image/svg+xml;utf8,<svg></svg>')).toBe(false);
+  });
+});
+
+describe('collectLineImages', () => {
+  it('should collect Markdown images', () => {
+    const text = '![alt](https://example.com/image.png)';
+    const results = collectLineImages(text);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({ alt: 'alt', src: 'https://example.com/image.png' });
+  });
+
+  it('should collect HTML images', () => {
+    const text = '<img src="https://example.com/image.png">';
+    const results = collectLineImages(text);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({ alt: '', src: 'https://example.com/image.png' });
+  });
+
+  it('should respect maxPerLine', () => {
+    const text = '![1](url1) ![2](url2) ![3](url3) ![4](url4)';
+    const results = collectLineImages(text, 2);
+    expect(results).toHaveLength(2);
+  });
+
+  it('should block lines longer than 1000 characters', () => {
+    const longLine = '![alt](' + 'a'.repeat(1000) + ')';
+    expect(longLine.length).toBeGreaterThan(1000);
+    const results = collectLineImages(longLine);
+    expect(results).toHaveLength(0);
+  });
+
+  it('should efficiently handle potential ReDoS payloads', () => {
+    // Test payload for HTML regex
+    const htmlPayload = '<img ' + 'src="a" '.repeat(100) + 'X';
+    const startHtml = Date.now();
+    collectLineImages(htmlPayload);
+    const endHtml = Date.now();
+    expect(endHtml - startHtml).toBeLessThan(100);
+
+    // Test payload for Markdown regex
+    const mdPayload = '![alt](url' + ' '.repeat(100) + '"title' + ' '.repeat(100);
+    const startMd = Date.now();
+    collectLineImages(mdPayload);
+    const endMd = Date.now();
+    expect(endMd - startMd).toBeLessThan(100);
+  });
+
+  it('should correctly parse markdown image with title', () => {
+    const text = '![alt](url "title")';
+    const results = collectLineImages(text);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({ alt: 'alt', src: 'url' });
   });
 });
