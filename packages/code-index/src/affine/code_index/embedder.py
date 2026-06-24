@@ -38,7 +38,44 @@ def normalize_l2(vectors: np.ndarray) -> np.ndarray:
     return vectors / norms
 
 
-class OpenAIEmbedder:
+class BatchEmbedderMixin:
+    """Mixin to provide batch embedding logic."""
+
+    batch_size: int
+
+    async def _embed_batch(
+        self, texts: list[str], input_type: str = "document"
+    ) -> list[list[float]]:
+        """Embed a single batch. Must be implemented by subclasses."""
+        raise NotImplementedError
+
+    async def embed(
+        self, texts: list[str], input_type: str = "document"
+    ) -> list[list[float]]:
+        """Embed texts in batches, return L2-normalized vectors."""
+        import asyncio
+
+        sem = asyncio.Semaphore(10)
+
+        async def _process_batch(batch: list[str]) -> list[list[float]]:
+            async with sem:
+                return await self._embed_batch(batch, input_type=input_type)
+
+        tasks = []
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i : i + self.batch_size]
+            tasks.append(_process_batch(batch))
+
+        results = await asyncio.gather(*tasks)
+
+        all_vectors: list[list[float]] = []
+        for vectors in results:
+            all_vectors.extend(vectors)
+
+        return all_vectors
+
+
+class OpenAIEmbedder(BatchEmbedderMixin):
     """OpenAI-compatible embedding provider."""
 
     def __init__(
@@ -67,32 +104,9 @@ class OpenAIEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
-    async def embed(
+    async def _embed_batch(
         self, texts: list[str], input_type: str = "document"
     ) -> list[list[float]]:
-        """Embed texts in batches, return L2-normalized vectors."""
-        import asyncio
-
-        sem = asyncio.Semaphore(10)
-
-        async def _process_batch(batch: list[str]) -> list[list[float]]:
-            async with sem:
-                return await self._embed_batch(batch)
-
-        tasks = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            tasks.append(_process_batch(batch))
-
-        results = await asyncio.gather(*tasks)
-
-        all_vectors: list[list[float]] = []
-        for vectors in results:
-            all_vectors.extend(vectors)
-
-        return all_vectors
-
-    async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Embed a single batch."""
         response = await self._client.post(
             "/embeddings",
@@ -117,7 +131,7 @@ class OpenAIEmbedder:
         await self._client.aclose()
 
 
-class GeminiEmbedder:
+class GeminiEmbedder(BatchEmbedderMixin):
     """Google Gemini embedding provider."""
 
     def __init__(
@@ -140,32 +154,9 @@ class GeminiEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
-    async def embed(
+    async def _embed_batch(
         self, texts: list[str], input_type: str = "document"
     ) -> list[list[float]]:
-        """Embed texts in batches, return L2-normalized vectors."""
-        import asyncio
-
-        sem = asyncio.Semaphore(10)
-
-        async def _process_batch(batch: list[str]) -> list[list[float]]:
-            async with sem:
-                return await self._embed_batch(batch)
-
-        tasks = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            tasks.append(_process_batch(batch))
-
-        results = await asyncio.gather(*tasks)
-
-        all_vectors: list[list[float]] = []
-        for vectors in results:
-            all_vectors.extend(vectors)
-
-        return all_vectors
-
-    async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Embed a single batch."""
         response = await self._client.post(
             f"/{self.model}:batchEmbedContents",
@@ -188,7 +179,7 @@ class GeminiEmbedder:
         await self._client.aclose()
 
 
-class VoyageEmbedder:
+class VoyageEmbedder(BatchEmbedderMixin):
     """Voyage AI embedding provider."""
 
     def __init__(
@@ -221,33 +212,8 @@ class VoyageEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
-    async def embed(
-        self, texts: list[str], input_type: str = "document"
-    ) -> list[list[float]]:
-        """Embed texts in batches, return L2-normalized vectors."""
-        import asyncio
-
-        sem = asyncio.Semaphore(10)
-
-        async def _process_batch(batch: list[str]) -> list[list[float]]:
-            async with sem:
-                return await self._embed_batch(batch, input_type)
-
-        tasks = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            tasks.append(_process_batch(batch))
-
-        results = await asyncio.gather(*tasks)
-
-        all_vectors: list[list[float]] = []
-        for vectors in results:
-            all_vectors.extend(vectors)
-
-        return all_vectors
-
     async def _embed_batch(
-        self, texts: list[str], input_type: str
+        self, texts: list[str], input_type: str = "document"
     ) -> list[list[float]]:
         """Embed a single batch."""
         client = self._get_client()
@@ -267,7 +233,7 @@ class VoyageEmbedder:
             await self._client.aclose()
 
 
-class LocalEmbedder:
+class LocalEmbedder(BatchEmbedderMixin):
     """Local sentence-transformers fallback (lazy-loaded)."""
 
     def __init__(
@@ -285,33 +251,17 @@ class LocalEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
-    async def embed(
+    async def _embed_batch(
         self, texts: list[str], input_type: str = "document"
     ) -> list[list[float]]:
-        """Embed texts locally in batches."""
         import asyncio
 
         loop = asyncio.get_running_loop()
-        sem = asyncio.Semaphore(10)
-
-        async def _process_batch(batch: list[str]) -> list[list[float]]:
-            async with sem:
-                return await loop.run_in_executor(None, self._embed_batch_sync, batch)
-
-        tasks = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            tasks.append(_process_batch(batch))
-
-        results = await asyncio.gather(*tasks)
-
-        all_vectors: list[list[float]] = []
-        for vectors in results:
-            all_vectors.extend(vectors)
-
-        return all_vectors
+        return await loop.run_in_executor(None, self._embed_batch_sync, texts)
 
     async def aclose(self) -> None:
+        """Close any resources."""
+        # Local models do not use network clients or async resources requiring cleanup
         pass
 
     def _load_model(self):

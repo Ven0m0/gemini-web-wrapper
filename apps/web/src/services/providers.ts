@@ -313,7 +313,3 @@ export function migrateSavedConfig<T extends { provider?: string; model?: string
   }
   return migrated;
 }
-
-export function isBuiltinProvider(providerId: string): boolean {
-  return BUILTIN_PROVIDER_DEFINITIONS.some((provider) => provider.id === providerId);
-}

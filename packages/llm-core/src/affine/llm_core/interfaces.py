@@ -8,8 +8,7 @@ from affine.shared.models import TextMessage
 class LLMProvider(ABC):
     @property
     @abstractmethod
-    def name(self) -> str:
-        pass
+    def name(self) -> str: ...
 
     @abstractmethod
     async def generate(
@@ -19,8 +18,7 @@ class LLMProvider(ABC):
         system: str | None = None,
         history: list[TextMessage] | None = None,
         **kwargs: Any,
-    ) -> str:
-        pass
+    ) -> str: ...
 
     @abstractmethod
     def stream(
@@ -30,8 +28,6 @@ class LLMProvider(ABC):
         system: str | None = None,
         history: list[TextMessage] | None = None,
         **kwargs: Any,
-    ) -> AsyncIterator[str]:
-        pass
+    ) -> AsyncIterator[str]: ...
 
-    async def aclose(self) -> None:
-        pass
+    async def aclose(self) -> None: ...

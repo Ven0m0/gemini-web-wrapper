@@ -92,3 +92,90 @@ async def test_store_queries_with_escaped_strings(tmp_path: Path):
 
     res5 = await store.search_structural(name_pattern="O'Connor")
     assert len(res5) == 0
+
+
+@pytest.mark.asyncio
+async def test_delete_by_file_hashes(tmp_path: Path):
+    store = CodeIndexStore(tmp_path / "test_db_batch_delete", embedding_dim=2)
+    await store.initialize()
+
+    # Insert multiple dummy records
+    records = [
+        {
+            "id": "1",
+            "path": "path/1.py",
+            "kind": "class",
+            "name": "Class1",
+            "signature": "",
+            "code": "class Class1: pass",
+            "start_byte": 0,
+            "end_byte": 10,
+            "start_line": 1,
+            "end_line": 2,
+            "vector": [0.1, 0.2],
+            "pattern": "",
+            "symbol_kind": "class",
+            "doc": "",
+            "file_hash": "hash_1",
+            "indexed_at": datetime.datetime(2023, 1, 1),
+        },
+        {
+            "id": "2",
+            "path": "path/2.py",
+            "kind": "function",
+            "name": "func2",
+            "signature": "",
+            "code": "def func2(): pass",
+            "start_byte": 0,
+            "end_byte": 10,
+            "start_line": 1,
+            "end_line": 2,
+            "vector": [0.3, 0.4],
+            "pattern": "",
+            "symbol_kind": "function",
+            "doc": "",
+            "file_hash": "hash'2",  # Test single quote escaping
+            "indexed_at": datetime.datetime(2023, 1, 1),
+        },
+        {
+            "id": "3",
+            "path": "path/3.py",
+            "kind": "class",
+            "name": "Class3",
+            "signature": "",
+            "code": "class Class3: pass",
+            "start_byte": 0,
+            "end_byte": 10,
+            "start_line": 1,
+            "end_line": 2,
+            "vector": [0.5, 0.6],
+            "pattern": "",
+            "symbol_kind": "class",
+            "doc": "",
+            "file_hash": "hash_3",
+            "indexed_at": datetime.datetime(2023, 1, 1),
+        },
+    ]
+    await store._table.add(records, mode="append")
+
+    stats = await store.get_stats()
+    assert stats["total_records"] == 3
+
+    # Test returning immediately with empty set
+    await store.delete_by_file_hashes(set())
+    stats = await store.get_stats()
+    assert stats["total_records"] == 3
+
+    # Delete first two records
+    await store.delete_by_file_hashes({"hash_1", "hash'2"})
+    stats = await store.get_stats()
+    assert stats["total_records"] == 1
+
+    # Verify that only the third record remains
+    res1 = await store.search_structural(name_pattern="Class1")
+    assert len(res1) == 0
+    res2 = await store.search_structural(name_pattern="func2")
+    assert len(res2) == 0
+    res3 = await store.search_structural(name_pattern="Class3")
+    assert len(res3) == 1
+    assert res3[0]["id"] == "3"
