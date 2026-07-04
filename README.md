@@ -1,6 +1,9 @@
 # Gemini Web Wrapper
 
-A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the browser, backed by a configurable LLM gateway and repository indexing APIs.
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+![GitHub repo size](https://img.shields.io/github/repo-size/Ven0m0/gemini-web-wrapper)
+
+A Bun + FFastAPImonorepo for running a mobile-friendly AI workspace in the browser, backed by a configurable LLM gateway and repository indexing APIs.
 
 ## What is in the repo
 
