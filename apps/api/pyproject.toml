@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "ast-grep-py>=0.42.1",
     "fastapi>=0.100.0",
-    "uvicorn[standard]>=0.49.0",
+    "uvicorn[standard]>=0.50.2",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "httpx[http2]>=0.28.1",
