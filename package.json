@@ -28,7 +28,7 @@
     "@biomejs/biome": "^2.4.11",
     "oxlint": "^1.59.0",
     "@types/bun": "*",
-    "typescript": "^6.0.2"
+    "typescript": "^7.0.0"
   },
   "overrides": {
     "serialize-javascript": "^7.0.4"
