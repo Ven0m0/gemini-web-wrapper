@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dependencies = ["httpx>=0.24.0", "affine-shared", "affine-config"]
 
 [dependency-groups]
-dev = ["ruff>=0.6.0"]
+dev = ["ruff>=0.15.21"]
 
 [tool.uv.sources]
 affine-shared = { workspace = true }

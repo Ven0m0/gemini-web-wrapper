@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dependencies = ["pydantic>=2.0.0", "pydantic-settings>=2.0.0"]
 
 [dependency-groups]
-dev = ["ruff>=0.6.0"]
+dev = ["ruff>=0.15.21"]
 
 [tool.uv.sources]
 affine-config = { workspace = true }
