@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 # Locate the repository root by walking up until we find a pyproject.toml that

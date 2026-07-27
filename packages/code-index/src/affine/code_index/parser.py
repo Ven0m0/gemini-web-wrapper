@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator
 
 from ast_grep_py import SgRoot
 from tree_sitter import Language, Node, Parser
@@ -63,9 +63,9 @@ class ASTParser:
     def _init_languages(self) -> None:
         """Initialize language configurations."""
         try:
+            import tree_sitter_bash as tsbash
             import tree_sitter_python as tspython
             import tree_sitter_rust as tsrust
-            import tree_sitter_bash as tsbash
 
             self._configs["python"] = LanguageConfig(
                 name="python",
@@ -127,8 +127,8 @@ class ASTParser:
 
         # TypeScript/JavaScript - optional
         try:
-            import tree_sitter_typescript as tsts
             import tree_sitter_javascript as tsjs
+            import tree_sitter_typescript as tsts
 
             self._configs["typescript"] = LanguageConfig(
                 name="typescript",

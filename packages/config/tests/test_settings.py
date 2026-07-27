@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from affine.config.settings import Settings, get_settings
 
 

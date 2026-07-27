@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import sys
 from pathlib import Path
 
+from affine.api.utils import create_local_embedder
 from affine.code_index import (
     CodeIndexer,
-    CodeSearchEngine,
     CodeIndexStore,
+    CodeSearchEngine,
 )
-from affine.api.utils import create_local_embedder
 from affine.config.settings import get_settings
-import logging
 
 logger = logging.getLogger(__name__)
 

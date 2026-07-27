@@ -23,7 +23,7 @@ class ChatCompletionRequest(BaseModel):
     x_provider_base_url: str | None = None
 
     @model_validator(mode="after")
-    def validate_provider_override(self) -> "ChatCompletionRequest":
+    def validate_provider_override(self) -> ChatCompletionRequest:
         if self.x_provider_base_url and not self.x_provider:
             raise ValueError("x_provider_base_url requires x_provider")
         return self

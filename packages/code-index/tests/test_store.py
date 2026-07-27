@@ -1,6 +1,7 @@
 import datetime
-import pytest
 from pathlib import Path
+
+import pytest
 from affine.code_index.store import CodeIndexStore
 
 
