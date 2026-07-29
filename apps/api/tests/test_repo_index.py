@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
-from affine.api.server import app
 from affine.api.repo_indexing import GitHubRepositoryClient, GitHubTreeEntry
+from affine.api.server import app
 from affine.config.settings import Settings, get_settings
+from fastapi.testclient import TestClient
 
 AUTH = {"Authorization": "Bearer server-gate-key"}
 

@@ -1,5 +1,4 @@
 import pytest
-
 from affine.llm_core.factory import ProviderFactory
 from affine.llm_core.providers.anthropic import AnthropicProvider
 from affine.llm_core.providers.copilot import CopilotProvider

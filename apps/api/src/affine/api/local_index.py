@@ -8,12 +8,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from affine.api.utils import create_local_embedder
 from affine.code_index import (
     CodeIndexer,
-    CodeSearchEngine,
     CodeIndexStore,
+    CodeSearchEngine,
 )
-from affine.api.utils import create_local_embedder
 from affine.config.settings import Settings, get_settings
 
 router = APIRouter(prefix="/v1/local-index", tags=["local-index"])

@@ -1,33 +1,33 @@
-from affine.shared.openai_schemas import (
-    ChatMessage,
-    ChatCompletionRequest,
-    ChatChoice,
-    ChatCompletionResponse,
-    ChatCompletionChunk,
-)
 from affine.shared.models import (
-    MessageRole,
+    ChatStreamChunk,
+    ContentPart,
     FinishReason,
+    Message,
+    MessageRole,
     TextMessage,
     ToolCall,
-    ContentPart,
-    Message,
     Usage,
-    ChatStreamChunk,
+)
+from affine.shared.openai_schemas import (
+    ChatChoice,
+    ChatCompletionChunk,
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatMessage,
 )
 
 __all__ = [
-    "ChatMessage",
-    "ChatCompletionRequest",
     "ChatChoice",
-    "ChatCompletionResponse",
     "ChatCompletionChunk",
-    "MessageRole",
+    "ChatCompletionRequest",
+    "ChatCompletionResponse",
+    "ChatMessage",
+    "ChatStreamChunk",
+    "ContentPart",
     "FinishReason",
+    "Message",
+    "MessageRole",
     "TextMessage",
     "ToolCall",
-    "ContentPart",
-    "Message",
     "Usage",
-    "ChatStreamChunk",
 ]

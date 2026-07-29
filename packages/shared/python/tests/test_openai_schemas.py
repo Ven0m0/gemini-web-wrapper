@@ -1,8 +1,7 @@
 import pytest
-from pydantic import ValidationError
-
 from affine.shared.models import MessageRole
 from affine.shared.openai_schemas import ChatCompletionRequest, ChatMessage
+from pydantic import ValidationError
 
 
 def test_chat_completion_request_valid_no_provider_override():

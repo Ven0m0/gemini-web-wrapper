@@ -1,5 +1,4 @@
 import logging
-import orjson
 import secrets
 import uuid
 from datetime import datetime
@@ -7,22 +6,23 @@ from json import JSONDecodeError
 from typing import Any
 
 import httpx
+import orjson
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from affine.api.local_index import router as local_index_router
+from affine.api.repo_index import router as repo_index_router
 from affine.config.settings import Settings, get_settings
 from affine.llm_core.factory import ProviderFactory
 from affine.llm_core.interfaces import LLMProvider
+from affine.shared.agent_schemas import AgentRequest
 from affine.shared.openai_schemas import (
     ChatCompletionChunk,
     ChatCompletionRequest,
     ChatCompletionResponse,
 )
-from affine.shared.agent_schemas import AgentRequest
-from affine.api.repo_index import router as repo_index_router
-from affine.api.local_index import router as local_index_router
 
 app = FastAPI(title="Affine AI Workstation API")
 settings = get_settings()
@@ -229,7 +229,7 @@ def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMPr
 
 
 def _build_provider_from_agent_request(
-    request: "AgentRequest", settings: Settings
+    request: AgentRequest, settings: Settings
 ) -> LLMProvider:
     """Build LLMProvider from agent request with overrides."""
     if request.x_provider:
@@ -238,9 +238,10 @@ def _build_provider_from_agent_request(
             kwargs["api_key"] = request.x_provider_api_key
         if request.x_provider_base_url:
             kwargs["base_url"] = request.x_provider_base_url
-        if ProviderFactory.is_registered(request.x_provider):
-            return ProviderFactory.create(request.x_provider, **kwargs)
-        elif request.x_provider_base_url:
+        if (
+            ProviderFactory.is_registered(request.x_provider)
+            or request.x_provider_base_url
+        ):
             return ProviderFactory.create(request.x_provider, **kwargs)
 
     kwargs = {
