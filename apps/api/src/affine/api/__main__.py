@@ -1,4 +1,5 @@
 import uvicorn
+
 from affine.api.server import app
 from affine.config.settings import get_settings
 
