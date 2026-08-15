@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14.7"
-      - uses: astral-sh/setup-uv@v9.0.0
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
       - run: uv sync --all-extras
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14.7"
-      - uses: astral-sh/setup-uv@v9.0.0
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
       - run: uv sync
@@ -96,7 +96,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14.7"
-      - uses: astral-sh/setup-uv@v9.0.0
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
       - run: uv sync
