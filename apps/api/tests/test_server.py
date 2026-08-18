@@ -28,14 +28,14 @@ VALID_MESSAGES = [{"role": "user", "content": "hello"}]
 
 
 def make_settings(**kwargs: object) -> Settings:
-    defaults: dict[str, object] = dict(
-        api_key="server-gate-key",
-        google_api_key="server-google-key",
-        anthropic_api_key="server-anthropic-key",
-        copilot_api_key="server-copilot-key",
-        model_provider="gemini",
-        model_name=None,
-    )
+    defaults: dict[str, object] = {
+        "api_key": "server-gate-key",
+        "google_api_key": "server-google-key",
+        "anthropic_api_key": "server-anthropic-key",
+        "copilot_api_key": "server-copilot-key",
+        "model_provider": "gemini",
+        "model_name": None,
+    }
     defaults.update(kwargs)
     return Settings(**defaults)
 
