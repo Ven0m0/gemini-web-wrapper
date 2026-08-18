@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
+import orjson
 
 from affine.llm_core.interfaces import LLMProvider
 from affine.shared.models import TextMessage
@@ -136,7 +136,7 @@ class AnthropicProvider(LLMProvider):
                     data_str = line[6:].strip()
                     if not data_str:
                         continue
-                    data = json.loads(data_str)
+                    data = orjson.loads(data_str)
                     if data.get("type") == "content_block_delta":
                         delta = data.get("delta", {})
                         if delta.get("type") == "text_delta":

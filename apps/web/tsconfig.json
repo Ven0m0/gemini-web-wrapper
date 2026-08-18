@@ -28,7 +28,6 @@
     "forceConsistentCasingInFileNames": true,
     "exactOptionalPropertyTypes": false,
     "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

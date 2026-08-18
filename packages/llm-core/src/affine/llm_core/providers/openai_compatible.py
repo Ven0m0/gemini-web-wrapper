@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
-from json import JSONDecodeError
 from typing import Any
 
 import httpx
+import orjson
 
 from affine.llm_core.interfaces import LLMProvider
 from affine.shared.models import TextMessage
@@ -165,8 +164,8 @@ class OpenAICompatibleProvider(LLMProvider):
                 if not data_str or data_str == "[DONE]":
                     continue
                 try:
-                    data = json.loads(data_str)
-                except JSONDecodeError as exc:
+                    data = orjson.loads(data_str)
+                except orjson.JSONDecodeError as exc:
                     raise ValueError(
                         f"Malformed streaming response from"
                         f" {self.provider_name}: {data_str!r}"

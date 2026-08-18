@@ -31,12 +31,12 @@ class FakeGitHubRepositoryClient(GitHubRepositoryClient):
 
 
 def make_settings(tmp_path: Path, **kwargs: object) -> Settings:
-    defaults: dict[str, object] = dict(
-        api_key="server-gate-key",
-        google_api_key="server-google-key",
-        model_provider="gemini",
-        repo_index_db_path=tmp_path / "repo-index.db",
-    )
+    defaults: dict[str, object] = {
+        "api_key": "server-gate-key",
+        "google_api_key": "server-google-key",
+        "model_provider": "gemini",
+        "repo_index_db_path": tmp_path / "repo-index.db",
+    }
     defaults.update(kwargs)
     return Settings(**defaults)
 

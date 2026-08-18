@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
+import orjson
 
 from affine.llm_core.interfaces import LLMProvider
 from affine.shared.models import TextMessage
@@ -115,7 +115,7 @@ class GeminiProvider(LLMProvider):
                 if line.startswith("data: "):
                     data_str = line[6:].strip()
                     if data_str:
-                        yield self._extract_text(json.loads(data_str))
+                        yield self._extract_text(orjson.loads(data_str))
 
     async def aclose(self) -> None:
         if not self._client.is_closed:

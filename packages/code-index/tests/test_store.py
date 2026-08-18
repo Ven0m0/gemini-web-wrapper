@@ -81,11 +81,6 @@ async def test_store_queries_with_escaped_strings(tmp_path: Path):
     assert len(res3) == 1
     assert res3[0]["id"] == "2"
 
-    # Test semantic search with filters
-    # res4 = await store.search([0.1, 0.2], path_filter="path/to/O'Connor")
-    # assert len(res4) == 1
-    # assert res4[0]["id"] == "1"
-
     # Test delete
     await store.delete_by_file_hash("hash_1")
     stats = await store.get_stats()
