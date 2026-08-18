@@ -80,7 +80,7 @@ describe('storage service', () => {
     vi.mocked(localStorage.getItem).mockReturnValue(
       JSON.stringify({
         owner: 'attack-owner',
-        __proto__: { polluted: true },
+        '__proto__': { polluted: true },
         constructor: { prototype: { polluted: true } },
       })
     );
