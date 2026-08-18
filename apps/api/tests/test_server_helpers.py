@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from affine.api.server import _extract_non_empty_text, verify_api_key
 from affine.config.settings import Settings
 from fastapi import HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
-
-from affine.api.server import _extract_non_empty_text, verify_api_key
 
 
 @pytest.mark.parametrize(

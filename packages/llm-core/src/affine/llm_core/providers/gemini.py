@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import orjson
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
+import orjson
 
 from affine.llm_core.interfaces import LLMProvider
 from affine.shared.models import TextMessage

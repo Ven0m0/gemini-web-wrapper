@@ -81,7 +81,6 @@ async def test_store_queries_with_escaped_strings(tmp_path: Path):
     assert len(res3) == 1
     assert res3[0]["id"] == "2"
 
-
     # Test delete
     await store.delete_by_file_hash("hash_1")
     stats = await store.get_stats()
