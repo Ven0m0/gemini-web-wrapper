@@ -2,6 +2,8 @@
 node_modules/
 .pnp
 .pnp.js
+.bun/
+bun.lockb
 
 # Testing
 coverage/
@@ -18,34 +20,15 @@ dist/
 .env.production.local
 
 # Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
-.logs/
 *.log
+*.logs/
 
 # Runtime data
-pids
 *.pid
-*.seed
 *.pid.lock
 
 # Optional npm cache directory
 .npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional stylelint cache
-.stylelintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
 
 # Optional REPL history
 .node_repl_history
@@ -53,28 +36,10 @@ pids
 # Output of 'npm pack'
 *.tgz
 
-# Yarn Integrity file
-.yarn-integrity
-
 # dotenv environment variables file
 .env
 .env.test
 .env.production
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-dist
-
-# Storybook build outputs
-.out
-.storybook-out
 
 # Temporary folders
 tmp/
@@ -93,20 +58,12 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 venv/
-ENV/
-env.bak/
-venv.bak/
 .venv/
 .pytest_cache/
 .coverage
 htmlcov/
-.mypy_cache/
-.dmypy.json
-dmypy.json
 *.egg-info/
-pyrefly.toml
 *.tsbuildinfo
 *.db
 
@@ -124,16 +81,11 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # IDE
-.vscode/
-.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-# gemini-cli settings
-.gemini/
 
 # GitHub App credentials
 gha-creds-*.json

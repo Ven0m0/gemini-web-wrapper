@@ -80,8 +80,8 @@ describe('storage service', () => {
     vi.mocked(localStorage.getItem).mockReturnValue(
       JSON.stringify({
         owner: 'attack-owner',
-        '__proto__': { 'polluted': true },
-        'constructor': { 'prototype': { 'polluted': true } }
+        __proto__: { polluted: true },
+        constructor: { prototype: { polluted: true } },
       })
     );
     // Unexpected types
@@ -89,7 +89,7 @@ describe('storage service', () => {
       JSON.stringify({
         temperature: 'hot', // should be number
         githubToken: 12345, // should be string
-        providers: 'not-an-array' // should be array
+        providers: 'not-an-array', // should be array
       })
     );
 
@@ -97,7 +97,7 @@ describe('storage service', () => {
       owner: 'initial-owner',
       temperature: 0.3,
       githubToken: 'initial-token',
-      providers: []
+      providers: [],
     } as any as ConfigState;
 
     const loaded = loadConfig(initialConfig);

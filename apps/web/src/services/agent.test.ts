@@ -40,7 +40,12 @@ describe('AgentService', () => {
     };
   }
 
-  function mockFetchResponse(ok: boolean, status: number, statusText: string, bodyReader?: ReadableStreamDefaultReader<Uint8Array> | null) {
+  function mockFetchResponse(
+    ok: boolean,
+    status: number,
+    statusText: string,
+    bodyReader?: ReadableStreamDefaultReader<Uint8Array> | null
+  ) {
     vi.mocked(globalThis.fetch).mockResolvedValue({
       ok,
       status,
@@ -86,11 +91,7 @@ describe('AgentService', () => {
     const event1: AgentEvent = { type: 'text_delta', text: 'Hello' };
     const event2: AgentEvent = { type: 'text_delta', text: ' World' };
 
-    const chunks = [
-      `data: ${JSON.stringify(event1)}\n\n`,
-      `data: ${JSON.stringify(event2)}\n\n`,
-      'data: [DONE]\n\n'
-    ];
+    const chunks = [`data: ${JSON.stringify(event1)}\n\n`, `data: ${JSON.stringify(event2)}\n\n`, 'data: [DONE]\n\n'];
 
     const reader = createMockReader(chunks);
     mockFetchResponse(true, 200, 'OK', reader);
@@ -148,11 +149,7 @@ describe('AgentService', () => {
   it('gracefully handles invalid JSON and continues', async () => {
     const validEvent: AgentEvent = { type: 'text_delta', text: 'Valid' };
 
-    const chunks = [
-      'data: { invalid json }\n\n',
-      `data: ${JSON.stringify(validEvent)}\n\n`,
-      'data: [DONE]\n\n'
-    ];
+    const chunks = ['data: { invalid json }\n\n', `data: ${JSON.stringify(validEvent)}\n\n`, 'data: [DONE]\n\n'];
 
     const reader = createMockReader(chunks);
     mockFetchResponse(true, 200, 'OK', reader);
@@ -176,7 +173,7 @@ describe('AgentService', () => {
     const chunks = [
       `data: ${JSON.stringify(event1)}\n\n`,
       `data: ${JSON.stringify(doneEvent)}\n\n`,
-      `data: ${JSON.stringify(eventAfterDone)}\n\n`
+      `data: ${JSON.stringify(eventAfterDone)}\n\n`,
     ];
 
     const reader = createMockReader(chunks);
@@ -200,7 +197,7 @@ describe('AgentService', () => {
     const chunks = [
       `data: ${JSON.stringify(event1)}\n\n`,
       `data: ${JSON.stringify(errorEvent)}\n\n`,
-      `data: ${JSON.stringify(eventAfterError)}\n\n`
+      `data: ${JSON.stringify(eventAfterError)}\n\n`,
     ];
 
     const reader = createMockReader(chunks);
