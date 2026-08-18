@@ -1,7 +1,7 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
   "instructions": [
-    ".kilo/rules/*.md", "./AGENTS.md",
+    ".kilo/rules/*.md", ".claude/rules/*.md", "AGENTS.md",
     "https://raw.githubusercontent.com/DietrichGebert/ponytail/main/PONYTAIL.md",
     "https://raw.githubusercontent.com/JuliusBrussee/caveman/main/CAVEMAN.md"
   ],
@@ -29,7 +29,6 @@
     "@gotgenes/opencode-agent-identity@3.0.1",
     "opencode-agent-skills@0.6.5",
     "@openspoon/subtask2@0.3.9",
-    "opencode-pty@0.3.2",
     "@tarquinen/opencode-dcp@3.1.9",
     "opencode-session-handoff@1.1.6",
     "@dietrichgebert/ponytail",
