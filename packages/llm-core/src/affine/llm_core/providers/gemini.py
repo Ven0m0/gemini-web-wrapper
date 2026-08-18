@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+import orjson
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -115,7 +115,7 @@ class GeminiProvider(LLMProvider):
                 if line.startswith("data: "):
                     data_str = line[6:].strip()
                     if data_str:
-                        yield self._extract_text(json.loads(data_str))
+                        yield self._extract_text(orjson.loads(data_str))
 
     async def aclose(self) -> None:
         if not self._client.is_closed:

@@ -2,7 +2,7 @@
 name = "affine-llm-core"
 version = "0.1.0"
 requires-python = ">=3.14"
-dependencies = ["httpx>=0.24.0", "affine-shared", "affine-config"]
+dependencies = ["httpx>=0.24.0", "orjson>=3.9.0", "affine-shared", "affine-config"]
 
 [dependency-groups]
 dev = ["ruff>=0.16.2"]

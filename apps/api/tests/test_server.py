@@ -16,9 +16,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from affine.api.server import app
 from affine.config.settings import Settings, get_settings
 from fastapi.testclient import TestClient
+
+from affine.api.server import app
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -397,9 +398,10 @@ def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> No
 
 
 def test_cors_middleware_configuration() -> None:
-    from affine.api.server import app
     from affine.config.settings import get_settings
     from fastapi.middleware.cors import CORSMiddleware
+
+    from affine.api.server import app
 
     settings = get_settings()
 

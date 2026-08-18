@@ -82,6 +82,7 @@ dependencies = [
     { name = "httpx" },
     { name = "lancedb" },
     { name = "numpy" },
+    { name = "pyarrow" },
     { name = "pydantic" },
     { name = "tree-sitter" },
     { name = "tree-sitter-bash" },
@@ -113,6 +114,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.24.0" },
     { name = "lancedb", specifier = ">=0.21.0" },
     { name = "numpy", specifier = ">=1.24.0" },
+    { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "sentence-transformers", marker = "extra == 'local-embeddings'", specifier = ">=2.2.0" },
     { name = "tree-sitter", specifier = ">=0.25.2" },
@@ -164,6 +166,7 @@ dependencies = [
     { name = "affine-config" },
     { name = "affine-shared" },
     { name = "httpx" },
+    { name = "orjson" },
 ]
 
 [package.dev-dependencies]
@@ -176,6 +179,7 @@ requires-dist = [
     { name = "affine-config", editable = "packages/config" },
     { name = "affine-shared", editable = "packages/shared/python" },
     { name = "httpx", specifier = ">=0.24.0" },
+    { name = "orjson", specifier = ">=3.9.0" },
 ]
 
 [package.metadata.requires-dev]

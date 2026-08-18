@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+import orjson
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -136,7 +136,7 @@ class AnthropicProvider(LLMProvider):
                     data_str = line[6:].strip()
                     if not data_str:
                         continue
-                    data = json.loads(data_str)
+                    data = orjson.loads(data_str)
                     if data.get("type") == "content_block_delta":
                         delta = data.get("delta", {})
                         if delta.get("type") == "text_delta":

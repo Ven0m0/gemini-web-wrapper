@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import json
+import orjson
 from collections.abc import AsyncIterator
-from json import JSONDecodeError
 from typing import Any
 
 import httpx
@@ -165,8 +164,8 @@ class OpenAICompatibleProvider(LLMProvider):
                 if not data_str or data_str == "[DONE]":
                     continue
                 try:
-                    data = json.loads(data_str)
-                except JSONDecodeError as exc:
+                    data = orjson.loads(data_str)
+                except orjson.JSONDecodeError as exc:
                     raise ValueError(
                         f"Malformed streaming response from"
                         f" {self.provider_name}: {data_str!r}"
