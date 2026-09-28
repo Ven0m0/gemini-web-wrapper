@@ -13,7 +13,7 @@
   "dependencies": {
     "zod": "^4.4.3",
     "openai": "^7.5.0",
-    "@anthropic-ai/sdk": "^0.127.0"
+    "@anthropic-ai/sdk": "^0.128.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.9",
