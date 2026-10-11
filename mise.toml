@@ -14,7 +14,7 @@ uvx = true
 [tools]
 node = "24"
 bun = "latest"
-python = "3.14"
+python = "3.15.0"
 uv = "latest"
 ruff = "latest"
 ty = "latest"
