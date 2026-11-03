@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import httpx
-import numpy as np
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class Embedder(Protocol):
@@ -29,6 +31,10 @@ class Embedder(Protocol):
 
 def normalize_l2(vectors: np.ndarray) -> np.ndarray:
     """L2 normalize vectors along last axis."""
+    # numpy is imported lazily: it is in the optional local-index extra so chat-only
+    # deployments (Vercel) stay under the function size limit.
+    import numpy as np
+
     if vectors.ndim == 1:
         norm = np.linalg.norm(vectors)
         return vectors if norm == 0 else vectors / norm
@@ -123,6 +129,8 @@ class OpenAIEmbedder(BatchEmbedderMixin):
         embeddings.sort(key=lambda x: data["data"][embeddings.index(x)]["index"])
 
         # Normalize
+        import numpy as np
+
         vectors = np.array(embeddings, dtype=np.float32)
         normalized = normalize_l2(vectors)
         return normalized.tolist()
@@ -171,6 +179,8 @@ class GeminiEmbedder(BatchEmbedderMixin):
         embeddings = [item["embedding"]["values"] for item in data["embeddings"]]
 
         # Normalize
+        import numpy as np
+
         vectors = np.array(embeddings, dtype=np.float32)
         normalized = normalize_l2(vectors)
         return normalized.tolist()

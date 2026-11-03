@@ -87,8 +87,6 @@ dependencies = [
     { name = "affine-llm-core" },
     { name = "ast-grep-py" },
     { name = "httpx" },
-    { name = "numpy" },
-    { name = "pyarrow" },
     { name = "pydantic" },
     { name = "tree-sitter" },
     { name = "tree-sitter-bash" },
@@ -104,6 +102,8 @@ local-embeddings = [
 ]
 local-index = [
     { name = "lancedb" },
+    { name = "numpy" },
+    { name = "pyarrow" },
     { name = "voyageai" },
 ]
 
@@ -122,8 +122,8 @@ requires-dist = [
     { name = "ast-grep-py", specifier = ">=0.42.1" },
     { name = "httpx", specifier = ">=0.24.0" },
     { name = "lancedb", marker = "extra == 'local-index'", specifier = ">=0.21.0" },
-    { name = "numpy", specifier = ">=1.24.0" },
-    { name = "pyarrow", specifier = ">=25.0.1" },
+    { name = "numpy", marker = "extra == 'local-index'", specifier = ">=1.24.0" },
+    { name = "pyarrow", marker = "extra == 'local-index'", specifier = ">=25.0.1" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "sentence-transformers", marker = "extra == 'local-embeddings'", specifier = ">=2.2.0" },
     { name = "tree-sitter", specifier = ">=0.25.2" },
