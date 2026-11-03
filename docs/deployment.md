@@ -8,7 +8,7 @@ Exact versions are pinned in `mise.toml` and `.github/workflows/`; treat those f
 
 - Node.js 24
 - Bun 1.4+
-- Python 3.15+ (`requires-python` in `pyproject.toml`)
+- Python 3.14+ (`requires-python` in `pyproject.toml`; local dev and CI pin 3.15)
 - `uv` (latest)
 
 If you use [mise](https://mise.jdx.dev/), run:
@@ -156,13 +156,22 @@ uv run pytest
 
 If you host elsewhere, replicate the cache headers. A service worker served with a long `max-age` delays PWA updates.
 
-### Vercel (frontend)
+### Vercel (frontend and API as one project)
 
-Deploy the built frontend from `apps/web`:
+`vercel.json` uses [Vercel Services](https://vercel.com/docs/services): the Vite app (`apps/web`, service `web`) and the FastAPI app (`apps/api`, service `api`) deploy together. `/v1/*` and `/health` route to the API; everything else routes to the SPA. The frontend calls same-origin `/v1/...`, so no frontend configuration is needed.
 
-- Install command: `bun install`
-- Build command: `bun run build`
-- Output directory: `dist`
+Project settings:
+
+- Root Directory: the repository root (leave empty). A Root Directory of `apps/web` hides `vercel.json` and the API is never deployed, which makes every chat request return Vercel's `NOT_FOUND` page.
+- Framework Preset: Other. Clear any project-level Build, Install, or Output overrides; each service owns its own.
+- Python: Vercel supports 3.12 to 3.14, which is why `requires-python` is `>=3.14`.
+
+Environment variables (Production and Preview):
+
+- `API_KEY` and a provider key such as `GOOGLE_API_KEY` (see "Provider credentials")
+- `REPO_INDEX_DB_PATH=/tmp/affine/repo-index.db`: the deployment filesystem is read-only except `/tmp`, so the repo and local indexes are ephemeral. Set `REPO_INDEX_TURSO_SYNC_URL` for a persistent repo index.
+
+Deployment Protection (Vercel Authentication) blocks unauthenticated requests to preview and default `*.vercel.app` URLs. The browser app is unaffected after sign-in, but `curl` needs a bypass token.
 
 ### Render (backend)
 
@@ -182,7 +191,7 @@ Set provider credentials and `API_KEY` in the Render environment as needed.
 
 ### Railway (backend)
 
-Use a base image that matches `requires-python` (3.15+). Example Dockerfile:
+Use a base image that satisfies `requires-python` (3.14+; 3.15 shown). Example Dockerfile:
 
 ```dockerfile
 FROM ghcr.io/astral-sh/uv:python3.15-bookworm-slim

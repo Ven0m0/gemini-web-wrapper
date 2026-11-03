@@ -1,7 +1,7 @@
 [project]
 name = "affine-config"
 version = "0.1.0"
-requires-python = ">=3.15"
+requires-python = ">=3.14"
 dependencies = ["pydantic>=2.0.0", "pydantic-settings>=2.0.0"]
 
 [dependency-groups]
@@ -9,3 +9,10 @@ dev = ["ruff>=0.16.2"]
 
 [tool.uv.sources]
 affine-config = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "affine.config"
