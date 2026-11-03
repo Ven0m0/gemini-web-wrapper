@@ -7,13 +7,8 @@
       "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
     },
     "api": {
-      "root": ".",
-      "entrypoint": "index:app",
-      "functions": {
-        "index.py": {
-          "excludeFiles": "{node_modules/**,**/node_modules/**,apps/web/**,docs/**,.git/**,**/tests/**}"
-        }
-      }
+      "root": "apps/api",
+      "entrypoint": "index:app"
     }
   },
   "rewrites": [
