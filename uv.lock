@@ -35,6 +35,11 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.optional-dependencies]
+local-index = [
+    { name = "affine-code-index", extra = ["local-index"] },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pyrefly" },
@@ -46,6 +51,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "affine-code-index", editable = "packages/code-index" },
+    { name = "affine-code-index", extras = ["local-index"], marker = "extra == 'local-index'", editable = "packages/code-index" },
     { name = "affine-config", editable = "packages/config" },
     { name = "affine-llm-core", editable = "packages/llm-core" },
     { name = "affine-shared", editable = "packages/shared/python" },
@@ -62,6 +68,7 @@ requires-dist = [
     { name = "tree-sitter-rust", specifier = ">=0.24.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.1" },
 ]
+provides-extras = ["local-index"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -80,7 +87,6 @@ dependencies = [
     { name = "affine-llm-core" },
     { name = "ast-grep-py" },
     { name = "httpx" },
-    { name = "lancedb" },
     { name = "numpy" },
     { name = "pyarrow" },
     { name = "pydantic" },
@@ -90,12 +96,15 @@ dependencies = [
     { name = "tree-sitter-python" },
     { name = "tree-sitter-rust" },
     { name = "tree-sitter-typescript" },
-    { name = "voyageai" },
 ]
 
 [package.optional-dependencies]
 local-embeddings = [
     { name = "sentence-transformers" },
+]
+local-index = [
+    { name = "lancedb" },
+    { name = "voyageai" },
 ]
 
 [package.dev-dependencies]
@@ -112,7 +121,7 @@ requires-dist = [
     { name = "affine-llm-core", editable = "packages/llm-core" },
     { name = "ast-grep-py", specifier = ">=0.42.1" },
     { name = "httpx", specifier = ">=0.24.0" },
-    { name = "lancedb", specifier = ">=0.21.0" },
+    { name = "lancedb", marker = "extra == 'local-index'", specifier = ">=0.21.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "pydantic", specifier = ">=2.0.0" },
@@ -123,9 +132,9 @@ requires-dist = [
     { name = "tree-sitter-python", specifier = ">=0.25.0" },
     { name = "tree-sitter-rust", specifier = ">=0.24.2" },
     { name = "tree-sitter-typescript", specifier = ">=0.23.0" },
-    { name = "voyageai", specifier = ">=0.3.7" },
+    { name = "voyageai", marker = "extra == 'local-index'", specifier = ">=0.3.7" },
 ]
-provides-extras = ["local-embeddings"]
+provides-extras = ["local-index", "local-embeddings"]
 
 [package.metadata.requires-dev]
 dev = [

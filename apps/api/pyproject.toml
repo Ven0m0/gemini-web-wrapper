@@ -21,6 +21,10 @@ dependencies = [
     "affine-code-index"
 ]
 
+[project.optional-dependencies]
+# Vector index storage (lancedb). Omitted on Vercel to stay under the function size limit.
+local-index = ["affine-code-index[local-index]"]
+
 [dependency-groups]
 dev = [
     "pyrefly>=1.2.0",
