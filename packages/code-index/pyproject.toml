@@ -10,19 +10,19 @@ dependencies = [
     "tree-sitter-typescript>=0.23.0",
     "tree-sitter-javascript>=0.23.0",
     "ast-grep-py>=0.42.1",
-    "numpy>=1.24.0",
     "pydantic>=2.0.0",
     "httpx>=0.24.0",
-    "pyarrow>=25.0.1",
     "affine-config",
     "affine-llm-core",
 ]
 
 [project.optional-dependencies]
-# Imported lazily at runtime. Kept optional because lancedb alone is ~250 MB, which pushes the
-# Vercel function over its 500 MB limit; chat does not need it.
+# All imported lazily at runtime. Optional because lancedb + pyarrow + numpy are ~400 MB, which
+# pushes the Vercel function over its 500 MB limit; chat does not need them.
 local-index = [
     "lancedb>=0.21.0",
+    "numpy>=1.24.0",
+    "pyarrow>=25.0.1",
     "voyageai>=0.3.7",
 ]
 local-embeddings = [

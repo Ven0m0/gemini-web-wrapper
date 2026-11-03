@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import pyarrow as pa
+if TYPE_CHECKING:
+    import pyarrow as pa
 
 
 class CodeIndexStore:
@@ -32,6 +33,9 @@ class CodeIndexStore:
 
     def _get_schema(self) -> pa.Schema:
         """Build schema with correct embedding dimension."""
+        # Lazy import: pyarrow is in the optional local-index extra (see pyproject.toml).
+        import pyarrow as pa
+
         return pa.schema(
             [
                 ("id", pa.string()),
