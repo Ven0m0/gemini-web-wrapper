@@ -8,7 +8,12 @@
     },
     "api": {
       "root": ".",
-      "entrypoint": "index:app"
+      "entrypoint": "index:app",
+      "functions": {
+        "index.py": {
+          "excludeFiles": "{apps/web/**,**/node_modules/**,docs/**,.git/**,**/tests/**}"
+        }
+      }
     }
   },
   "rewrites": [
