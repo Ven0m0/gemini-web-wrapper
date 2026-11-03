@@ -3,7 +3,6 @@ name = "affine-code-index"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
-    "lancedb>=0.21.0",
     "tree-sitter>=0.25.2",
     "tree-sitter-python>=0.25.0",
     "tree-sitter-rust>=0.24.2",
@@ -17,10 +16,15 @@ dependencies = [
     "pyarrow>=25.0.1",
     "affine-config",
     "affine-llm-core",
-    "voyageai>=0.3.7",
 ]
 
 [project.optional-dependencies]
+# Imported lazily at runtime. Kept optional because lancedb alone is ~250 MB, which pushes the
+# Vercel function over its 500 MB limit; chat does not need it.
+local-index = [
+    "lancedb>=0.21.0",
+    "voyageai>=0.3.7",
+]
 local-embeddings = [
     "sentence-transformers>=2.2.0",
 ]
