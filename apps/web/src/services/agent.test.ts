@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { AgentService, AgentEvent } from './agent';
+import { AgentService, AgentEvent, AgentMessage, finalizeCurrent, reduceAgentEvent } from './agent';
 import { API_BASE } from '../constants/api';
 
 describe('AgentService', () => {
@@ -211,5 +211,64 @@ describe('AgentService', () => {
     }
 
     expect(events).toEqual([event1, errorEvent]);
+  });
+});
+
+describe('reduceAgentEvent', () => {
+  const user: AgentMessage = { id: 'u-1', role: 'user', content: 'hi', timestamp: 1 };
+
+  it('creates then appends to the current assistant message on text deltas', () => {
+    const a = reduceAgentEvent([user], { type: 'text_delta', text: 'Hel' });
+    const b = reduceAgentEvent(a, { type: 'text_delta', text: 'lo' });
+    expect(b).toHaveLength(2);
+    expect(b[1]).toMatchObject({ id: 'a-current', role: 'assistant', content: 'Hello' });
+    expect(a[1].content).toBe('Hel');
+  });
+
+  it('ignores empty text deltas and unknown event types', () => {
+    const msgs = [user];
+    expect(reduceAgentEvent(msgs, { type: 'text_delta' })).toBe(msgs);
+    expect(reduceAgentEvent(msgs, { type: 'error', error: 'x' })).toBe(msgs);
+  });
+
+  it('accumulates thinking on the current message', () => {
+    const a = reduceAgentEvent([user], { type: 'thinking_delta', thinking: 'a' });
+    const b = reduceAgentEvent(a, { type: 'thinking_delta', thinking: 'b' });
+    expect(b[1].thinking).toBe('ab');
+  });
+
+  it('records tool calls and attaches results without mutating prior state', () => {
+    const a = reduceAgentEvent([user], { type: 'tool_call', tool_id: 't1', tool_name: 'read', arguments: { p: 1 } });
+    const b = reduceAgentEvent(a, { type: 'tool_result', tool_id: 't1', result: 'ok' });
+    expect(a[1].toolCalls?.[0].result).toBeUndefined();
+    expect(b[1].toolCalls?.[0]).toEqual({ id: 't1', name: 'read', args: { p: 1 }, result: 'ok' });
+  });
+
+  it('finalizes the current message id on done', () => {
+    const a = reduceAgentEvent([user], { type: 'text_delta', text: 'x' });
+    const b = reduceAgentEvent(a, { type: 'done' });
+    expect(b[1].id).not.toBe('a-current');
+    expect(b[1].id.startsWith('a-')).toBe(true);
+  });
+
+  it('keeps thinking separate from content so the UI can render it apart', () => {
+    const a = reduceAgentEvent([user], { type: 'thinking_delta', thinking: 'hmm' });
+    const b = reduceAgentEvent(a, { type: 'text_delta', text: 'answer' });
+    const c = reduceAgentEvent(b, { type: 'done' });
+    expect(c[1]).toMatchObject({ content: 'answer', thinking: 'hmm' });
+  });
+
+  it('finalizeCurrent gives unique ids so a stream that ended without done cannot collide with the next turn', () => {
+    const turn1 = finalizeCurrent(reduceAgentEvent([user], { type: 'text_delta', text: 'partial' }));
+    const turn2 = reduceAgentEvent(turn1, { type: 'text_delta', text: 'next' });
+    const done2 = reduceAgentEvent(turn2, { type: 'done' });
+    const ids = done2.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).not.toContain('a-current');
+  });
+
+  it('finalizeCurrent returns the same array when nothing is streaming', () => {
+    const msgs = [user];
+    expect(finalizeCurrent(msgs)).toBe(msgs);
   });
 });

@@ -1,3 +1,4 @@
+import { errorMessage } from '../utils/error';
 export interface WebSocketMessage {
   type: 'stdin' | 'stdout' | 'stderr' | 'command' | 'status' | 'error' | 'file_upload' | 'file_download' | 'file_data';
   data: string;
@@ -52,10 +53,10 @@ export class WebSocketService {
             const message: WebSocketMessage = JSON.parse(event.data);
             this.onMessage(message);
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            const detail = errorMessage(error);
             this.onMessage({
               type: 'error',
-              data: `Invalid message format: ${event.data}. Error: ${errorMessage}`,
+              data: `Invalid message format: ${event.data}. Error: ${detail}`,
               timestamp: Date.now(),
             });
           }
@@ -87,7 +88,7 @@ export class WebSocketService {
       this.connect().catch((error) => {
         this.onStatusChange(
           'error',
-          `Reconnect attempt ${this.reconnectAttempts} failed: ${error instanceof Error ? error.message : String(error)}`
+          `Reconnect attempt ${this.reconnectAttempts} failed: ${errorMessage(error)}`
         );
       });
     }, this.reconnectDelay * this.reconnectAttempts);
@@ -171,13 +172,46 @@ export class WebSocketService {
   }
 }
 
-/** Module-level singleton so any component can reach the active connection. */
-let _activeService: WebSocketService | null = null;
+type StatusHandler = ConstructorParameters<typeof WebSocketService>[2];
 
-export function setActiveWebSocketService(svc: WebSocketService | null): void {
-  _activeService = svc;
-}
+/** Keyed set of WebSocketService connections; a single-connection caller just uses one fixed id. */
+export class WebSocketConnections {
+  private services = new Map<string, WebSocketService>();
 
-export function getActiveWebSocketService(): WebSocketService | null {
-  return _activeService;
+  get(id: string): WebSocketService | undefined {
+    return this.services.get(id);
+  }
+
+  has(id: string): boolean {
+    return this.services.has(id);
+  }
+
+  /** Replaces any existing connection for `id`; on failure the entry is dropped and the error rethrown. */
+  async connect(
+    id: string,
+    url: string,
+    onMessage: (message: WebSocketMessage) => void,
+    onStatusChange: StatusHandler
+  ): Promise<void> {
+    this.disconnect(id);
+    const service = new WebSocketService(url, onMessage, onStatusChange);
+    this.services.set(id, service);
+    try {
+      await service.connect();
+    } catch (error) {
+      if (this.services.get(id) === service) this.services.delete(id);
+      throw error;
+    }
+  }
+
+  disconnect(id: string): void {
+    // Delete first so status callbacks fired by close() see the id as already removed.
+    const service = this.services.get(id);
+    this.services.delete(id);
+    service?.disconnect();
+  }
+
+  disconnectAll(): void {
+    for (const id of Array.from(this.services.keys())) this.disconnect(id);
+  }
 }

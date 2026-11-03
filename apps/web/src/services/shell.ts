@@ -162,3 +162,37 @@ export function persistShellState(state: ShellState): void {
 
   localStorage.setItem(SHELL_STATE_STORAGE_KEY, JSON.stringify(state));
 }
+
+// ---------------------------------------------------------------------------
+// URL validation
+// Accepts HTTPS git URLs and SSH git URLs.  Uses a strict character allowlist
+// so that the generated clone command is safe to display and copy without
+// quoting.
+// ---------------------------------------------------------------------------
+
+/** Characters that are safe in a bare (unquoted) HTTPS git URL on the command line.
+ *  Note: `@` is intentionally excluded to prevent host-confusion attacks
+ *  (e.g. https://attacker.com@victim.com/repo).  Token injection uses a
+ *  separate, explicitly validated code path in buildCloneCommand.
+ */
+export const SAFE_HTTPS_URL = /^https?:\/\/[a-zA-Z0-9/:._\-~%+=?#]+$/;
+
+/** Characters that are safe in an SSH-shorthand git URL: git@host:owner/repo[.git] */
+export const SAFE_SSH_URL = /^git@[a-zA-Z0-9._-]+:[a-zA-Z0-9._/-]+$/;
+
+export function isValidGitUrl(url: string): boolean {
+  if (!url) return false;
+  return SAFE_HTTPS_URL.test(url) || SAFE_SSH_URL.test(url);
+}
+
+/** Build the clone command string. */
+export function buildCloneCommand(url: string, useToken: boolean, token: string): string {
+  if (useToken && token && url.startsWith('https://github.com/')) {
+    // Set token via environment variable and use a temporary git credential helper
+    // This prevents the token from leaking into the git URL or shell history
+    // Single-quote the token so the shell never expands it; embedded quotes are escaped.
+    const quoted = `'${token.replace(/'/g, "'\\''")}'`;
+    return `GITHUB_TOKEN=${quoted} git -c credential.helper='!f() { echo "username=oauth2"; echo "password=$GITHUB_TOKEN"; }; f' clone ${url}`;
+  }
+  return `git clone ${url}`;
+}

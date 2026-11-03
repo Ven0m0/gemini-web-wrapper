@@ -1,0 +1,700 @@
+warning: in the working copy of 'apps/web/src/App.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/Editor.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/GhosttyTerminal.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/Tool.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/UnifiedShell.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/WebShell.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/store.ts', CRLF will be replaced by LF the next time Git touches it
+diff --git c/apps/web/src/App.tsx w/apps/web/src/App.tsx
+index 1761305a656e..913c5beea9c2 100644
+--- c/apps/web/src/App.tsx
++++ w/apps/web/src/App.tsx
+@@ -1,8 +1,7 @@
+ import { useEffect } from 'react';
+ import { AgentChat } from './components/AgentChat';
+-import { ChatDemo } from './components/ChatDemo';
+ import { ConfigOverlay } from './components/ConfigOverlay';
+ import { Editor } from './components/Editor';
+ import { InstallPrompt } from './components/InstallPrompt';
+ import { OpenRouterChat } from './components/OpenRouterChat';
+ import { Tool } from './components/Tool';
+@@ -138,11 +137,10 @@ const NAV_ITEMS: NavItem[] = [
+ const MODE_LABELS: Record<AppMode, string> = {
+   chat: 'chat',
+   shell: 'shell',
+   editor: 'editor',
+   tool: 'files',
+-  'chat-demo': 'chat-demo',
+   settings: 'settings',
+   agent: 'agent',
+ };
+
+ function App() {
+@@ -169,12 +167,10 @@ function App() {
+         return <UnifiedShell />;
+       case 'editor':
+         return <Editor />;
+       case 'tool':
+         return <Tool />;
+-      case 'chat-demo':
+-        return <ChatDemo />;
+       case 'settings':
+         return <ConfigOverlay inline />;
+       case 'agent':
+         return <AgentChat />;
+       case 'chat':
+diff --git c/apps/web/src/components/Editor.tsx w/apps/web/src/components/Editor.tsx
+index 8ccc7c251429..c19be8a9e695 100644
+--- c/apps/web/src/components/Editor.tsx
++++ w/apps/web/src/components/Editor.tsx
+@@ -8,10 +8,12 @@ import React, { useState } from 'react';
+ import { imagePasteDrop } from '../codemirror/imagePasteDrop';
+ import { imagePreview } from '../codemirror/imagePreview';
+ import { formatDiffText, hasChanges } from '../services/diff';
+ import { GitHubService } from '../services/github';
+ import { useStore } from '../store';
++import { errorMessage } from '../utils/error';
++import { fileToBase64 } from '../services/fileTools';
+
+ type DiffMode = 'original' | 'modified' | 'diff';
+
+ export const Editor: React.FC = () => {
+   const [diffMode, setDiffMode] = useState<DiffMode>('modified');
+@@ -87,22 +89,10 @@ export const Editor: React.FC = () => {
+     try {
+       const { githubToken, owner, repo, branch } = config;
+       if (!githubToken || !owner || !repo) return;
+       const gh = new GitHubService(githubToken, owner, repo);
+
+-      const toBase64 = async (file: File) => {
+-        const buf = new Uint8Array(await file.arrayBuffer());
+-        // Convert bytes to base64 without inflating memory too much
+-        let binary = '';
+-        const chunkSize = 0x8000;
+-        for (let i = 0; i < buf.length; i += chunkSize) {
+-          const chunk = buf.subarray(i, i + chunkSize);
+-          binary += String.fromCharCode.apply(null, Array.from(chunk) as any);
+-        }
+-        return btoa(binary);
+-      };
+-
+       const timestamp = new Date()
+         .toISOString()
+         .replace(/[-:T.Z]/g, '')
+         .slice(0, 14);
+       const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9._-]/g, '_');
+@@ -110,18 +100,18 @@ export const Editor: React.FC = () => {
+
+       const urls: string[] = [];
+       for (const file of files) {
+         const name = sanitize(file.name.replace(/\s+/g, '_'));
+         const path = `${basePath}/${timestamp}-${name}`;
+-        const base64 = await toBase64(file);
++        const base64 = await fileToBase64(file);
+         await gh.updateFileBase64(path, base64, '', `chore: add image ${file.name} via paste`, branch);
+         const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+         urls.push(rawUrl);
+       }
+       return urls;
+     } catch (e) {
+-      throw new Error(`Image upload failed: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
++      throw new Error(`Image upload failed: ${errorMessage(e)}`, { cause: e });
+     }
+   };
+
+   const handleContentChange = (value: string) => {
+     if (diffMode === 'modified') {
+diff --git c/apps/web/src/components/GhosttyTerminal.tsx w/apps/web/src/components/GhosttyTerminal.tsx
+index e06ad153fd41..a58bb0258f34 100644
+--- c/apps/web/src/components/GhosttyTerminal.tsx
++++ w/apps/web/src/components/GhosttyTerminal.tsx
+@@ -1,6 +1,7 @@
+ import { useCallback, useEffect, useRef, useState } from 'react';
++import { errorMessage } from '../utils/error';
+
+ export interface GhosttyTerminalChunk {
+   id: number;
+   data: string;
+ }
+@@ -88,11 +89,11 @@ export function GhosttyTerminal({ chunks, fontSize, active, onData }: GhosttyTer
+         terminalRef.current = terminal;
+         fitAddonRef.current = fitAddon;
+         chunkCountRef.current = 0;
+         appendPendingChunks();
+       } catch (error) {
+-        setLoadError(error instanceof Error ? error.message : String(error));
++        setLoadError(errorMessage(error));
+       }
+     };
+
+     setup();
+
+diff --git c/apps/web/src/components/Tool.tsx w/apps/web/src/components/Tool.tsx
+index a51e76935e5c..f8ed36c47c5c 100644
+--- c/apps/web/src/components/Tool.tsx
++++ w/apps/web/src/components/Tool.tsx
+@@ -3,15 +3,17 @@ import {
+   applyLineRangeEdit,
+   isJsonPath,
+   readAnnotatedContent,
+   repairJsonContent,
+   searchAnnotatedContent,
++  fileToBase64,
+ } from '../services/fileTools';
+ import { type GitHubDirectoryItem, GitHubService } from '../services/github';
+ import { RepoIndexService, type RepoIndexStatus, type RepoSearchResult } from '../services/repoIndex';
+-import { getActiveWebSocketService, setActiveWebSocketService, WebSocketService } from '../services/websocket';
++import { WebSocketService } from '../services/websocket';
+ import { useStore } from '../store';
++import { errorMessage } from '../utils/error';
+
+ type ToolMode = 'github' | 'websocket';
+
+ type TreeNodeType = 'file' | 'dir' | 'root';
+
+@@ -165,33 +167,15 @@ export const Tool: React.FC = () => {
+     try {
+       const status = await repoIndexService.getStatus(config.owner, config.repo, config.branch);
+       setRepoIndexStatus(status);
+       return status;
+     } catch (error) {
+-      addLog(`Repo index status failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Repo index status failed: ${errorMessage(error)}`);
+       return null;
+     }
+   }, [config.branch, config.owner, config.repo, repoIndexService]);
+
+-  const readFileAsBase64 = (selectedFile: File): Promise<string> =>
+-    new Promise((resolve, reject) => {
+-      const reader = new FileReader();
+-      reader.onload = () => {
+-        if (typeof reader.result !== 'string') {
+-          reject(new Error('Failed to encode file'));
+-          return;
+-        }
+-
+-        const parts = reader.result.split(',', 2);
+-        resolve(parts[1] || '');
+-      };
+-      reader.onerror = () => {
+-        reject(reader.error ?? new Error('Failed to read file'));
+-      };
+-      reader.readAsDataURL(selectedFile);
+-    });
+-
+   const loadDirectory = useCallback(
+     async (path: string = ROOT_PATH, options?: { silent?: boolean }) => {
+       const github = githubService;
+       if (!github) return [];
+
+@@ -203,11 +187,11 @@ export const Tool: React.FC = () => {
+         if (!options?.silent) {
+           addLog(`Loaded ${path || '/'} (${items.length} item${items.length === 1 ? '' : 's'})`);
+         }
+         return items;
+       } catch (error) {
+-        addLog(`Tree load failed: ${error instanceof Error ? error.message : error}`);
++        addLog(`Tree load failed: ${errorMessage(error)}`);
+         return [];
+       } finally {
+         setLoadingDirectories((prev) => prev.filter((entry) => entry !== path));
+       }
+     },
+@@ -284,11 +268,11 @@ export const Tool: React.FC = () => {
+           addLog(`Repo index ready · ${nextStatus.indexed_files} files · ${nextStatus.symbol_count} symbols`);
+         }
+       } catch (error) {
+         if (!cancelled) {
+           autoIndexKeyRef.current = '';
+-          addLog(`Auto index failed: ${error instanceof Error ? error.message : error}`);
++          addLog(`Auto index failed: ${errorMessage(error)}`);
+         }
+       } finally {
+         if (!cancelled) {
+           setIndexingRepository(false);
+         }
+@@ -317,11 +301,10 @@ export const Tool: React.FC = () => {
+
+   useEffect(() => {
+     return () => {
+       wsServiceRef.current?.disconnect();
+       wsServiceRef.current = null;
+-      setActiveWebSocketService(null);
+     };
+   }, []);
+
+   useEffect(() => {
+     if (!activeFilePath) return;
+@@ -351,11 +334,11 @@ export const Tool: React.FC = () => {
+         document.body.removeChild(downloadLink);
+         URL.revokeObjectURL(url);
+       }, 100);
+       addLog(`Downloaded: ${latest.filename} (${formatFileSize(blob.size)})`);
+     } catch (error) {
+-      addLog(`Failed to save file: ${error instanceof Error ? error.message : error}`);
++      addLog(`Failed to save file: ${errorMessage(error)}`);
+     } finally {
+       setPendingDownload(null);
+       setDownloading(false);
+     }
+   }, [pendingDownload, websocket.messages]);
+@@ -399,11 +382,11 @@ export const Tool: React.FC = () => {
+       setSelectedNodeType('file');
+       setSearchResults('');
+       await ensureTreePathVisible(targetPath);
+       addLog(`Opened ${targetPath} (${content.split('\n').length} lines)`);
+     } catch (error) {
+-      addLog(`Load failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Load failed: ${errorMessage(error)}`);
+     }
+   };
+
+   const handleSearchLoadedFile = () => {
+     if (!activeFilePath) {
+@@ -419,11 +402,11 @@ export const Tool: React.FC = () => {
+     try {
+       const results = searchAnnotatedContent(file.current, searchPattern, Number.parseInt(searchContext, 10) || 2);
+       setSearchResults(results);
+       addLog(results.startsWith('No matches') ? results : `Searched ${activeFilePath}`);
+     } catch (error) {
+-      addLog(`Search failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Search failed: ${errorMessage(error)}`);
+     }
+   };
+
+   const handleIndexRepository = async () => {
+     if (!repoIndexService || !config.owner || !config.repo || !config.githubToken) {
+@@ -444,11 +427,11 @@ export const Tool: React.FC = () => {
+       setRepoSearchResults([]);
+       addLog(
+         `Indexed ${status.indexed_files} file${status.indexed_files === 1 ? '' : 's'} with ${status.symbol_count} symbol${status.symbol_count === 1 ? '' : 's'}`
+       );
+     } catch (error) {
+-      addLog(`Repo index failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Repo index failed: ${errorMessage(error)}`);
+     } finally {
+       setIndexingRepository(false);
+     }
+   };
+
+@@ -475,11 +458,11 @@ export const Tool: React.FC = () => {
+         addLog('Run repo indexing before searching');
+       } else {
+         addLog(`Repo search returned ${response.results.length} result${response.results.length === 1 ? '' : 's'}`);
+       }
+     } catch (error) {
+-      addLog(`Repo search failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Repo search failed: ${errorMessage(error)}`);
+     } finally {
+       setSearchingRepository(false);
+     }
+   };
+
+@@ -506,11 +489,11 @@ export const Tool: React.FC = () => {
+     try {
+       const current = applyLineRangeEdit(file.current, startLine, endLine, editCode);
+       setFile({ current, dirty: current !== file.original });
+       addLog(`Applied edit to ${activeFilePath} (${startLine}-${endLine})`);
+     } catch (error) {
+-      addLog(`Edit failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Edit failed: ${errorMessage(error)}`);
+     }
+   };
+
+   const handleRepairJson = () => {
+     if (!activeFilePath) {
+@@ -526,11 +509,11 @@ export const Tool: React.FC = () => {
+     try {
+       const repaired = repairJsonContent(file.current);
+       setFile({ current: repaired.content, dirty: repaired.content !== file.original });
+       addLog(repaired.warnings[0] || `Repaired JSON in ${activeFilePath}`);
+     } catch (error) {
+-      addLog(`JSON repair failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`JSON repair failed: ${errorMessage(error)}`);
+     }
+   };
+
+   const handleSaveLoadedFile = async () => {
+     if (!activeFilePath) {
+@@ -552,11 +535,11 @@ export const Tool: React.FC = () => {
+       );
+       setFile({ sha, original: file.current, dirty: false });
+       await loadDirectory(currentDirectoryPath, { silent: true });
+       addLog(`Saved ${activeFilePath}`);
+     } catch (error) {
+-      addLog(`Save failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Save failed: ${errorMessage(error)}`);
+     } finally {
+       setSaving(false);
+     }
+   };
+
+@@ -578,11 +561,11 @@ export const Tool: React.FC = () => {
+         addLog('Creating new file');
+       }
+
+       const uploadSha = await github.updateFileBase64(
+         targetPath,
+-        await readFileAsBase64(selectedFile),
++        await fileToBase64(selectedFile),
+         existingSha,
+         `Upload ${selectedFile.name} via Files tool`,
+         config.branch
+       );
+
+@@ -590,11 +573,11 @@ export const Tool: React.FC = () => {
+       await Promise.all(directoriesToRefresh.map((path) => loadDirectory(path, { silent: true })));
+       setSelectedNodePath(targetPath);
+       setSelectedNodeType('file');
+       addLog(`Upload successful (${uploadSha.sha.substring(0, 7)})`);
+     } catch (error) {
+-      addLog(`Upload failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Upload failed: ${errorMessage(error)}`);
+     } finally {
+       setUploading(false);
+       if (githubUploadInputRef.current) {
+         githubUploadInputRef.current.value = '';
+       }
+@@ -622,11 +605,11 @@ export const Tool: React.FC = () => {
+         document.body.removeChild(downloadLink);
+         URL.revokeObjectURL(url);
+       }, 100);
+       addLog(`Downloaded ${downloadLink.download}`);
+     } catch (error) {
+-      addLog(`Download failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Download failed: ${errorMessage(error)}`);
+     } finally {
+       setDownloading(false);
+     }
+   };
+
+@@ -650,37 +633,34 @@ export const Tool: React.FC = () => {
+           url,
+           status,
+           connected: status === 'connected',
+         });
+         if (status === 'error' && errorContext) {
+-          addLog(`WebSocket Error: ${errorContext instanceof Error ? errorContext.message : String(errorContext)}`);
++          addLog(`WebSocket Error: ${errorMessage(errorContext)}`);
+         }
+       }
+     );
+
+     wsServiceRef.current = service;
+-    setActiveWebSocketService(service);
+
+     try {
+       await service.connect();
+       addLog(`Connected to ${url}`);
+     } catch (error) {
+       wsServiceRef.current = null;
+-      setActiveWebSocketService(null);
+       setWebSocket({
+         url,
+         status: 'error',
+         connected: false,
+       });
+-      addLog(`WebSocket connection failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`WebSocket connection failed: ${errorMessage(error)}`);
+     }
+   };
+
+   const handleWebSocketDisconnect = () => {
+     wsServiceRef.current?.disconnect();
+     wsServiceRef.current = null;
+-    setActiveWebSocketService(null);
+     setWebSocket({
+       connected: false,
+       status: 'disconnected',
+     });
+     addLog('Disconnected from WebSocket server');
+@@ -700,21 +680,21 @@ export const Tool: React.FC = () => {
+     if (!wsFileInputRef.current?.files?.length) {
+       addLog('Please select a file');
+       return;
+     }
+
+-    const svc = getActiveWebSocketService();
++    const svc = wsServiceRef.current;
+     if (!svc) {
+       addLog('WebSocket service not initialised');
+       return;
+     }
+
+     const selectedFile = wsFileInputRef.current.files[0];
+     setUploading(true);
+
+     try {
+-      const base64 = await readFileAsBase64(selectedFile);
++      const base64 = await fileToBase64(selectedFile);
+       const targetFilename = wsUploadFilename.trim() || selectedFile.name;
+       svc.sendFileUpload(targetFilename, base64, true);
+       addWebSocketMessage({
+         type: 'file_upload',
+         data: base64,
+@@ -726,11 +706,11 @@ export const Tool: React.FC = () => {
+
+       addLog(`Sent ${targetFilename} via WebSocket`);
+       setWsUploadFilename('');
+       if (wsFileInputRef.current) wsFileInputRef.current.value = '';
+     } catch (error) {
+-      addLog(`Upload failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Upload failed: ${errorMessage(error)}`);
+     } finally {
+       setUploading(false);
+     }
+   };
+
+@@ -743,11 +723,11 @@ export const Tool: React.FC = () => {
+     if (!websocket.connected) {
+       addLog('Not connected to WebSocket server');
+       return;
+     }
+
+-    const svc = getActiveWebSocketService();
++    const svc = wsServiceRef.current;
+     if (!svc) {
+       addLog('WebSocket service not initialised');
+       return;
+     }
+
+@@ -764,11 +744,11 @@ export const Tool: React.FC = () => {
+         filename: targetFilename,
+         timestamp: Date.now(),
+       });
+       setWsDownloadFilename('');
+     } catch (error) {
+-      addLog(`Download request failed: ${error instanceof Error ? error.message : error}`);
++      addLog(`Download request failed: ${errorMessage(error)}`);
+       setDownloading(false);
+       setPendingDownload(null);
+     }
+   };
+
+diff --git c/apps/web/src/components/UnifiedShell.tsx w/apps/web/src/components/UnifiedShell.tsx
+index 92ce7164d4d6..c1495619cf13 100644
+--- c/apps/web/src/components/UnifiedShell.tsx
++++ w/apps/web/src/components/UnifiedShell.tsx
+@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import { createShellProfile, persistShellState, type ShellProfile, type ShellState } from '../services/shell';
+ import { type WebSocketMessage, WebSocketService } from '../services/websocket';
+ import { useStore } from '../store';
+ import { GhosttyTerminal, type GhosttyTerminalChunk } from './GhosttyTerminal';
+ import { WebShell } from './WebShell';
++import { errorMessage } from '../utils/error';
+ import './UnifiedShell.css';
+
+ interface ShellDraft {
+   name: string;
+   url: string;
+@@ -224,11 +225,11 @@ export function UnifiedShell() {
+             addSessionMessage(profile.id, 'local-status', `Connection dropped for ${profile.name}`);
+           } else if (status === 'error' && errorContext) {
+             addSessionMessage(
+               profile.id,
+               'error',
+-              errorContext instanceof Error ? errorContext.message : String(errorContext)
++              errorMessage(errorContext)
+             );
+           }
+         }
+       );
+
+@@ -242,11 +243,11 @@ export function UnifiedShell() {
+         updateSession(profile.id, (current) => ({
+           ...current,
+           status: 'error',
+           needsAttention: true,
+         }));
+-        addSessionMessage(profile.id, 'error', error instanceof Error ? error.message : String(error));
++        addSessionMessage(profile.id, 'error', errorMessage(error));
+       }
+     },
+     [addSessionMessage, clearAttention, disconnectProfile, updateSession]
+   );
+
+@@ -260,11 +261,11 @@ export function UnifiedShell() {
+
+       try {
+         service.sendStdin(payload);
+         triggerHaptics();
+       } catch (error) {
+-        addSessionMessage(profileId, 'error', error instanceof Error ? error.message : String(error));
++        addSessionMessage(profileId, 'error', errorMessage(error));
+       }
+     },
+     [addSessionMessage, triggerHaptics]
+   );
+
+diff --git c/apps/web/src/components/WebShell.tsx w/apps/web/src/components/WebShell.tsx
+index 86fdfdafd098..5955701a2391 100644
+--- c/apps/web/src/components/WebShell.tsx
++++ w/apps/web/src/components/WebShell.tsx
+@@ -1,40 +1,9 @@
+ import React, { useCallback, useEffect, useRef, useState } from 'react';
++import { buildCloneCommand, isValidGitUrl } from '../services/shell';
+ import { useStore } from '../store';
+
+-// ---------------------------------------------------------------------------
+-// URL validation
+-// Accepts HTTPS git URLs and SSH git URLs.  Uses a strict character allowlist
+-// so that the generated clone command is safe to display and copy without
+-// quoting.
+-// ---------------------------------------------------------------------------
+-
+-/** Characters that are safe in a bare (unquoted) HTTPS git URL on the command line.
+- *  Note: `@` is intentionally excluded to prevent host-confusion attacks
+- *  (e.g. https://attacker.com@victim.com/repo).  Token injection uses a
+- *  separate, explicitly validated code path in buildCloneCommand.
+- */
+-const SAFE_HTTPS_URL = /^https?:\/\/[a-zA-Z0-9/:._\-~%+=?#]+$/;
+-
+-/** Characters that are safe in an SSH-shorthand git URL: git@host:owner/repo[.git] */
+-const SAFE_SSH_URL = /^git@[a-zA-Z0-9._-]+:[a-zA-Z0-9._/-]+$/;
+-
+-function isValidGitUrl(url: string): boolean {
+-  if (!url) return false;
+-  return SAFE_HTTPS_URL.test(url) || SAFE_SSH_URL.test(url);
+-}
+-
+-/** Build the clone command string. */
+-function buildCloneCommand(url: string, useToken: boolean, token: string): string {
+-  if (useToken && token && url.startsWith('https://github.com/')) {
+-    // Set token via environment variable and use a temporary git credential helper
+-    // This prevents the token from leaking into the git URL or shell history
+-    return `GITHUB_TOKEN="${token}" git -c credential.helper='!f() { echo "username=oauth2"; echo "password=$GITHUB_TOKEN"; }; f' clone ${url}`;
+-  }
+-  return `git clone ${url}`;
+-}
+-
+ // ---------------------------------------------------------------------------
+ // GitClonePanel
+ // ---------------------------------------------------------------------------
+ interface GitClonePanelProps {
+   githubToken: string;
+diff --git c/apps/web/src/store.ts w/apps/web/src/store.ts
+index 7c09c08aab00..ef941de38321 100644
+--- c/apps/web/src/store.ts
++++ w/apps/web/src/store.ts
+@@ -13,16 +13,10 @@ export interface FileState {
+   current: string;
+   sha: string;
+   dirty: boolean;
+ }
+
+-export interface AIState {
+-  lastInstruction: string;
+-  lastAIContent: string;
+-  pending: boolean;
+-}
+-
+ export interface ConfigState {
+   githubToken: string;
+   /** Server gateway API key sent in Authorization header. */
+   openaiKey: string;
+   owner: string;
+@@ -58,36 +52,31 @@ export interface WebSocketState {
+     fileSize?: number;
+     isBase64?: boolean;
+   }>;
+ }
+
+-export type AppMode = 'shell' | 'editor' | 'tool' | 'chat-demo' | 'chat' | 'settings' | 'agent';
++export type AppMode = 'shell' | 'editor' | 'tool' | 'chat' | 'settings' | 'agent';
+
+ export interface AppState {
+   mode: AppMode;
+   file: FileState;
+-  ai: AIState;
+   config: ConfigState;
+   shell: ShellState;
+   repoIndexStatus: RepoIndexStatus | null;
+-  history: string[];
+   showConfig: boolean;
+   websocket: WebSocketState;
+   webShell: {
+     prepared?: string;
+   };
+ }
+
+ interface AppStore extends AppState {
+   setMode: (mode: AppMode) => void;
+   setFile: (file: Partial<FileState>) => void;
+-  setAI: (ai: Partial<AIState>) => void;
+   setConfig: (config: Partial<ConfigState>) => void;
+   setShell: (shell: Partial<ShellState>) => void;
+   setRepoIndexStatus: (status: RepoIndexStatus | null) => void;
+-  addHistory: (message: string) => void;
+-  clearHistory: () => void;
+   setShowConfig: (show: boolean) => void;
+   resetFile: () => void;
+   setWebSocket: (ws: Partial<WebSocketState>) => void;
+   addWebSocketMessage: (message: WebSocketState['messages'][0]) => void;
+   clearWebSocketMessages: () => void;
+@@ -99,16 +88,10 @@ const initialFile: FileState = {
+   current: '',
+   sha: '',
+   dirty: false,
+ };
+
+-const initialAI: AIState = {
+-  lastInstruction: '',
+-  lastAIContent: '',
+-  pending: false,
+-};
+-
+ const initialConfig: ConfigState = {
+   githubToken: '',
+   openaiKey: '',
+   owner: '',
+   repo: '',
+@@ -130,15 +113,13 @@ const initialWebSocket: WebSocketState = {
+ };
+
+ export const useStore = create<AppStore>((set) => ({
+   mode: 'chat',
+   file: initialFile,
+-  ai: initialAI,
+   config: initialConfig,
+   shell: initialShell,
+   repoIndexStatus: null,
+-  history: [],
+   showConfig: false,
+   websocket: initialWebSocket,
+   webShell: {},
+
+   setMode: (mode) => set({ mode }),
+@@ -146,15 +127,10 @@ export const useStore = create<AppStore>((set) => ({
+   setFile: (file) =>
+     set((state) => ({
+       file: { ...state.file, ...file },
+     })),
+
+-  setAI: (ai) =>
+-    set((state) => ({
+-      ai: { ...state.ai, ...ai },
+-    })),
+-
+   setConfig: (config) =>
+     set((state) => ({
+       config: { ...state.config, ...config },
+     })),
+
+@@ -168,17 +144,10 @@ export const useStore = create<AppStore>((set) => ({
+       },
+     })),
+
+   setRepoIndexStatus: (repoIndexStatus) => set({ repoIndexStatus }),
+
+-  addHistory: (message) =>
+-    set((state) => ({
+-      history: [...state.history, message],
+-    })),
+-
+-  clearHistory: () => set({ history: [] }),
+-
+   setShowConfig: (show) => set({ showConfig: show }),
+
+   resetFile: () =>
+     set({
+       file: initialFile,

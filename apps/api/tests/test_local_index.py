@@ -3,11 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from affine.api.server import app
+import pytest
+from affine.code_index import GeminiEmbedder, OpenAIEmbedder
+from affine.code_index.embedder import VoyageEmbedder
 from affine.code_index.search import SearchResult
 from affine.config.settings import Settings, get_settings
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
+
+from affine.api.local_index import create_local_embedder
+from affine.api.server import app
 
 # Define authentication headers
 AUTH = {"Authorization": "Bearer server-gate-key"}
@@ -52,7 +56,9 @@ def test_file_outline_success(tmp_path: Path) -> None:
     )
 
     with (
-        patch("affine.api.local_index.get_embedder", return_value=mock_embedder),
+        patch(
+            "affine.api.local_index.create_local_embedder", return_value=mock_embedder
+        ),
         patch("affine.api.local_index.CodeIndexStore") as mock_store_cls,
         patch(
             "affine.api.local_index.CodeSearchEngine", return_value=mock_engine_instance
@@ -88,33 +94,12 @@ def test_file_outline_success(tmp_path: Path) -> None:
             app.dependency_overrides.clear()
 
 
-def test_file_outline_get_embedder_http_exception(tmp_path: Path) -> None:
+def test_file_outline_embedder_config_error(tmp_path: Path) -> None:
     app.dependency_overrides[get_settings] = lambda: make_settings(tmp_path)
 
-    # Mock get_embedder to raise HTTPException
     with patch(
-        "affine.api.local_index.get_embedder",
-        side_effect=HTTPException(status_code=400, detail="Bad config"),
-    ):
-        client = TestClient(app)
-        try:
-            response = client.get(
-                "/v1/local-index/outline/file",
-                headers=AUTH,
-                params={"path": "src/main.py"},
-            )
-            assert response.status_code == 400
-            assert response.json() == {"detail": "Bad config"}
-        finally:
-            app.dependency_overrides.clear()
-
-
-def test_file_outline_get_embedder_general_exception(tmp_path: Path) -> None:
-    app.dependency_overrides[get_settings] = lambda: make_settings(tmp_path)
-
-    # Mock get_embedder to raise general exception
-    with patch(
-        "affine.api.local_index.get_embedder", side_effect=ValueError("Invalid key")
+        "affine.api.local_index.create_local_embedder",
+        side_effect=ValueError("Invalid key"),
     ):
         client = TestClient(app)
         try:
@@ -124,12 +109,91 @@ def test_file_outline_get_embedder_general_exception(tmp_path: Path) -> None:
                 params={"path": "src/main.py"},
             )
             assert response.status_code == 500
-            assert (
-                "Failed to initialize embedder: Invalid key"
-                in response.json()["detail"]
+            assert response.json() == {
+                "detail": "Failed to initialize embedder: Invalid key"
+            }
+        finally:
+            app.dependency_overrides.clear()
+
+
+def test_create_local_embedder_selection(tmp_path: Path) -> None:
+    anthropic = make_settings(
+        tmp_path, model_provider="anthropic", anthropic_api_key="a-key"
+    )
+    with pytest.raises(ValueError, match="EMBEDDING_PROVIDER=voyage"):
+        create_local_embedder(anthropic)
+
+    voyage = anthropic.model_copy(
+        update={"embedding_provider": "voyage", "voyage_api_key": "v-key"}
+    )
+    assert isinstance(create_local_embedder(voyage), VoyageEmbedder)
+
+    assert isinstance(create_local_embedder(make_settings(tmp_path)), GeminiEmbedder)
+
+    copilot = make_settings(tmp_path, model_provider="copilot", copilot_api_key="c-key")
+    assert isinstance(create_local_embedder(copilot), OpenAIEmbedder)
+
+
+def test_explicit_embedding_provider_is_authoritative(tmp_path: Path) -> None:
+    gemini = make_settings(tmp_path, embedding_provider="openai")
+    assert isinstance(create_local_embedder(gemini), OpenAIEmbedder)
+
+    forced_gemini = make_settings(
+        tmp_path,
+        model_provider="copilot",
+        copilot_api_key="c",
+        embedding_provider="gemini",
+    )
+    assert isinstance(create_local_embedder(forced_gemini), GeminiEmbedder)
+
+    forced_openai = make_settings(
+        tmp_path,
+        model_provider="anthropic",
+        anthropic_api_key="a-key",
+        embedding_provider="openai",
+    )
+    assert isinstance(create_local_embedder(forced_openai), OpenAIEmbedder)
+
+
+def test_open_engine_maps_any_embedder_error(tmp_path: Path) -> None:
+    app.dependency_overrides[get_settings] = lambda: make_settings(tmp_path)
+    with patch(
+        "affine.api.local_index.create_local_embedder",
+        side_effect=RuntimeError("boom"),
+    ):
+        try:
+            response = TestClient(app).get(
+                "/v1/local-index/outline/file",
+                headers=AUTH,
+                params={"path": "src/main.py"},
             )
         finally:
             app.dependency_overrides.clear()
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Failed to initialize embedder: boom"}
+
+
+@pytest.mark.parametrize("command", ["search", "stats"])
+def test_cli_embedder_failure_exits_cleanly(
+    tmp_path: Path, command: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    import argparse
+    import asyncio
+
+    from affine.api import local_index_cli
+
+    args = argparse.Namespace(db=None, query="q", k=1, path=None, no_ast=False)
+    settings = make_settings(tmp_path)
+    with (
+        patch.object(local_index_cli, "get_settings", return_value=settings),
+        patch(
+            "affine.api.local_index.create_local_embedder",
+            side_effect=RuntimeError("boom"),
+        ),
+    ):
+        fn = getattr(local_index_cli, f"{command}_command")
+        assert asyncio.run(fn(args)) == 1
+    assert "Failed to initialize embedder: boom" in caplog.text
 
 
 def test_file_outline_engine_exception(tmp_path: Path) -> None:
@@ -146,7 +210,9 @@ def test_file_outline_engine_exception(tmp_path: Path) -> None:
     )
 
     with (
-        patch("affine.api.local_index.get_embedder", return_value=mock_embedder),
+        patch(
+            "affine.api.local_index.create_local_embedder", return_value=mock_embedder
+        ),
         patch("affine.api.local_index.CodeIndexStore") as mock_store_cls,
         patch(
             "affine.api.local_index.CodeSearchEngine", return_value=mock_engine_instance

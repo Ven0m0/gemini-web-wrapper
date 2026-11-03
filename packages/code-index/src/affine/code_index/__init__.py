@@ -18,24 +18,17 @@ from .search import CodeSearchEngine, SearchResult
 from .store import CodeIndexStore
 
 __all__ = [
-    # Embedder
+    "ASTParser",
+    "CodeIndexStore",
+    "CodeIndexer",
+    "CodeSearchEngine",
     "Embedder",
     "EmbedderFactory",
-    "OpenAIEmbedder",
+    "FileDiscovery",
     "GeminiEmbedder",
     "LocalEmbedder",
-    "normalize_l2",
-    # Parser
-    "ASTParser",
-    # Chunker
-    "SlidingWindowChunker",
-    # Discovery
-    "FileDiscovery",
-    # Store
-    "CodeIndexStore",
-    # Indexer
-    "CodeIndexer",
-    # Search
-    "CodeSearchEngine",
+    "OpenAIEmbedder",
     "SearchResult",
+    "SlidingWindowChunker",
+    "normalize_l2",
 ]

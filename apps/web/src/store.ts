@@ -15,12 +15,6 @@ export interface FileState {
   dirty: boolean;
 }
 
-export interface AIState {
-  lastInstruction: string;
-  lastAIContent: string;
-  pending: boolean;
-}
-
 export interface ConfigState {
   githubToken: string;
   /** Server gateway API key sent in Authorization header. */
@@ -60,16 +54,14 @@ export interface WebSocketState {
   }>;
 }
 
-export type AppMode = 'shell' | 'editor' | 'tool' | 'chat-demo' | 'chat' | 'settings' | 'agent';
+export type AppMode = 'shell' | 'editor' | 'tool' | 'chat' | 'settings' | 'agent';
 
 export interface AppState {
   mode: AppMode;
   file: FileState;
-  ai: AIState;
   config: ConfigState;
   shell: ShellState;
   repoIndexStatus: RepoIndexStatus | null;
-  history: string[];
   showConfig: boolean;
   websocket: WebSocketState;
   webShell: {
@@ -80,12 +72,9 @@ export interface AppState {
 interface AppStore extends AppState {
   setMode: (mode: AppMode) => void;
   setFile: (file: Partial<FileState>) => void;
-  setAI: (ai: Partial<AIState>) => void;
   setConfig: (config: Partial<ConfigState>) => void;
   setShell: (shell: Partial<ShellState>) => void;
   setRepoIndexStatus: (status: RepoIndexStatus | null) => void;
-  addHistory: (message: string) => void;
-  clearHistory: () => void;
   setShowConfig: (show: boolean) => void;
   resetFile: () => void;
   setWebSocket: (ws: Partial<WebSocketState>) => void;
@@ -99,12 +88,6 @@ const initialFile: FileState = {
   current: '',
   sha: '',
   dirty: false,
-};
-
-const initialAI: AIState = {
-  lastInstruction: '',
-  lastAIContent: '',
-  pending: false,
 };
 
 const initialConfig: ConfigState = {
@@ -132,11 +115,9 @@ const initialWebSocket: WebSocketState = {
 export const useStore = create<AppStore>((set) => ({
   mode: 'chat',
   file: initialFile,
-  ai: initialAI,
   config: initialConfig,
   shell: initialShell,
   repoIndexStatus: null,
-  history: [],
   showConfig: false,
   websocket: initialWebSocket,
   webShell: {},
@@ -146,11 +127,6 @@ export const useStore = create<AppStore>((set) => ({
   setFile: (file) =>
     set((state) => ({
       file: { ...state.file, ...file },
-    })),
-
-  setAI: (ai) =>
-    set((state) => ({
-      ai: { ...state.ai, ...ai },
     })),
 
   setConfig: (config) =>
@@ -169,13 +145,6 @@ export const useStore = create<AppStore>((set) => ({
     })),
 
   setRepoIndexStatus: (repoIndexStatus) => set({ repoIndexStatus }),
-
-  addHistory: (message) =>
-    set((state) => ({
-      history: [...state.history, message],
-    })),
-
-  clearHistory: () => set({ history: [] }),
 
   setShowConfig: (show) => set({ showConfig: show }),
 

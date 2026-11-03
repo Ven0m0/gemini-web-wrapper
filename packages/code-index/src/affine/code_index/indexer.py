@@ -115,7 +115,7 @@ class CodeIndexer:
                 stats["chunks"] += len(
                     [r for r in file_records if r["kind"] == "chunk"]
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001 - one bad file must not abort the whole index run
                 stats["errors"] += 1
                 continue
 

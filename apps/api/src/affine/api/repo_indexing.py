@@ -6,24 +6,22 @@ import hashlib
 import logging
 import shutil
 import sqlite3
+import threading
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 from urllib.parse import quote
 
 import httpx
 import libsql
-import tree_sitter_bash as tree_sitter_bash
-import tree_sitter_python as tree_sitter_python
-import tree_sitter_rust as tree_sitter_rust
-from ast_grep_py import SgRoot
-from tree_sitter import Language, Node, Parser
 
+from affine.code_index.parser import ASTParser, PatternMatch
 from affine.config.settings import Settings
 from affine.shared.repo_index_schemas import (
     RepoIndexRequest,
+    RepoIndexState,
     RepoIndexStatus,
     RepoSearchRequest,
     RepoSearchResponse,
@@ -76,51 +74,6 @@ LANGUAGE_BY_EXTENSION = {
     ".py": "python",
     ".rs": "rust",
     ".sh": "bash",
-}
-
-TREE_SITTER_LANGUAGES = {
-    "bash": Language(tree_sitter_bash.language()),
-    "python": Language(tree_sitter_python.language()),
-    "rust": Language(tree_sitter_rust.language()),
-}
-
-TREE_SITTER_KINDS: dict[str, dict[str, str]] = {
-    "bash": {
-        "function_definition": "function",
-    },
-    "python": {
-        "class_definition": "class",
-        "function_definition": "function",
-    },
-    "rust": {
-        "enum_item": "enum",
-        "function_item": "function",
-        "impl_item": "impl",
-        "mod_item": "module",
-        "struct_item": "struct",
-        "trait_item": "trait",
-    },
-}
-
-AST_GREP_PATTERNS: dict[str, list[tuple[str, str, str]]] = {
-    "bash": [
-        ("function", "function $NAME() { $$$BODY }", "NAME"),
-        ("function", "$NAME() { $$$BODY }", "NAME"),
-    ],
-    "python": [
-        ("class", "class $NAME($$$ARGS): $$$BODY", "NAME"),
-        ("class", "class $NAME: $$$BODY", "NAME"),
-        ("function", "def $NAME($$$ARGS): $$$BODY", "NAME"),
-    ],
-    "rust": [
-        ("enum", "enum $NAME { $$$BODY }", "NAME"),
-        ("function", "fn $NAME($$$ARGS) { $$$BODY }", "NAME"),
-        ("function", "pub fn $NAME($$$ARGS) { $$$BODY }", "NAME"),
-        ("impl", "impl $NAME { $$$BODY }", "NAME"),
-        ("module", "mod $NAME { $$$BODY }", "NAME"),
-        ("struct", "struct $NAME { $$$BODY }", "NAME"),
-        ("trait", "trait $NAME { $$$BODY }", "NAME"),
-    ],
 }
 
 logger = logging.getLogger(__name__)
@@ -255,7 +208,8 @@ class RepositoryIndexService:
     ) -> None:
         self._settings = settings
         self._client_factory = client_factory or self._default_client_factory
-        self._parser_cache: dict[str, Parser] = {}
+        # tree-sitter Parser objects are not thread-safe; _index_file runs in executor threads.
+        self._thread_local = threading.local()
 
     async def index_repository(self, request: RepoIndexRequest) -> RepoIndexStatus:
         if not self._settings.repo_index_enabled:
@@ -400,7 +354,7 @@ class RepositoryIndexService:
             try:
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, _handle_error)
-            except Exception:
+            except Exception:  # noqa: BLE001 - no usable executor, run the handler inline
                 _handle_error()
 
             raise
@@ -439,7 +393,7 @@ class RepositoryIndexService:
                 owner=str(row[0]),
                 repo=str(row[1]),
                 branch=str(row[2]),
-                status=str(row[3]),
+                status=cast(RepoIndexState, row[3]),
                 indexed_files=self._as_int(row[4]),
                 skipped_files=self._as_int(row[5]),
                 symbol_count=self._as_int(row[6]),
@@ -524,7 +478,7 @@ class RepositoryIndexService:
         normalized_content = content.replace("\r\n", "\n")
         lines = normalized_content.split("\n")
         language = self._detect_language(entry.path)
-        symbols = self._extract_symbols(normalized_content, language)
+        symbols = self._extract_symbols(entry.path, normalized_content, language)
         return IndexedFile(
             path=entry.path,
             sha=entry.sha,
@@ -536,127 +490,34 @@ class RepositoryIndexService:
             symbols=symbols,
         )
 
+    def _parser(self) -> ASTParser:
+        parser = getattr(self._thread_local, "parser", None)
+        if parser is None:
+            parser = self._thread_local.parser = ASTParser()
+        return parser
+
     def _extract_symbols(
-        self, content: str, language: str | None
+        self, path: str, content: str, language: str | None
     ) -> list[IndexedSymbol]:
         if language is None:
             return []
         seen: set[tuple[str, int, int]] = set()
         collected: list[IndexedSymbol] = []
-        for symbol in self._extract_ast_grep_symbols(content, language):
-            key = (symbol.name, symbol.start_line, symbol.end_line)
+        for node in self._parser().parse_file(path, content):
+            key = (node.name, node.start_line, node.end_line)
             if key in seen:
                 continue
             seen.add(key)
-            collected.append(symbol)
-        for symbol in self._extract_tree_sitter_symbols(content, language):
-            key = (symbol.name, symbol.start_line, symbol.end_line)
-            if key in seen:
-                continue
-            seen.add(key)
-            collected.append(symbol)
-        return sorted(collected, key=lambda item: (item.start_line, item.name))
-
-    def _extract_ast_grep_symbols(
-        self, content: str, language: str
-    ) -> list[IndexedSymbol]:
-        patterns = AST_GREP_PATTERNS.get(language, [])
-        if not patterns:
-            return []
-        try:
-            root = SgRoot(content, language)
-            node = root.root()
-        except Exception:
-            logger.warning("Failed to parse content with ast_grep", exc_info=True)
-            return []
-
-        symbols: list[IndexedSymbol] = []
-        for kind, pattern, capture in patterns:
-            try:
-                matches = node.find_all(pattern=pattern)
-            except Exception:
-                logger.warning("Failed to find ast_grep pattern matches", exc_info=True)
-                continue
-            for match in matches:
-                name_node = match.get_match(capture)
-                if name_node is None:
-                    continue
-                range_info = match.range()
-                start_line = range_info.start.line + 1
-                end_line = range_info.end.line + 1
-                symbols.append(
-                    IndexedSymbol(
-                        kind=kind,
-                        name=name_node.text(),
-                        start_line=start_line,
-                        end_line=max(start_line, end_line),
-                        snippet=self._make_snippet(content, start_line, end_line),
-                    )
-                )
-        return symbols
-
-    def _extract_tree_sitter_symbols(
-        self, content: str, language: str
-    ) -> list[IndexedSymbol]:
-        parser = self._get_parser(language)
-        content_bytes = content.encode("utf-8")
-        tree = parser.parse(content_bytes)
-        if tree is None:
-            return []
-
-        kinds = TREE_SITTER_KINDS.get(language, {})
-        symbols: list[IndexedSymbol] = []
-        for node in self._walk_tree(tree.root_node):
-            kind = kinds.get(node.type)
-            if kind is None:
-                continue
-            name = self._extract_node_name(node, content_bytes)
-            if not name:
-                continue
-            start_line = node.start_point[0] + 1
-            end_line = node.end_point[0] + 1
-            symbols.append(
+            collected.append(
                 IndexedSymbol(
-                    kind=kind,
-                    name=name,
-                    start_line=start_line,
-                    end_line=max(start_line, end_line),
-                    snippet=self._make_snippet(content, start_line, end_line),
+                    kind=node.pattern if isinstance(node, PatternMatch) else node.kind,
+                    name=node.name,
+                    start_line=node.start_line,
+                    end_line=max(node.start_line, node.end_line),
+                    snippet=self._make_snippet(content, node.start_line, node.end_line),
                 )
             )
-        return symbols
-
-    def _extract_node_name(self, node: Node, content_bytes: bytes) -> str:
-        for field_name in ("name", "type", "trait"):
-            child = node.child_by_field_name(field_name)
-            if child is not None:
-                return self._node_text(child, content_bytes)
-        for child in node.children:
-            if child.type in {
-                "identifier",
-                "name",
-                "type_identifier",
-                "field_identifier",
-                "scoped_identifier",
-            }:
-                return self._node_text(child, content_bytes)
-        return self._node_text(node, content_bytes).split("\n", 1)[0][:80]
-
-    def _node_text(self, node: Node, content_bytes: bytes) -> str:
-        return content_bytes[node.start_byte : node.end_byte].decode("utf-8").strip()
-
-    def _walk_tree(self, node: Node) -> Iterable[Node]:
-        yield node
-        for child in node.children:
-            yield from self._walk_tree(child)
-
-    def _get_parser(self, language: str) -> Parser:
-        cached = self._parser_cache.get(language)
-        if cached is not None:
-            return cached
-        parser = Parser(TREE_SITTER_LANGUAGES[language])
-        self._parser_cache[language] = parser
-        return parser
+        return sorted(collected, key=lambda item: (item.start_line, item.name))
 
     def _make_snippet(self, content: str, start_line: int, end_line: int) -> str:
         lines = content.split("\n")
@@ -747,9 +608,9 @@ class RepositoryIndexService:
         db_path.parent.mkdir(parents=True, exist_ok=True)
         if not self._settings.repo_index_turso_sync_url:
             return sqlite3.connect(str(db_path), check_same_thread=False)
-        connect_kwargs: dict[str, str] = {}
-        if self._settings.repo_index_turso_sync_url:
-            connect_kwargs["sync_url"] = self._settings.repo_index_turso_sync_url
+        connect_kwargs: dict[str, str] = {
+            "sync_url": self._settings.repo_index_turso_sync_url
+        }
         if self._settings.repo_index_turso_auth_token:
             connect_kwargs["auth_token"] = self._settings.repo_index_turso_auth_token
         connect_fn = getattr(libsql, "connect", None)
@@ -757,7 +618,7 @@ class RepositoryIndexService:
             raise ValueError("libsql.connect is unavailable")
         connection = connect_fn(str(db_path), **connect_kwargs)
         sync = getattr(connection, "sync", None)
-        if callable(sync) and self._settings.repo_index_turso_sync_url:
+        if callable(sync):
             sync()
         return connection
 

@@ -34,3 +34,10 @@ affine-shared = { workspace = true }
 affine-llm-core = { workspace = true }
 affine-config = { workspace = true }
 affine-code-index = { workspace = true }
+
+[tool.ruff.lint]
+# Handlers catch ValueError for malformed upstream payloads, so TypeError is the wrong contract.
+ignore = ["TRY004"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]

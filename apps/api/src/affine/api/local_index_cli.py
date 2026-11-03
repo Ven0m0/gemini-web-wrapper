@@ -8,41 +8,45 @@ import logging
 import sys
 from pathlib import Path
 
-from affine.api.utils import create_local_embedder
-from affine.code_index import (
-    CodeIndexer,
-    CodeIndexStore,
-    CodeSearchEngine,
-)
-from affine.config.settings import get_settings
+from fastapi import HTTPException
+
+from affine.api.local_index import create_local_embedder, open_engine
+from affine.code_index import CodeIndexer
+from affine.config.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
 
+def _settings(args: argparse.Namespace) -> Settings:
+    settings = get_settings()
+    if args.db:
+        return settings.model_copy(
+            update={"local_index_db_path": Path(args.db).resolve()}
+        )
+    return settings
+
+
 async def index_command(args: argparse.Namespace) -> int:
     """Run indexing on local codebase."""
-    settings = get_settings()
+    settings = _settings(args)
 
-    # Select embedder based on settings
     try:
         embedder = create_local_embedder(settings)
-    except ValueError as exc:
-        logger.error("Error: %s", exc)
+    except Exception as exc:  # noqa: BLE001 - any init failure is a clean CLI error
+        logger.error("Error: Failed to initialize embedder: %s", exc)
         return 1
 
     root = Path(args.root or ".").resolve()
-    db_path = Path(args.db or ".index/lancedb").resolve()
+    db_path = settings.local_index_db_path.resolve()
 
     logger.info(f"Indexing {root} -> {db_path}")
 
-    indexer = CodeIndexer(
-        root=root,
-        embedder=embedder,
-        db_path=db_path,
-    )
-
-    await indexer.initialize()
-    result = await indexer.index(force=args.force)
+    try:
+        indexer = CodeIndexer(root=root, embedder=embedder, db_path=db_path)
+        await indexer.initialize()
+        result = await indexer.index(force=args.force)
+    finally:
+        await embedder.aclose()
 
     logger.info("\nIndexing complete:")
     logger.info(f"  Status: {result['status']}")
@@ -51,38 +55,25 @@ async def index_command(args: argparse.Namespace) -> int:
     logger.info(f"  Chunks: {result.get('chunks', 0)}")
     if result.get("errors", 0) > 0:
         logger.info(f"  Errors: {result['errors']}")
-
-    await embedder.aclose()
     return 0
 
 
 async def search_command(args: argparse.Namespace) -> int:
     """Search the index."""
-    settings = get_settings()
-
-    # Same embedder selection as index
     try:
-        embedder = create_local_embedder(settings)
-    except ValueError as exc:
-        logger.error("Error: %s", exc)
+        async with open_engine(_settings(args)) as (_, engine):
+            results = await engine.search(
+                query=args.query,
+                k=args.k,
+                path_prefix=args.path,
+                prefer_ast=not args.no_ast,
+            )
+    except HTTPException as exc:
+        logger.error("Error: %s", exc.detail)
         return 1
-
-    db_path = Path(args.db or ".index/lancedb").resolve()
-
-    store = CodeIndexStore(db_path, embedder.dimension)
-    await store.initialize()
-
-    engine = CodeSearchEngine(store, embedder)
-    results = await engine.search(
-        query=args.query,
-        k=args.k,
-        path_prefix=args.path,
-        prefer_ast=not args.no_ast,
-    )
 
     if not results:
         logger.info("No results found.")
-        await embedder.aclose()
         return 0
 
     logger.info(f"\nFound {len(results)} results:\n")
@@ -96,35 +87,23 @@ async def search_command(args: argparse.Namespace) -> int:
         )
         code_preview = result.code[:200].replace("\n", " ")
         logger.info(f"   {code_preview}...\n")
-
-    await embedder.aclose()
     return 0
 
 
 async def stats_command(args: argparse.Namespace) -> int:
     """Show index statistics."""
-    settings = get_settings()
-
-    # Need an embedder just to get dimension
+    settings = _settings(args)
     try:
-        embedder = create_local_embedder(settings)
-    except ValueError as exc:
-        logger.error("Error: %s", exc)
+        async with open_engine(settings) as (store, _):
+            stats = await store.get_stats()
+            hashes = await store.get_indexed_file_hashes()
+    except HTTPException as exc:
+        logger.error("Error: %s", exc.detail)
         return 1
 
-    db_path = Path(args.db or ".index/lancedb").resolve()
-
-    store = CodeIndexStore(db_path, embedder.dimension)
-    await store.initialize()
-
-    stats = await store.get_stats()
-    hashes = await store.get_indexed_file_hashes()
-
-    logger.info(f"Index location: {db_path}")
+    logger.info(f"Index location: {settings.local_index_db_path.resolve()}")
     logger.info(f"Total records: {stats.get('total_records', 0)}")
     logger.info(f"Indexed files: {len(hashes)}")
-
-    await embedder.aclose()
     return 0
 
 
@@ -142,7 +121,7 @@ def main() -> int:
     )
     index_parser.add_argument(
         "--db",
-        help="LanceDB path (default: .index/lancedb)",
+        help="LanceDB path (default: LOCAL_INDEX_DB_PATH, .cache/lancedb)",
     )
     index_parser.add_argument(
         "--force",
@@ -155,7 +134,7 @@ def main() -> int:
     search_parser.add_argument("query", help="Search query")
     search_parser.add_argument(
         "--db",
-        help="LanceDB path (default: .index/lancedb)",
+        help="LanceDB path (default: LOCAL_INDEX_DB_PATH, .cache/lancedb)",
     )
     search_parser.add_argument(
         "--k",
@@ -177,7 +156,7 @@ def main() -> int:
     stats_parser = subparsers.add_parser("stats", help="Show index statistics")
     stats_parser.add_argument(
         "--db",
-        help="LanceDB path (default: .index/lancedb)",
+        help="LanceDB path (default: LOCAL_INDEX_DB_PATH, .cache/lancedb)",
     )
 
     args = parser.parse_args()

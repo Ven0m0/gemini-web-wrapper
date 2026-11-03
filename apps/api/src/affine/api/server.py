@@ -17,7 +17,13 @@ from affine.api.repo_index import router as repo_index_router
 from affine.config.settings import Settings, get_settings
 from affine.llm_core.factory import ProviderFactory
 from affine.llm_core.interfaces import LLMProvider
-from affine.shared.agent_schemas import AgentRequest
+from affine.shared.agent_schemas import (
+    AgentRequest,
+    DoneEvent,
+    ErrorEvent,
+    TextDeltaEvent,
+)
+from affine.shared.models import TextMessage
 from affine.shared.openai_schemas import (
     ChatCompletionChunk,
     ChatCompletionRequest,
@@ -25,105 +31,35 @@ from affine.shared.openai_schemas import (
 )
 
 app = FastAPI(title="Affine AI Workstation API")
-settings = get_settings()
+_startup_settings = get_settings()
 logger = logging.getLogger(__name__)
 
+_MODELS = [
+    ("gemini-3.1-pro-preview", "google"),
+    ("gemini-3-flash-preview", "google"),
+    ("gemini-3.1-flash-lite-preview", "google"),
+    ("claude-sonnet-4.6", "copilot"),
+    ("claude-opus-4.6", "copilot"),
+    ("gemini-3.1-pro", "copilot"),
+    ("claude-sonnet-4-6", "anthropic"),
+    ("claude-opus-4-6", "anthropic"),
+    ("claude-haiku-4-5", "anthropic"),
+    ("opencode/glm-5.1", "opencode"),
+    ("opencode/kimi-k2.5", "opencode"),
+    ("opencode/big-pickle", "opencode"),
+    ("kilo-auto/frontier", "kilo"),
+    ("kilo-auto/balanced", "kilo"),
+    ("kilo-auto/free", "kilo"),
+]
+
 MODEL_CATALOG = [
-    {
-        "id": "gemini-3.1-pro-preview",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "google",
-    },
-    {
-        "id": "gemini-3-flash-preview",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "google",
-    },
-    {
-        "id": "gemini-3.1-flash-lite-preview",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "google",
-    },
-    {
-        "id": "claude-sonnet-4.6",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "copilot",
-    },
-    {
-        "id": "claude-opus-4.6",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "copilot",
-    },
-    {
-        "id": "gemini-3.1-pro",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "copilot",
-    },
-    {
-        "id": "claude-sonnet-4-6",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "anthropic",
-    },
-    {
-        "id": "claude-opus-4-6",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "anthropic",
-    },
-    {
-        "id": "claude-haiku-4-5",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "anthropic",
-    },
-    {
-        "id": "opencode/glm-5.1",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "opencode",
-    },
-    {
-        "id": "opencode/kimi-k2.5",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "opencode",
-    },
-    {
-        "id": "opencode/big-pickle",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "opencode",
-    },
-    {
-        "id": "kilo-auto/frontier",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "kilo",
-    },
-    {
-        "id": "kilo-auto/balanced",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "kilo",
-    },
-    {
-        "id": "kilo-auto/free",
-        "object": "model",
-        "created": 1677610602,
-        "owned_by": "kilo",
-    },
+    {"id": model_id, "object": "model", "created": 1677610602, "owned_by": owner}
+    for model_id, owner in _MODELS
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_allow_origins,
+    allow_origins=_startup_settings.cors_allow_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
@@ -190,28 +126,36 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     return f"Upstream provider returned {response.status_code}"
 
 
-def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMProvider:
-    """Return an LLMProvider for this request.
+def _build_provider(
+    x_provider: str | None,
+    api_key: str | None,
+    base_url: str | None,
+    model: str,
+    settings: Settings,
+    fallback_model: str | None = None,
+) -> LLMProvider:
+    """Return an LLMProvider for a request.
 
-    If the request carries a valid provider override those settings take
-    precedence over the server-configured provider and keys. Otherwise fall
-    back to the server environment configuration.
+    A valid provider override takes precedence over the server-configured
+    provider and keys. Otherwise fall back to the server environment
+    configuration, using the server model name, then fallback_model, then the
+    provider default.
     """
-    if request.x_provider:
-        provider_kwargs: dict[str, Any] = {"model": request.model}
-        if request.x_provider_api_key:
-            provider_kwargs["api_key"] = request.x_provider_api_key
-        if request.x_provider_base_url:
-            provider_kwargs["base_url"] = request.x_provider_base_url
+    if x_provider:
+        provider_kwargs: dict[str, Any] = {"model": model}
+        if api_key:
+            provider_kwargs["api_key"] = api_key
+        if base_url:
+            provider_kwargs["base_url"] = base_url
 
-        if ProviderFactory.is_registered(request.x_provider):
-            if request.x_provider_api_key:
-                return ProviderFactory.create(request.x_provider, **provider_kwargs)
-            # Preserve the existing built-in behavior: without a user-supplied
-            # key the request falls back to the server-configured provider.
-        elif request.x_provider_base_url:
-            return ProviderFactory.create(request.x_provider, **provider_kwargs)
-        elif request.x_provider_api_key:
+        if ProviderFactory.is_registered(x_provider):
+            if api_key:
+                return ProviderFactory.create(x_provider, **provider_kwargs)
+            # Without a user-supplied key the request falls back to the
+            # server-configured provider.
+        elif base_url:
+            return ProviderFactory.create(x_provider, **provider_kwargs)
+        elif api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Custom providers require x_provider_base_url",
@@ -220,7 +164,9 @@ def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMPr
     # Server-configured fallback.
     server_provider_kwargs: dict[str, Any] = {
         "api_key": settings.provider_api_key(),
-        "model": settings.model_name or settings.provider_default_model(),
+        "model": settings.model_name
+        or fallback_model
+        or settings.provider_default_model(),
     }
     provider_base_url = settings.provider_base_url()
     if provider_base_url:
@@ -228,30 +174,8 @@ def _build_provider(request: ChatCompletionRequest, settings: Settings) -> LLMPr
     return ProviderFactory.create(settings.model_provider, **server_provider_kwargs)
 
 
-def _build_provider_from_agent_request(
-    request: AgentRequest, settings: Settings
-) -> LLMProvider:
-    """Build LLMProvider from agent request with overrides."""
-    if request.x_provider:
-        kwargs: dict[str, Any] = {"model": request.model}
-        if request.x_provider_api_key:
-            kwargs["api_key"] = request.x_provider_api_key
-        if request.x_provider_base_url:
-            kwargs["base_url"] = request.x_provider_base_url
-        if (
-            ProviderFactory.is_registered(request.x_provider)
-            or request.x_provider_base_url
-        ):
-            return ProviderFactory.create(request.x_provider, **kwargs)
-
-    kwargs = {
-        "api_key": settings.provider_api_key(),
-        "model": settings.model_name or request.model,
-    }
-    base_url = settings.provider_base_url()
-    if base_url:
-        kwargs["base_url"] = base_url
-    return ProviderFactory.create(settings.model_provider, **kwargs)
+def _sse(event: TextDeltaEvent | DoneEvent | ErrorEvent) -> str:
+    return f"data: {event.model_dump_json(exclude_none=True)}\n\n"
 
 
 @app.post("/v1/agent/chat", dependencies=[Depends(verify_api_key)])
@@ -260,10 +184,23 @@ async def agent_chat(
     settings: Settings = Depends(get_settings),
 ):
     """Stream agent responses with tool calls via SSE."""
-    provider = _build_provider_from_agent_request(request, settings)
+    provider = _build_provider(
+        request.x_provider,
+        request.x_provider_api_key,
+        request.x_provider_base_url,
+        request.model,
+        settings,
+        # request.model belongs to the requested provider, so it is only a valid
+        # fallback when that provider is the server's own.
+        fallback_model=(
+            request.model
+            if not request.x_provider or request.x_provider == settings.model_provider
+            else None
+        ),
+    )
 
     system_prompt = request.system_prompt
-    history = []
+    history: list[TextMessage] = []
     user_message = ""
 
     for msg in request.messages:
@@ -290,17 +227,12 @@ async def agent_chat(
             async for chunk in provider.stream(
                 user_message, system=system_prompt, history=history
             ):
-                event_data = {"type": "text_delta", "text": chunk}
-                yield f"data: {orjson.dumps(event_data).decode()}\n\n"
+                yield _sse(TextDeltaEvent(text=chunk))
 
-            yield f"data: {orjson.dumps({'type': 'done'}).decode()}\n\n"
-        except Exception as e:
+            yield _sse(DoneEvent())
+        except Exception as e:  # noqa: BLE001 - surface any provider failure as an SSE error event
             logger.error(f"Agent stream failed: {e}")
-            error_event = {
-                "type": "error",
-                "error": "An internal error has occurred.",
-            }
-            yield f"data: {orjson.dumps(error_event).decode()}\n\n"
+            yield _sse(ErrorEvent(error="An internal error has occurred."))
         finally:
             await provider.aclose()
 
@@ -330,14 +262,20 @@ async def chat_completions(
     request: ChatCompletionRequest,
     settings: Settings = Depends(get_settings),
 ):
-    provider = _build_provider(request, settings)
+    provider = _build_provider(
+        request.x_provider,
+        request.x_provider_api_key,
+        request.x_provider_base_url,
+        request.model,
+        settings,
+    )
     model_name = request.model
     request_id = f"chatcmpl-{uuid.uuid4().hex}"
     created = int(datetime.now().timestamp())
 
     # Extract prompt and history
-    prompt = ""
-    history = []
+    prompt: Any = ""
+    history: list[Any] = []
     system = None
 
     for msg in request.messages:

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { AIService, AIImageError } from './ai';
+import { AIService } from './ai';
 import { API_BASE } from '../constants/api';
 import * as jsonHealer from '../utils/jsonHealer';
 
@@ -62,14 +62,6 @@ describe('AIService', () => {
     });
   });
 
-  describe('estimateTokens', () => {
-    it('estimates tokens based on length / 4', async () => {
-      expect(await aiService.estimateTokens('1234')).toBe(1);
-      expect(await aiService.estimateTokens('12345')).toBe(2);
-      expect(await aiService.estimateTokens('')).toBe(0);
-    });
-  });
-
   describe('transformFile', () => {
     it('successfully transforms file and removes AI artifacts', async () => {
       mockFetchSuccess({
@@ -111,7 +103,7 @@ describe('AIService', () => {
       mockFetchError(500, 'Internal Server Error', 'Error');
 
       await expect(aiService.transformFile('inst', 'content')).rejects.toThrow(
-        'Failed to transform file: Error: API error: 500 Internal Server Error'
+        '500 Internal Server Error: Error'
       );
     });
 
@@ -136,25 +128,12 @@ describe('AIService', () => {
       mockFetchError(400, 'Bad Request', 'Error');
 
       await expect(aiService.chatCompletion([{ role: 'user', content: 'Hi' }])).rejects.toThrow(
-        'Failed to get chat completion: Error: API error: 400 Bad Request'
+        '400 Bad Request: Error'
       );
     });
   });
 
   describe('JSON methods', () => {
-    it('transformFileJSON uses healJSON', async () => {
-      const healSpy = vi
-        .spyOn(jsonHealer, 'healJSON')
-        .mockReturnValue({ success: true, data: { healed: true } } as any);
-      mockFetchSuccess({
-        choices: [{ message: { content: '{"raw":true}' } }],
-      });
-
-      const result = await aiService.transformFileJSON('inst', 'content', { type: 'object' });
-      expect(result).toEqual({ success: true, data: { healed: true } });
-      expect(healSpy).toHaveBeenCalledWith('{"raw":true}', { type: 'object' });
-    });
-
     it('chatCompletionJSON passes response_format and uses healJSON', async () => {
       const healSpy = vi
         .spyOn(jsonHealer, 'healJSON')
@@ -171,103 +150,6 @@ describe('AIService', () => {
       const body = JSON.parse(fetchArgs[1]?.body as string);
       expect(body.response_format).toEqual({ type: 'json_object' });
       expect(healSpy).toHaveBeenCalledWith('{"raw":true}', { type: 'object' });
-    });
-  });
-
-  describe('generateImage', () => {
-    it('throws error if prompt is empty', async () => {
-      await expect(aiService.generateImage('   ')).rejects.toThrow('Image prompt is empty');
-    });
-
-    it('returns base64 directly if b64_json is provided', async () => {
-      mockFetchSuccess({
-        data: [{ b64_json: 'base64data' }],
-      });
-
-      const result = await aiService.generateImage('cat');
-      expect(result).toBe('base64data');
-    });
-
-    it('fetches and converts image URL to base64 if url is provided', async () => {
-      // First fetch: OpenAI API
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        text: async () => JSON.stringify({ data: [{ url: 'http://image.url' }] }),
-      });
-
-      // Second fetch: Image URL
-      const mockArrayBuffer = new Uint8Array([72, 101, 108, 108, 111]).buffer; // "Hello"
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        arrayBuffer: async () => mockArrayBuffer,
-      });
-
-      const result = await aiService.generateImage('cat');
-      // btoa('Hello') -> SGVsbG8=
-      expect(result).toBe('SGVsbG8=');
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
-
-    it('throws AIImageError on failure with JSON error body', async () => {
-      const errorBody = JSON.stringify({ error: { message: 'Image policy violation' } });
-      mockFetchError(400, 'Bad Request', errorBody);
-
-      try {
-        await aiService.generateImage('cat');
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(AIImageError);
-        expect(err.status).toBe(400);
-        expect(err.statusText).toBe('Bad Request');
-        expect(err.body).toBe(errorBody);
-        expect(err.message).toContain('Image policy violation');
-      }
-    });
-
-    it('throws AIImageError on failure with text error body', async () => {
-      const errorBody = 'Plain text error';
-      mockFetchError(500, 'Internal Server Error', errorBody);
-
-      try {
-        await aiService.generateImage('cat');
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(AIImageError);
-        expect(err.message).toContain('Plain text error');
-      }
-    });
-
-    it('throws error if fetching image URL fails', async () => {
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        text: async () => JSON.stringify({ data: [{ url: 'http://image.url' }] }),
-      });
-
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-      });
-
-      await expect(aiService.generateImage('cat')).rejects.toThrow(
-        'Failed to fetch generated image URL: 404 Not Found'
-      );
-    });
-
-    it('throws error if unsupported format returned', async () => {
-      mockFetchSuccess({
-        data: [{ something_else: 'value' }],
-      });
-
-      await expect(aiService.generateImage('cat')).rejects.toThrow('Unsupported image response format from AI');
-    });
-
-    it('throws error if no item returned', async () => {
-      mockFetchSuccess({
-        data: [],
-      });
-
-      await expect(aiService.generateImage('cat')).rejects.toThrow('No image returned from AI');
     });
   });
 });

@@ -13,7 +13,6 @@ This document describes the **current** repository structure and runtime behavio
 ├── packages/
 │   ├── code-index/            # Local indexing + semantic search helpers
 │   ├── config/                # Typed settings and cached get_settings()
-│   ├── helixent/              # TypeScript ReAct-style agent package
 │   ├── llm-core/              # Provider interfaces and implementations
 │   └── shared/python/         # Shared Python schemas
 ├── .github/workflows/         # CI, tests, release, and automation
@@ -136,7 +135,6 @@ Characteristics:
 | `packages/llm-core` | provider protocol, Gemini/Anthropic/Copilot implementations, OpenAI-compatible fallback |
 | `packages/shared/python` | chat, agent, and repo-index request/response schemas |
 | `packages/code-index` | local code indexing, AST extraction, storage, and search |
-| `packages/helixent` | TypeScript agent-loop package for ongoing agent work |
 
 ## Tooling and validation
 

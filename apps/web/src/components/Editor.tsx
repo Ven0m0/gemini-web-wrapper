@@ -10,6 +10,8 @@ import { imagePreview } from '../codemirror/imagePreview';
 import { formatDiffText, hasChanges } from '../services/diff';
 import { GitHubService } from '../services/github';
 import { useStore } from '../store';
+import { errorMessage } from '../utils/error';
+import { fileToBase64 } from '../services/fileTools';
 
 type DiffMode = 'original' | 'modified' | 'diff';
 
@@ -89,18 +91,6 @@ export const Editor: React.FC = () => {
       if (!githubToken || !owner || !repo) return;
       const gh = new GitHubService(githubToken, owner, repo);
 
-      const toBase64 = async (file: File) => {
-        const buf = new Uint8Array(await file.arrayBuffer());
-        // Convert bytes to base64 without inflating memory too much
-        let binary = '';
-        const chunkSize = 0x8000;
-        for (let i = 0; i < buf.length; i += chunkSize) {
-          const chunk = buf.subarray(i, i + chunkSize);
-          binary += String.fromCharCode.apply(null, Array.from(chunk) as any);
-        }
-        return btoa(binary);
-      };
-
       const timestamp = new Date()
         .toISOString()
         .replace(/[-:T.Z]/g, '')
@@ -112,14 +102,14 @@ export const Editor: React.FC = () => {
       for (const file of files) {
         const name = sanitize(file.name.replace(/\s+/g, '_'));
         const path = `${basePath}/${timestamp}-${name}`;
-        const base64 = await toBase64(file);
+        const base64 = await fileToBase64(file);
         await gh.updateFileBase64(path, base64, '', `chore: add image ${file.name} via paste`, branch);
         const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
         urls.push(rawUrl);
       }
       return urls;
     } catch (e) {
-      throw new Error(`Image upload failed: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+      throw new Error(`Image upload failed: ${errorMessage(e)}`, { cause: e });
     }
   };
 

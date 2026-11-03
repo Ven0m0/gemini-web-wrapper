@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
 
 from ast_grep_py import SgRoot
 from tree_sitter import Language, Node, Parser
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -62,11 +65,12 @@ class ASTParser:
 
     def _init_languages(self) -> None:
         """Initialize language configurations."""
+        # Each grammar loads independently so one missing package keeps the rest.
         try:
-            import tree_sitter_bash as tsbash
             import tree_sitter_python as tspython
-            import tree_sitter_rust as tsrust
-
+        except ImportError:
+            logger.warning("tree-sitter grammar 'python' not installed; skipping")
+        else:
             self._configs["python"] = LanguageConfig(
                 name="python",
                 extensions=[".py"],
@@ -84,6 +88,11 @@ class ASTParser:
                 ],
             )
 
+        try:
+            import tree_sitter_rust as tsrust
+        except ImportError:
+            logger.warning("tree-sitter grammar 'rust' not installed; skipping")
+        else:
             self._configs["rust"] = LanguageConfig(
                 name="rust",
                 extensions=[".rs"],
@@ -108,6 +117,11 @@ class ASTParser:
                 ],
             )
 
+        try:
+            import tree_sitter_bash as tsbash
+        except ImportError:
+            logger.warning("tree-sitter grammar 'bash' not installed; skipping")
+        else:
             self._configs["bash"] = LanguageConfig(
                 name="bash",
                 extensions=[".sh", ".bash"],
@@ -121,15 +135,11 @@ class ASTParser:
                 ],
             )
 
-        except ImportError:
-            # Languages will be unavailable
-            pass
-
-        # TypeScript/JavaScript - optional
         try:
-            import tree_sitter_javascript as tsjs
             import tree_sitter_typescript as tsts
-
+        except ImportError:
+            logger.warning("tree-sitter grammar 'typescript' not installed; skipping")
+        else:
             self._configs["typescript"] = LanguageConfig(
                 name="typescript",
                 extensions=[".ts", ".tsx"],
@@ -151,6 +161,11 @@ class ASTParser:
                 ],
             )
 
+        try:
+            import tree_sitter_javascript as tsjs
+        except ImportError:
+            logger.warning("tree-sitter grammar 'javascript' not installed; skipping")
+        else:
             self._configs["javascript"] = LanguageConfig(
                 name="javascript",
                 extensions=[".js", ".jsx", ".mjs"],
@@ -168,8 +183,6 @@ class ASTParser:
                     ("method", "$NAME($$$ARGS) { $$$BODY }", "NAME"),
                 ],
             )
-        except ImportError:
-            pass
 
     def parse_file(self, path: str, content: str) -> Iterator[ASTNode | PatternMatch]:
         """Parse file and yield all AST nodes and pattern matches."""
@@ -214,7 +227,7 @@ class ASTParser:
             parser = self._get_parser(language)
             content_bytes = content.encode("utf-8")
             tree = parser.parse(content_bytes)
-        except Exception:
+        except Exception:  # noqa: BLE001 - tree-sitter raises varied errors on malformed input
             return
 
         def walk(node: Node) -> Iterator[ASTNode]:
@@ -257,7 +270,7 @@ class ASTParser:
         try:
             root = SgRoot(content, language)
             node = root.root()
-        except Exception:
+        except Exception:  # noqa: BLE001 - ast-grep raises varied errors on unsupported input
             return
 
         seen: set[tuple[str, int, int]] = set()
@@ -288,7 +301,8 @@ class ASTParser:
                         end_line=end_line,
                         code=match.text(),
                     )
-            except Exception:
+            except Exception as exc:  # noqa: BLE001 - a bad pattern must not drop other patterns
+                logger.debug("ast-grep pattern %r failed: %s", pattern, exc)
                 continue
 
     def _extract_node_name(self, node: Node, content_bytes: bytes) -> str:
@@ -354,5 +368,5 @@ class ASTParser:
             code = content_bytes[node.start_byte : node.end_byte].decode("utf-8")
             first_line = code.split("\n", 1)[0].strip()
             return first_line.rstrip(": {")
-        except Exception:
+        except Exception:  # noqa: BLE001 - name extraction is best effort
             return None

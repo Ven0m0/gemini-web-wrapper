@@ -5,12 +5,15 @@ import {
   readAnnotatedContent,
   repairJsonContent,
   searchAnnotatedContent,
+  fileToBase64,
 } from '../services/fileTools';
 import { type GitHubDirectoryItem, GitHubService } from '../services/github';
 import { RepoIndexService, type RepoIndexStatus, type RepoSearchResult } from '../services/repoIndex';
-import { getActiveWebSocketService, setActiveWebSocketService, WebSocketService } from '../services/websocket';
+import { WebSocketConnections } from '../services/websocket';
 import { useStore } from '../store';
+import { errorMessage } from '../utils/error';
 
+const WS_ID = 'tool';
 type ToolMode = 'github' | 'websocket';
 
 type TreeNodeType = 'file' | 'dir' | 'root';
@@ -87,7 +90,7 @@ export const Tool: React.FC = () => {
 
   const githubUploadInputRef = useRef<HTMLInputElement>(null);
   const wsFileInputRef = useRef<HTMLInputElement>(null);
-  const wsServiceRef = useRef<WebSocketService | null>(null);
+  const [wsConnections] = useState(() => new WebSocketConnections());
   const nextLogIdRef = useRef(0);
   const autoIndexKeyRef = useRef('');
 
@@ -167,28 +170,10 @@ export const Tool: React.FC = () => {
       setRepoIndexStatus(status);
       return status;
     } catch (error) {
-      addLog(`Repo index status failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Repo index status failed: ${errorMessage(error)}`);
       return null;
     }
   }, [config.branch, config.owner, config.repo, repoIndexService]);
-
-  const readFileAsBase64 = (selectedFile: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result !== 'string') {
-          reject(new Error('Failed to encode file'));
-          return;
-        }
-
-        const parts = reader.result.split(',', 2);
-        resolve(parts[1] || '');
-      };
-      reader.onerror = () => {
-        reject(reader.error ?? new Error('Failed to read file'));
-      };
-      reader.readAsDataURL(selectedFile);
-    });
 
   const loadDirectory = useCallback(
     async (path: string = ROOT_PATH, options?: { silent?: boolean }) => {
@@ -205,7 +190,7 @@ export const Tool: React.FC = () => {
         }
         return items;
       } catch (error) {
-        addLog(`Tree load failed: ${error instanceof Error ? error.message : error}`);
+        addLog(`Tree load failed: ${errorMessage(error)}`);
         return [];
       } finally {
         setLoadingDirectories((prev) => prev.filter((entry) => entry !== path));
@@ -286,7 +271,7 @@ export const Tool: React.FC = () => {
       } catch (error) {
         if (!cancelled) {
           autoIndexKeyRef.current = '';
-          addLog(`Auto index failed: ${error instanceof Error ? error.message : error}`);
+          addLog(`Auto index failed: ${errorMessage(error)}`);
         }
       } finally {
         if (!cancelled) {
@@ -317,11 +302,9 @@ export const Tool: React.FC = () => {
 
   useEffect(() => {
     return () => {
-      wsServiceRef.current?.disconnect();
-      wsServiceRef.current = null;
-      setActiveWebSocketService(null);
+      wsConnections.disconnectAll();
     };
-  }, []);
+  }, [wsConnections]);
 
   useEffect(() => {
     if (!activeFilePath) return;
@@ -353,7 +336,7 @@ export const Tool: React.FC = () => {
       }, 100);
       addLog(`Downloaded: ${latest.filename} (${formatFileSize(blob.size)})`);
     } catch (error) {
-      addLog(`Failed to save file: ${error instanceof Error ? error.message : error}`);
+      addLog(`Failed to save file: ${errorMessage(error)}`);
     } finally {
       setPendingDownload(null);
       setDownloading(false);
@@ -401,7 +384,7 @@ export const Tool: React.FC = () => {
       await ensureTreePathVisible(targetPath);
       addLog(`Opened ${targetPath} (${content.split('\n').length} lines)`);
     } catch (error) {
-      addLog(`Load failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Load failed: ${errorMessage(error)}`);
     }
   };
 
@@ -421,7 +404,7 @@ export const Tool: React.FC = () => {
       setSearchResults(results);
       addLog(results.startsWith('No matches') ? results : `Searched ${activeFilePath}`);
     } catch (error) {
-      addLog(`Search failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Search failed: ${errorMessage(error)}`);
     }
   };
 
@@ -446,7 +429,7 @@ export const Tool: React.FC = () => {
         `Indexed ${status.indexed_files} file${status.indexed_files === 1 ? '' : 's'} with ${status.symbol_count} symbol${status.symbol_count === 1 ? '' : 's'}`
       );
     } catch (error) {
-      addLog(`Repo index failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Repo index failed: ${errorMessage(error)}`);
     } finally {
       setIndexingRepository(false);
     }
@@ -477,7 +460,7 @@ export const Tool: React.FC = () => {
         addLog(`Repo search returned ${response.results.length} result${response.results.length === 1 ? '' : 's'}`);
       }
     } catch (error) {
-      addLog(`Repo search failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Repo search failed: ${errorMessage(error)}`);
     } finally {
       setSearchingRepository(false);
     }
@@ -508,7 +491,7 @@ export const Tool: React.FC = () => {
       setFile({ current, dirty: current !== file.original });
       addLog(`Applied edit to ${activeFilePath} (${startLine}-${endLine})`);
     } catch (error) {
-      addLog(`Edit failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Edit failed: ${errorMessage(error)}`);
     }
   };
 
@@ -528,7 +511,7 @@ export const Tool: React.FC = () => {
       setFile({ current: repaired.content, dirty: repaired.content !== file.original });
       addLog(repaired.warnings[0] || `Repaired JSON in ${activeFilePath}`);
     } catch (error) {
-      addLog(`JSON repair failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`JSON repair failed: ${errorMessage(error)}`);
     }
   };
 
@@ -554,7 +537,7 @@ export const Tool: React.FC = () => {
       await loadDirectory(currentDirectoryPath, { silent: true });
       addLog(`Saved ${activeFilePath}`);
     } catch (error) {
-      addLog(`Save failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Save failed: ${errorMessage(error)}`);
     } finally {
       setSaving(false);
     }
@@ -580,7 +563,7 @@ export const Tool: React.FC = () => {
 
       const uploadSha = await github.updateFileBase64(
         targetPath,
-        await readFileAsBase64(selectedFile),
+        await fileToBase64(selectedFile),
         existingSha,
         `Upload ${selectedFile.name} via Files tool`,
         config.branch
@@ -592,7 +575,7 @@ export const Tool: React.FC = () => {
       setSelectedNodeType('file');
       addLog(`Upload successful (${uploadSha.sha.substring(0, 7)})`);
     } catch (error) {
-      addLog(`Upload failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Upload failed: ${errorMessage(error)}`);
     } finally {
       setUploading(false);
       if (githubUploadInputRef.current) {
@@ -624,7 +607,7 @@ export const Tool: React.FC = () => {
       }, 100);
       addLog(`Downloaded ${downloadLink.download}`);
     } catch (error) {
-      addLog(`Download failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Download failed: ${errorMessage(error)}`);
     } finally {
       setDownloading(false);
     }
@@ -637,11 +620,12 @@ export const Tool: React.FC = () => {
       return;
     }
 
-    wsServiceRef.current?.disconnect();
     clearWebSocketMessages();
 
-    const service = new WebSocketService(
-      url,
+    try {
+      await wsConnections.connect(
+        WS_ID,
+        url,
       (message) => {
         addWebSocketMessage(message);
       },
@@ -652,33 +636,23 @@ export const Tool: React.FC = () => {
           connected: status === 'connected',
         });
         if (status === 'error' && errorContext) {
-          addLog(`WebSocket Error: ${errorContext instanceof Error ? errorContext.message : String(errorContext)}`);
+          addLog(`WebSocket Error: ${errorMessage(errorContext)}`);
         }
       }
-    );
-
-    wsServiceRef.current = service;
-    setActiveWebSocketService(service);
-
-    try {
-      await service.connect();
+      );
       addLog(`Connected to ${url}`);
     } catch (error) {
-      wsServiceRef.current = null;
-      setActiveWebSocketService(null);
       setWebSocket({
         url,
         status: 'error',
         connected: false,
       });
-      addLog(`WebSocket connection failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`WebSocket connection failed: ${errorMessage(error)}`);
     }
   };
 
   const handleWebSocketDisconnect = () => {
-    wsServiceRef.current?.disconnect();
-    wsServiceRef.current = null;
-    setActiveWebSocketService(null);
+    wsConnections.disconnect(WS_ID);
     setWebSocket({
       connected: false,
       status: 'disconnected',
@@ -702,7 +676,7 @@ export const Tool: React.FC = () => {
       return;
     }
 
-    const svc = getActiveWebSocketService();
+    const svc = wsConnections.get(WS_ID);
     if (!svc) {
       addLog('WebSocket service not initialised');
       return;
@@ -712,7 +686,7 @@ export const Tool: React.FC = () => {
     setUploading(true);
 
     try {
-      const base64 = await readFileAsBase64(selectedFile);
+      const base64 = await fileToBase64(selectedFile);
       const targetFilename = wsUploadFilename.trim() || selectedFile.name;
       svc.sendFileUpload(targetFilename, base64, true);
       addWebSocketMessage({
@@ -728,7 +702,7 @@ export const Tool: React.FC = () => {
       setWsUploadFilename('');
       if (wsFileInputRef.current) wsFileInputRef.current.value = '';
     } catch (error) {
-      addLog(`Upload failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Upload failed: ${errorMessage(error)}`);
     } finally {
       setUploading(false);
     }
@@ -745,7 +719,7 @@ export const Tool: React.FC = () => {
       return;
     }
 
-    const svc = getActiveWebSocketService();
+    const svc = wsConnections.get(WS_ID);
     if (!svc) {
       addLog('WebSocket service not initialised');
       return;
@@ -766,7 +740,7 @@ export const Tool: React.FC = () => {
       });
       setWsDownloadFilename('');
     } catch (error) {
-      addLog(`Download request failed: ${error instanceof Error ? error.message : error}`);
+      addLog(`Download request failed: ${errorMessage(error)}`);
       setDownloading(false);
       setPendingDownload(null);
     }

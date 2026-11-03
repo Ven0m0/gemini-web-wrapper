@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { AgentChat } from './components/AgentChat';
-import { ChatDemo } from './components/ChatDemo';
 import { ConfigOverlay } from './components/ConfigOverlay';
 import { Editor } from './components/Editor';
 import { InstallPrompt } from './components/InstallPrompt';
@@ -140,7 +139,6 @@ const MODE_LABELS: Record<AppMode, string> = {
   shell: 'shell',
   editor: 'editor',
   tool: 'files',
-  'chat-demo': 'chat-demo',
   settings: 'settings',
   agent: 'agent',
 };
@@ -171,8 +169,6 @@ function App() {
         return <Editor />;
       case 'tool':
         return <Tool />;
-      case 'chat-demo':
-        return <ChatDemo />;
       case 'settings':
         return <ConfigOverlay inline />;
       case 'agent':

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createShellProfile, persistShellState, type ShellProfile, type ShellState } from '../services/shell';
-import { type WebSocketMessage, WebSocketService } from '../services/websocket';
-import { useStore } from '../store';
-import { GhosttyTerminal, type GhosttyTerminalChunk } from './GhosttyTerminal';
-import { WebShell } from './WebShell';
-import './UnifiedShell.css';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createShellProfile, persistShellState, type ShellProfile, type ShellState } from "../services/shell";
+import { type WebSocketMessage, WebSocketConnections } from "../services/websocket";
+import { useStore } from "../store";
+import { GhosttyTerminal, type GhosttyTerminalChunk } from "./GhosttyTerminal";
+import { WebShell } from "./WebShell";
+import { errorMessage } from "../utils/error";
+import "./UnifiedShell.css";
 
 interface ShellDraft {
   name: string;
@@ -17,12 +18,12 @@ interface ShellMessage {
   preview: string;
   terminalText: string;
   timestamp: number;
-  tone: 'default' | 'error' | 'status';
+  tone: "default" | "error" | "status";
 }
 
 interface ShellSession {
   profileId: string;
-  status: 'connecting' | 'connected' | 'disconnected' | 'error';
+  status: "connecting" | "connected" | "disconnected" | "error";
   messages: ShellMessage[];
   preview: string;
   input: string;
@@ -32,49 +33,49 @@ interface ShellSession {
 const MAX_GRID_PANES = 4;
 
 const QUICK_ACTIONS = [
-  { id: 'enter', label: '↵', payload: '\n' },
-  { id: 'esc', label: 'Esc', payload: '\u001B' },
-  { id: 'tab', label: 'Tab', payload: '\t' },
-  { id: 'up', label: '↑', payload: '\u001B[A' },
-  { id: 'down', label: '↓', payload: '\u001B[B' },
-  { id: 'ctrlc', label: 'Ctrl+C', payload: '\u0003' },
-  { id: 'git-status', label: 'git status', payload: 'git status\n' },
+  { id: "enter", label: "↵", payload: "\n" },
+  { id: "esc", label: "Esc", payload: "\u001B" },
+  { id: "tab", label: "Tab", payload: "\t" },
+  { id: "up", label: "↑", payload: "\u001B[A" },
+  { id: "down", label: "↓", payload: "\u001B[B" },
+  { id: "ctrlc", label: "Ctrl+C", payload: "\u0003" },
+  { id: "git-status", label: "git status", payload: "git status\n" },
 ];
 
 function createDraft(values?: Partial<ShellDraft>): ShellDraft {
   return {
-    name: values?.name ?? '',
-    url: values?.url ?? '',
-    description: values?.description ?? '',
+    name: values?.name ?? "",
+    url: values?.url ?? "",
+    description: values?.description ?? "",
   };
 }
 
 function createEmptySession(profileId: string): ShellSession {
   return {
     profileId,
-    status: 'disconnected',
+    status: "disconnected",
     messages: [],
-    preview: 'No output yet',
-    input: '',
+    preview: "No output yet",
+    input: "",
     needsAttention: false,
   };
 }
 
 function sanitizePreview(value: string): string {
-  const flattened = value.replace(/\s+/g, ' ').trim();
+  const flattened = value.replace(/\s+/g, " ").trim();
   if (!flattened) {
-    return 'Waiting for output';
+    return "Waiting for output";
   }
 
   return flattened.slice(0, 100);
 }
 
-function formatTerminalText(type: WebSocketMessage['type'] | 'local-status', value: string): string {
+function formatTerminalText(type: WebSocketMessage["type"] | "local-status", value: string): string {
   switch (type) {
-    case 'status':
-    case 'local-status':
+    case "status":
+    case "local-status":
       return `\r\n[status] ${value}\r\n`;
-    case 'error':
+    case "error":
       return `\r\n[error] ${value}\r\n`;
     default:
       return value;
@@ -82,9 +83,9 @@ function formatTerminalText(type: WebSocketMessage['type'] | 'local-status', val
 }
 
 function buildGridClassName(count: number): string {
-  if (count <= 1) return 'shell-grid shell-grid-single';
-  if (count === 2) return 'shell-grid shell-grid-double';
-  return 'shell-grid shell-grid-quad';
+  if (count <= 1) return "shell-grid shell-grid-single";
+  if (count === 2) return "shell-grid shell-grid-double";
+  return "shell-grid shell-grid-quad";
 }
 
 function clampFontSize(value: number): number {
@@ -94,26 +95,26 @@ function clampFontSize(value: number): number {
 export function UnifiedShell() {
   const { shell, setShell, config, websocket } = useStore();
   const [draft, setDraft] = useState<ShellDraft>(createDraft());
-  const [draftError, setDraftError] = useState('');
+  const [draftError, setDraftError] = useState("");
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [gridProfileIds, setGridProfileIds] = useState<string[]>([]);
   const [sessionState, setSessionState] = useState<Record<string, ShellSession>>({});
   const [showWasmShell, setShowWasmShell] = useState(false);
-  const serviceRefs = useRef<Record<string, WebSocketService>>({});
+  const [connections] = useState(() => new WebSocketConnections());
   const nextMessageIdRef = useRef(0);
 
-  const repoLabel = config.owner && config.repo ? `${config.owner}/${config.repo}` : 'Workspace';
+  const repoLabel = config.owner && config.repo ? `${config.owner}/${config.repo}` : "Workspace";
 
   const updatePersistedShell = useCallback(
     (nextShell: ShellState) => {
       setShell(nextShell);
       persistShellState(nextShell);
     },
-    [setShell]
+    [setShell],
   );
 
   const updateShellPreferences = useCallback(
-    (preferences: Partial<ShellState['preferences']>) => {
+    (preferences: Partial<ShellState["preferences"]>) => {
       updatePersistedShell({
         ...shell,
         preferences: {
@@ -122,7 +123,7 @@ export function UnifiedShell() {
         },
       });
     },
-    [shell, updatePersistedShell]
+    [shell, updatePersistedShell],
   );
 
   const updateSession = useCallback((profileId: string, updater: (current: ShellSession) => ShellSession) => {
@@ -136,18 +137,18 @@ export function UnifiedShell() {
     (profileId: string) => {
       updateSession(profileId, (current) => ({ ...current, needsAttention: false }));
     },
-    [updateSession]
+    [updateSession],
   );
 
   const addSessionMessage = useCallback(
-    (profileId: string, type: WebSocketMessage['type'] | 'local-status', value: string) => {
+    (profileId: string, type: WebSocketMessage["type"] | "local-status", value: string) => {
       const preview = sanitizePreview(value);
       const tone =
-        type === 'error' || type === 'stderr'
-          ? 'error'
-          : type === 'status' || type === 'local-status'
-            ? 'status'
-            : 'default';
+        type === "error" || type === "stderr"
+          ? "error"
+          : type === "status" || type === "local-status"
+            ? "status"
+            : "default";
       const message: ShellMessage = {
         id: nextMessageIdRef.current,
         preview,
@@ -161,14 +162,14 @@ export function UnifiedShell() {
         ...current,
         messages: [...current.messages.slice(-399), message],
         preview,
-        needsAttention: current.needsAttention || tone === 'error',
+        needsAttention: current.needsAttention || tone === "error",
       }));
     },
-    [updateSession]
+    [updateSession],
   );
 
   const triggerHaptics = useCallback(() => {
-    if (shell.preferences.enableHaptics && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    if (shell.preferences.enableHaptics && typeof navigator !== "undefined" && "vibrate" in navigator) {
       try {
         navigator.vibrate(8);
       } catch {
@@ -179,18 +180,17 @@ export function UnifiedShell() {
 
   const disconnectProfile = useCallback(
     (profileId: string, quiet = false) => {
-      serviceRefs.current[profileId]?.disconnect();
-      delete serviceRefs.current[profileId];
+      connections.disconnect(profileId);
       updateSession(profileId, (current) => ({
         ...current,
-        status: 'disconnected',
+        status: "disconnected",
         needsAttention: quiet ? current.needsAttention : false,
       }));
       if (!quiet) {
-        addSessionMessage(profileId, 'local-status', 'Disconnected');
+        addSessionMessage(profileId, "local-status", "Disconnected");
       }
     },
-    [addSessionMessage, updateSession]
+    [addSessionMessage, connections, updateSession],
   );
 
   const connectProfile = useCallback(
@@ -198,63 +198,55 @@ export function UnifiedShell() {
       disconnectProfile(profile.id, true);
       updateSession(profile.id, (current) => ({
         ...current,
-        status: 'connecting',
+        status: "connecting",
         needsAttention: false,
       }));
 
-      const service = new WebSocketService(
-        profile.url,
-        (message) => {
-          if (message.type === 'file_upload' || message.type === 'file_download' || message.type === 'file_data') {
-            return;
-          }
-
-          addSessionMessage(profile.id, message.type, message.data);
-        },
-        (status, errorContext) => {
-          updateSession(profile.id, (current) => ({
-            ...current,
-            status,
-            needsAttention: status === 'error' ? true : current.needsAttention,
-          }));
-
-          if (status === 'connected') {
-            addSessionMessage(profile.id, 'local-status', `Connected to ${profile.url}`);
-          } else if (status === 'disconnected' && serviceRefs.current[profile.id]) {
-            addSessionMessage(profile.id, 'local-status', `Connection dropped for ${profile.name}`);
-          } else if (status === 'error' && errorContext) {
-            addSessionMessage(
-              profile.id,
-              'error',
-              errorContext instanceof Error ? errorContext.message : String(errorContext)
-            );
-          }
-        }
-      );
-
-      serviceRefs.current[profile.id] = service;
-
       try {
-        await service.connect();
+        await connections.connect(
+          profile.id,
+          profile.url,
+          (message) => {
+            if (message.type === "file_upload" || message.type === "file_download" || message.type === "file_data") {
+              return;
+            }
+
+            addSessionMessage(profile.id, message.type, message.data);
+          },
+          (status, errorContext) => {
+            updateSession(profile.id, (current) => ({
+              ...current,
+              status,
+              needsAttention: status === "error" ? true : current.needsAttention,
+            }));
+
+            if (status === "connected") {
+              addSessionMessage(profile.id, "local-status", `Connected to ${profile.url}`);
+            } else if (status === "disconnected" && connections.has(profile.id)) {
+              addSessionMessage(profile.id, "local-status", `Connection dropped for ${profile.name}`);
+            } else if (status === "error" && errorContext) {
+              addSessionMessage(profile.id, "error", errorMessage(errorContext));
+            }
+          },
+        );
         clearAttention(profile.id);
       } catch (error) {
-        delete serviceRefs.current[profile.id];
         updateSession(profile.id, (current) => ({
           ...current,
-          status: 'error',
+          status: "error",
           needsAttention: true,
         }));
-        addSessionMessage(profile.id, 'error', error instanceof Error ? error.message : String(error));
+        addSessionMessage(profile.id, "error", errorMessage(error));
       }
     },
-    [addSessionMessage, clearAttention, disconnectProfile, updateSession]
+    [addSessionMessage, clearAttention, connections, disconnectProfile, updateSession],
   );
 
   const sendInput = useCallback(
     (profileId: string, payload: string) => {
-      const service = serviceRefs.current[profileId];
+      const service = connections.get(profileId);
       if (!service) {
-        addSessionMessage(profileId, 'error', 'Connect this session before sending input.');
+        addSessionMessage(profileId, "error", "Connect this session before sending input.");
         return;
       }
 
@@ -262,10 +254,10 @@ export function UnifiedShell() {
         service.sendStdin(payload);
         triggerHaptics();
       } catch (error) {
-        addSessionMessage(profileId, 'error', error instanceof Error ? error.message : String(error));
+        addSessionMessage(profileId, "error", errorMessage(error));
       }
     },
-    [addSessionMessage, triggerHaptics]
+    [addSessionMessage, connections, triggerHaptics],
   );
 
   const activeProfiles = useMemo(
@@ -273,7 +265,7 @@ export function UnifiedShell() {
       gridProfileIds
         .map((profileId) => shell.profiles.find((profile) => profile.id === profileId))
         .filter((profile): profile is ShellProfile => profile !== undefined),
-    [gridProfileIds, shell.profiles]
+    [gridProfileIds, shell.profiles],
   );
   const renderedSessionData = useMemo(
     () =>
@@ -281,15 +273,15 @@ export function UnifiedShell() {
         Object.entries(sessionState).map(([profileId, session]) => [
           profileId,
           {
-            classicTranscript: session.messages.map((message) => message.terminalText).join(''),
+            classicTranscript: session.messages.map((message) => message.terminalText).join(""),
             terminalChunks: session.messages.map((message) => ({
               id: message.id,
               data: message.terminalText,
             })),
           },
-        ])
+        ]),
       ),
-    [sessionState]
+    [sessionState],
   );
 
   useEffect(() => {
@@ -303,17 +295,12 @@ export function UnifiedShell() {
     });
   }, [shell.profiles]);
 
-  useEffect(
-    () => () => {
-      Object.values(serviceRefs.current).forEach((service) => service.disconnect());
-    },
-    []
-  );
+  useEffect(() => () => connections.disconnectAll(), [connections]);
 
   useEffect(() => {
     setSessionState((current) => {
       const nextEntries = Object.entries(current).filter(([profileId]) =>
-        shell.profiles.some((profile) => profile.id === profileId)
+        shell.profiles.some((profile) => profile.id === profileId),
       );
       return Object.fromEntries(nextEntries);
     });
@@ -325,28 +312,28 @@ export function UnifiedShell() {
       createDraft({
         name: repoLabel,
         url: websocket.url,
-        description: config.path ? `Working path: ${config.path}` : '',
-      })
+        description: config.path ? `Working path: ${config.path}` : "",
+      }),
     );
-    setDraftError('');
+    setDraftError("");
   };
 
   const beginEditProfile = (profile: ShellProfile) => {
     setEditingProfileId(profile.id);
     setDraft(createDraft(profile));
-    setDraftError('');
+    setDraftError("");
   };
 
   const resetDraft = () => {
     setEditingProfileId(null);
     setDraft(createDraft());
-    setDraftError('');
+    setDraftError("");
   };
 
   const saveProfile = () => {
     const url = draft.url.trim();
     if (!url) {
-      setDraftError('Enter a WebSocket URL to save a shell profile.');
+      setDraftError("Enter a WebSocket URL to save a shell profile.");
       return;
     }
 
@@ -360,7 +347,7 @@ export function UnifiedShell() {
       const nextProfiles = shell.profiles.map((profile) =>
         profile.id === editingProfileId
           ? { ...profile, name: draft.name.trim() || profile.name, url, description: draft.description.trim() }
-          : profile
+          : profile,
       );
       updatePersistedShell({ ...shell, profiles: nextProfiles });
       resetDraft();
@@ -416,7 +403,7 @@ export function UnifiedShell() {
     sendInput(profileId, `${command}\n`);
     updateSession(profileId, (current) => ({
       ...current,
-      input: '',
+      input: "",
     }));
   };
 
@@ -424,7 +411,7 @@ export function UnifiedShell() {
     updateSession(profileId, (current) => ({
       ...current,
       messages: [],
-      preview: 'Transcript cleared',
+      preview: "Transcript cleared",
       needsAttention: false,
     }));
   };
@@ -435,15 +422,15 @@ export function UnifiedShell() {
         <div className="shell-toolbar-group">
           <button
             type="button"
-            className={`shell-chip ${shell.preferences.terminalMode === 'ghostty' ? 'active' : ''}`}
-            onClick={() => updateShellPreferences({ terminalMode: 'ghostty' })}
+            className={`shell-chip ${shell.preferences.terminalMode === "ghostty" ? "active" : ""}`}
+            onClick={() => updateShellPreferences({ terminalMode: "ghostty" })}
           >
             Ghostty mode
           </button>
           <button
             type="button"
-            className={`shell-chip ${shell.preferences.terminalMode === 'classic' ? 'active' : ''}`}
-            onClick={() => updateShellPreferences({ terminalMode: 'classic' })}
+            className={`shell-chip ${shell.preferences.terminalMode === "classic" ? "active" : ""}`}
+            onClick={() => updateShellPreferences({ terminalMode: "classic" })}
           >
             Classic mode
           </button>
@@ -467,24 +454,24 @@ export function UnifiedShell() {
         <div className="shell-toolbar-group">
           <button
             type="button"
-            className={`shell-chip ${shell.preferences.showAccessoryBar ? 'active' : ''}`}
+            className={`shell-chip ${shell.preferences.showAccessoryBar ? "active" : ""}`}
             onClick={() => updateShellPreferences({ showAccessoryBar: !shell.preferences.showAccessoryBar })}
           >
             Accessory bar
           </button>
           <button
             type="button"
-            className={`shell-chip ${shell.preferences.enableHaptics ? 'active' : ''}`}
+            className={`shell-chip ${shell.preferences.enableHaptics ? "active" : ""}`}
             onClick={() => updateShellPreferences({ enableHaptics: !shell.preferences.enableHaptics })}
           >
             Haptics
           </button>
           <button
             type="button"
-            className={`shell-chip ${showWasmShell ? 'active' : ''}`}
+            className={`shell-chip ${showWasmShell ? "active" : ""}`}
             onClick={() => setShowWasmShell((current) => !current)}
           >
-            {showWasmShell ? 'Hide' : 'Show'} webassembly.sh
+            {showWasmShell ? "Hide" : "Show"} webassembly.sh
           </button>
         </div>
       </div>
@@ -522,7 +509,7 @@ export function UnifiedShell() {
             {draftError && <div className="shell-inline-error">{draftError}</div>}
             <div className="shell-profile-form-actions">
               <button type="button" className="shell-primary-button" onClick={saveProfile}>
-                {editingProfileId ? 'Update profile' : 'Save profile'}
+                {editingProfileId ? "Update profile" : "Save profile"}
               </button>
               <button type="button" className="shell-secondary-button" onClick={resetDraft}>
                 Reset
@@ -546,7 +533,7 @@ export function UnifiedShell() {
                 return (
                   <article
                     key={profile.id}
-                    className={`shell-profile-card ${session.needsAttention ? 'attention' : ''}`}
+                    className={`shell-profile-card ${session.needsAttention ? "attention" : ""}`}
                   >
                     <div className="shell-profile-title-row">
                       <div>
@@ -563,9 +550,9 @@ export function UnifiedShell() {
                         className="shell-secondary-button"
                         onClick={() => toggleGridPane(profile.id)}
                       >
-                        {inGrid ? 'Remove from grid' : 'Add to grid'}
+                        {inGrid ? "Remove from grid" : "Add to grid"}
                       </button>
-                      {session.status === 'connected' || session.status === 'connecting' ? (
+                      {session.status === "connected" || session.status === "connecting" ? (
                         <button
                           type="button"
                           className="shell-secondary-button"
@@ -627,14 +614,14 @@ export function UnifiedShell() {
               {activeProfiles.map((profile) => {
                 const session = sessionState[profile.id] ?? createEmptySession(profile.id);
                 const renderedSession = renderedSessionData[profile.id] ?? {
-                  classicTranscript: '',
+                  classicTranscript: "",
                   terminalChunks: [] as GhosttyTerminalChunk[],
                 };
 
                 return (
                   <article
                     key={profile.id}
-                    className={`shell-pane ${session.needsAttention ? 'attention' : ''}`}
+                    className={`shell-pane ${session.needsAttention ? "attention" : ""}`}
                     onClick={() => clearAttention(profile.id)}
                   >
                     <header className="shell-pane-header">
@@ -644,7 +631,7 @@ export function UnifiedShell() {
                       </div>
                       <div className="shell-pane-header-actions">
                         <span className={`shell-status-badge shell-status-${session.status}`}>{session.status}</span>
-                        {session.status === 'connected' || session.status === 'connecting' ? (
+                        {session.status === "connected" || session.status === "connecting" ? (
                           <button
                             type="button"
                             className="shell-secondary-button"
@@ -678,7 +665,7 @@ export function UnifiedShell() {
                     </div>
 
                     <div className="shell-pane-body">
-                      {shell.preferences.terminalMode === 'ghostty' ? (
+                      {shell.preferences.terminalMode === "ghostty" ? (
                         <GhosttyTerminal
                           chunks={renderedSession.terminalChunks}
                           fontSize={shell.preferences.fontSize}
@@ -687,11 +674,11 @@ export function UnifiedShell() {
                         />
                       ) : (
                         <pre
-                          className={`shell-classic-terminal shell-font-${session.messages.length > 0 ? 'ready' : 'empty'}`}
+                          className={`shell-classic-terminal shell-font-${session.messages.length > 0 ? "ready" : "empty"}`}
                           style={{ fontSize: `${shell.preferences.fontSize}px` }}
                         >
                           {renderedSession.classicTranscript ||
-                            'Connected output will appear here.\nUse the input box below or the accessory bar to interact with the session.'}
+                            "Connected output will appear here.\nUse the input box below or the accessory bar to interact with the session."}
                         </pre>
                       )}
                     </div>
@@ -703,7 +690,7 @@ export function UnifiedShell() {
                             key={action.id}
                             type="button"
                             className="shell-accessory-button"
-                            disabled={session.status !== 'connected'}
+                            disabled={session.status !== "connected"}
                             onClick={() => sendInput(profile.id, action.payload)}
                           >
                             {action.label}
@@ -724,11 +711,11 @@ export function UnifiedShell() {
                         value={session.input}
                         onChange={(event) => setSessionInput(profile.id, event.target.value)}
                         placeholder={
-                          session.status === 'connected' ? 'Type a command and press Enter' : 'Connect to start typing'
+                          session.status === "connected" ? "Type a command and press Enter" : "Connect to start typing"
                         }
-                        disabled={session.status !== 'connected'}
+                        disabled={session.status !== "connected"}
                       />
-                      <button type="submit" className="shell-primary-button" disabled={session.status !== 'connected'}>
+                      <button type="submit" className="shell-primary-button" disabled={session.status !== "connected"}>
                         Send
                       </button>
                     </form>

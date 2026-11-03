@@ -1,0 +1,71 @@
+{
+  "updatedAt": "2026-11-03T12:41:30.995Z",
+  "missions": [
+    {
+      "id": "session:d3d46a96-6ee3-412f-ba3e-a35053b4b6b3:none",
+      "source": "session",
+      "name": "none",
+      "objective": "Session mission",
+      "createdAt": "2026-11-03T12:38:25.455Z",
+      "updatedAt": "2026-11-03T12:41:30.995Z",
+      "status": "running",
+      "workerCount": 2,
+      "taskCounts": {
+        "total": 2,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 1,
+        "completed": 1,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "backend-fixes:abacken",
+          "role": "backend-fixes",
+          "ownership": "abackend-fixes-d038554213fe1e37",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-11-03T12:41:30.995Z"
+        },
+        {
+          "name": "frontend-fixes:afronte",
+          "role": "frontend-fixes",
+          "ownership": "afrontend-fixes-df7a939236c35e03",
+          "status": "running",
+          "currentStep": null,
+          "latestUpdate": null,
+          "completedSummary": null,
+          "updatedAt": "2026-11-03T12:38:33.395Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:abackend-fixes-d038554213fe1e37:2026-11-03T12:38:25.455Z",
+          "at": "2026-11-03T12:38:25.455Z",
+          "kind": "update",
+          "agent": "backend-fixes:abacken",
+          "detail": "started backend-fixes:abacken",
+          "sourceKey": "session-start:abackend-fixes-d038554213fe1e37"
+        },
+        {
+          "id": "session-start:afrontend-fixes-df7a939236c35e03:2026-11-03T12:38:33.395Z",
+          "at": "2026-11-03T12:38:33.395Z",
+          "kind": "update",
+          "agent": "frontend-fixes:afronte",
+          "detail": "started frontend-fixes:afronte",
+          "sourceKey": "session-start:afrontend-fixes-df7a939236c35e03"
+        },
+        {
+          "id": "session-stop:abackend-fixes-d038554213fe1e37:2026-11-03T12:41:30.995Z",
+          "at": "2026-11-03T12:41:30.995Z",
+          "kind": "completion",
+          "agent": "backend-fixes:abacken",
+          "detail": "completed",
+          "sourceKey": "session-stop:abackend-fixes-d038554213fe1e37"
+        }
+      ]
+    }
+  ]
+}

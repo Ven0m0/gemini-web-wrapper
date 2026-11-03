@@ -32,6 +32,7 @@ export interface RepoSearchResponse {
 }
 
 import { API_BASE_REPO } from '../constants/api';
+import { HttpError, requestJson } from './http';
 
 export class RepoIndexService {
   private apiKey: string;
@@ -49,19 +50,14 @@ export class RepoIndexService {
 
   async getStatus(owner: string, repo: string, branch: string): Promise<RepoIndexStatus | null> {
     const params = new URLSearchParams({ owner, repo, branch });
-    const response = await fetch(`${API_BASE_REPO}/index/status?${params.toString()}`, {
-      headers: this.headers(),
-    });
-
-    if (response.status === 404) {
-      return null;
+    try {
+      return await requestJson<RepoIndexStatus>(`${API_BASE_REPO}/index/status?${params.toString()}`, {
+        headers: this.headers(),
+      });
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) return null;
+      throw error;
     }
-
-    if (!response.ok) {
-      throw new Error(`Index status error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
   }
 
   async indexRepository(
@@ -71,17 +67,11 @@ export class RepoIndexService {
     githubToken: string,
     force = true
   ): Promise<RepoIndexStatus> {
-    const response = await fetch(`${API_BASE_REPO}/index`, {
+    return requestJson<RepoIndexStatus>(`${API_BASE_REPO}/index`, {
       method: 'POST',
       headers: this.headers(),
       body: JSON.stringify({ owner, repo, branch, github_token: githubToken, force }),
     });
-
-    if (!response.ok) {
-      throw new Error(`Index request failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
   }
 
   async searchRepository(
@@ -91,16 +81,10 @@ export class RepoIndexService {
     query: string,
     path?: string
   ): Promise<RepoSearchResponse> {
-    const response = await fetch(`${API_BASE_REPO}/search`, {
+    return requestJson<RepoSearchResponse>(`${API_BASE_REPO}/search`, {
       method: 'POST',
       headers: this.headers(),
       body: JSON.stringify({ owner, repo, branch, query, path: path || undefined }),
     });
-
-    if (!response.ok) {
-      throw new Error(`Repo search failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
   }
 }

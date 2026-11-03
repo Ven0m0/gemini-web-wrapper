@@ -13,7 +13,6 @@ A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the brows
 - **`packages/llm-core`** — provider abstractions and the provider factory
 - **`packages/shared/python`** — shared request and response schemas
 - **`packages/code-index`** — local code indexing and semantic search helpers
-- **`packages/helixent`** — TypeScript agent-loop package used for ongoing agent work
 
 ## Current capabilities
 

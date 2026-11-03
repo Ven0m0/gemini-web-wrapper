@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import type { AgentMessage } from '../services/agent';
-import { AgentService } from '../services/agent';
+import { AgentService, finalizeCurrent, reduceAgentEvent } from '../services/agent';
 import { ensureModelSelection, ensureProviderSelection, getProviderById } from '../services/providers';
+import { useChatSession } from '../hooks/useChatSession';
 import { useStore } from '../store';
 
 interface Props {
@@ -9,29 +10,13 @@ interface Props {
 }
 
 export const AgentChat: React.FC<Props> = ({ className }) => {
-  const { config, repoIndexStatus: _repoIndexStatus } = useStore();
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentThinking, setCurrentThinking] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { config } = useStore();
+  const { messages, setMessages, input, setInput, isLoading, setIsLoading, messagesEndRef, textareaRef, appendError } =
+    useChatSession<AgentMessage>();
 
   const selectedProviderId = ensureProviderSelection(config.provider, config.providers);
   const selectedModelId = ensureModelSelection(selectedProviderId, config.model, config.providers);
   const selectedProvider = getProviderById(config.providers, selectedProviderId);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, currentThinking]);
-
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 180) + 'px';
-    }
-  }, [input]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -45,7 +30,6 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
-    setCurrentThinking('');
 
     try {
       const svc = new AgentService(config.openaiKey || '');
@@ -54,10 +38,6 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
         { role: 'user', content: userMsg.content },
       ];
 
-      let assistantContent = '';
-      let assistantThinking = '';
-      const toolCalls: NonNullable<AgentMessage['toolCalls']> = [];
-
       for await (const event of svc.stream({
         model: selectedModelId,
         messages: conversationMessages,
@@ -65,81 +45,14 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
         providerKey: selectedProvider?.apiKey,
         providerBaseUrl: selectedProvider?.baseUrl,
       })) {
-        if (event.type === 'text_delta' && event.text) {
-          assistantContent += event.text;
-          setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.role === 'assistant' && last.id.startsWith('a-current')) {
-              return [...prev.slice(0, -1), { ...last, content: assistantContent }];
-            }
-            return [
-              ...prev,
-              {
-                id: 'a-current',
-                role: 'assistant',
-                content: assistantContent,
-                timestamp: Date.now(),
-                thinking: assistantThinking || undefined,
-                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-              },
-            ];
-          });
-        } else if (event.type === 'thinking_delta' && event.thinking) {
-          assistantThinking += event.thinking;
-          setCurrentThinking(assistantThinking);
-        } else if (event.type === 'tool_call') {
-          toolCalls.push({ id: event.tool_id!, name: event.tool_name!, args: event.arguments || {} });
-          setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.role === 'assistant') {
-              return [
-                ...prev.slice(0, -1),
-                {
-                  ...last,
-                  toolCalls: [
-                    ...(last.toolCalls || []),
-                    { id: event.tool_id!, name: event.tool_name!, args: event.arguments || {} },
-                  ],
-                },
-              ];
-            }
-            return [
-              ...prev,
-              {
-                id: 'a-current',
-                role: 'assistant',
-                content: assistantContent,
-                timestamp: Date.now(),
-                thinking: assistantThinking || undefined,
-                toolCalls,
-              },
-            ];
-          });
-        } else if (event.type === 'tool_result') {
-          const tc = toolCalls.find((t) => t.id === event.tool_id);
-          if (tc) tc.result = event.result;
-          setMessages((prev) =>
-            prev.map((m) => (m.role === 'assistant' ? { ...m, toolCalls: [...(m.toolCalls || [])] } : m))
-          );
-        } else if (event.type === 'done') {
-          setMessages((prev) => prev.map((m) => (m.id === 'a-current' ? { ...m, id: `a-${Date.now()}` } : m)));
-        } else if (event.type === 'error') {
-          throw new Error(event.error);
-        }
+        if (event.type === 'error') throw new Error(event.error);
+        setMessages((prev) => reduceAgentEvent(prev, event));
       }
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `e-${Date.now()}`,
-          role: 'assistant',
-          content: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-          timestamp: Date.now(),
-        },
-      ]);
+      appendError(err);
     } finally {
+      setMessages((prev) => finalizeCurrent(prev));
       setIsLoading(false);
-      setCurrentThinking('');
     }
   };
 
@@ -165,7 +78,10 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
               className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}
             >
               {msg.thinking && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 italic">Thinking {msg.thinking}</div>
+                <details className="text-xs text-gray-500 dark:text-gray-400 mb-2 italic">
+                  <summary className="cursor-pointer not-italic">Thinking</summary>
+                  <div className="whitespace-pre-wrap mt-1">{msg.thinking}</div>
+                </details>
               )}
               <div className="whitespace-pre-wrap">{msg.content}</div>
               {msg.toolCalls && msg.toolCalls.length > 0 && (
@@ -186,15 +102,6 @@ export const AgentChat: React.FC<Props> = ({ className }) => {
             </div>
           </div>
         ))}
-        {isLoading && currentThinking && (
-          <div className="flex justify-start">
-            <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800">
-              <div className="text-xs text-gray-500 dark:text-gray-400 italic animate-pulse">
-                Thinking {currentThinking}
-              </div>
-            </div>
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
 

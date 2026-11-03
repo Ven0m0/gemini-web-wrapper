@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useChatSession } from '../hooks/useChatSession';
 import { AIService } from '../services/ai';
 import {
   ensureModelSelection,
@@ -388,13 +389,10 @@ function EmptyState({ onSelect }: { onSelect: (s: string) => void }) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export const OpenRouterChat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { messages, setMessages, input, setInput, isLoading, setIsLoading, messagesEndRef, textareaRef, appendError } =
+    useChatSession<Message>();
   const [enableJSONHealing, setEnableJSONHealing] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { config, setConfig, repoIndexStatus } = useStore();
   const providerOptions = getFlattenedProviderModels(config.providers);
   const selectedProviderId = ensureProviderSelection(config.provider, config.providers);
@@ -411,16 +409,6 @@ export const OpenRouterChat: React.FC = () => {
     });
   }, [config.branch, config.path, repoIndexStatus, repoLabel]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 180) + 'px';
-    }
-  }, [input]);
   useEffect(() => {
     if (selectedProviderId !== config.provider || selectedModelId !== config.model) {
       setConfig({ provider: selectedProviderId, model: selectedModelId });
@@ -485,16 +473,7 @@ export const OpenRouterChat: React.FC = () => {
         ]);
       }
     } catch (err) {
-      setMessages((p) => [
-        ...p,
-        {
-          id: `e-${Date.now()}`,
-          role: 'assistant',
-          timestamp: Date.now(),
-          hasError: true,
-          content: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        },
-      ]);
+      appendError(err, { hasError: true });
     } finally {
       setIsLoading(false);
     }

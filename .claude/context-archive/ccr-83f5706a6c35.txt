@@ -1,0 +1,995 @@
+=== agent/agent-middleware.ts
+     1	import type { ModelContext } from "@/foundation";
+     2
+     3	export interface AgentMiddleware {
+     4	  beforeAgentRun?: () => Promise<Record<string, unknown>>;
+     5	  beforeModel?: (context: { modelContext: ModelContext; agentContext: Record<string, unknown> }) => Promise<Partial<ModelContext> | undefined>;
+     6	}
+=== agent/index.ts
+     1	import type { Model, ModelContext, NonSystemMessage, FunctionTool, Tool } from "@/foundation";
+     2	import type { AgentMiddleware } from "./agent-middleware";
+     3	export type { AgentMiddleware };
+     4
+     5	export interface SkillFrontmatter {
+     6	  path: string;
+     7	  name?: string;
+     8	  [key: string]: unknown;
+     9	}
+    10
+    11	export interface AgentContext {
+    12	  skills?: SkillFrontmatter[];
+    13	  requestedSkillName?: string;
+    14	  [key: string]: unknown;
+    15	}
+    16
+    17	export interface AgentOptions {
+    18	  model: Model;
+    19	  prompt?: string;
+    20	  messages?: NonSystemMessage[];
+    21	  tools?: FunctionTool[];
+    22	  middlewares?: AgentMiddleware[];
+    23	}
+    24
+    25	export type AgentEvent =
+    26	  | { type: "message"; message: any }
+    27	  | { type: "progress"; subtype: "thinking" | "tool" | "result"; data: any };
+    28
+    29	export type AgentEventType = AgentEvent["type"];
+    30	export type AgentProgressSubtype = "thinking" | "tool" | "result";
+    31	export type AgentMessageEvent = Extract<AgentEvent, { type: "message" }>;
+    32	export type AgentProgressThinkingEvent = Extract<AgentEvent, { subtype: "thinking" }>;
+    33	export type AgentProgressToolEvent = Extract<AgentEvent, { subtype: "tool" }>;
+    34	export type AgentProgressEvent = Extract<AgentEvent, { type: "progress" }>;
+    35
+    36	export function formatToolResultForMessage(_toolName: string, result: unknown): string {
+    37	  return typeof result === "string" ? result : JSON.stringify(result);
+    38	}
+    39
+    40	export class Agent {
+    41	  readonly model: Model;
+    42	  readonly prompt: string;
+    43	  readonly messages: NonSystemMessage[];
+    44	  readonly tools: FunctionTool[];
+    45	  readonly middlewares: AgentMiddleware[];
+    46	  private _context: AgentContext = {};
+    47
+    48	  constructor(options: AgentOptions) {
+    49	    this.model = options.model;
+    50	    this.prompt = options.prompt ?? "";
+    51	    this.messages = options.messages ?? [];
+    52	    this.tools = options.tools ?? [];
+    53	    this.middlewares = options.middlewares ?? [];
+    54	  }
+    55
+    56	  async run(_input?: string): Promise<any> {
+    57	    const middlewareResults: Record<string, unknown> = {};
+    58	    for (const mw of this.middlewares) {
+    59	      if (mw.beforeAgentRun) {
+    60	        const result = await mw.beforeAgentRun();
+    61	        Object.assign(middlewareResults, result);
+    62	      }
+    63	    }
+    64	    this._context = { ...this._context, ...middlewareResults };
+    65
+    66	    const modelContext: ModelContext = {
+    67	      prompt: this.prompt,
+    68	      messages: this.messages,
+    69	      tools: this.tools as unknown as Tool[],
+    70	    };
+    71
+    72	    for (const mw of this.middlewares) {
+    73	      if (mw.beforeModel) {
+    74	        const result = await mw.beforeModel({ modelContext, agentContext: this._context });
+    75	        if (result) {
+    76	          if (result.prompt !== undefined) modelContext.prompt = result.prompt;
+    77	          if (result.messages !== undefined) modelContext.messages = result.messages;
+    78	          if (result.tools !== undefined) modelContext.tools = result.tools;
+    79	        }
+    80	      }
+    81	    }
+    82
+    83	    return this.model.invoke(modelContext);
+    84	  }
+    85
+    86	  async *runStream(_input?: string): AsyncGenerator<any> {
+    87	    const middlewareResults: Record<string, unknown> = {};
+    88	    for (const mw of this.middlewares) {
+    89	      if (mw.beforeAgentRun) {
+    90	        const result = await mw.beforeAgentRun();
+    91	        Object.assign(middlewareResults, result);
+    92	      }
+    93	    }
+    94	    this._context = { ...this._context, ...middlewareResults };
+    95
+    96	    const modelContext: ModelContext = {
+    97	      prompt: this.prompt,
+    98	      messages: this.messages,
+    99	      tools: this.tools as unknown as Tool[],
+   100	    };
+   101
+   102	    for (const mw of this.middlewares) {
+   103	      if (mw.beforeModel) {
+   104	        const result = await mw.beforeModel({ modelContext, agentContext: this._context });
+   105	        if (result) {
+   106	          if (result.prompt !== undefined) modelContext.prompt = result.prompt;
+   107	          if (result.messages !== undefined) modelContext.messages = result.messages;
+   108	          if (result.tools !== undefined) modelContext.tools = result.tools;
+   109	        }
+   110	      }
+   111	    }
+   112
+   113	    yield* this.model.stream(modelContext);
+   114	  }
+   115
+   116	  get context(): AgentContext {
+   117	    return this._context;
+   118	  }
+   119	}
+=== agent/skills/skill-reader.ts
+     1	import { assertFileExists } from "@/foundation/utils/file";
+     2
+     3	export async function readSkillFrontMatter(path: string): Promise<any> {
+     4	  const file = await assertFileExists(path);
+     5	  const content = await file.text();
+     6	  const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+     7	  if (!match) return { path, name: path.split("/").pop() };
+     8	  const yaml = match[1] ?? "";
+     9	  const data: Record<string, unknown> = {};
+    10	  for (const line of yaml.split("\n")) {
+    11	    const colonIdx = line.indexOf(":");
+    12	    if (colonIdx > 0) {
+    13	      const key = line.slice(0, colonIdx).trim();
+    14	      const val = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, "");
+    15	      data[key] = val;
+    16	    }
+    17	  }
+    18	  return { ...data, path };
+    19	}
+=== agent/skills/skills-middleware.ts
+     1	import { exists, readdir } from "node:fs/promises";
+     2	import { join } from "node:path";
+     3	import os from "node:os";
+     4	import type { AgentMiddleware } from "../agent-middleware";
+     5	import type { SkillFrontmatter } from "../index";
+     6	import { readSkillFrontMatter } from "./skill-reader";
+     7
+     8	export function createSkillsMiddleware(skillsDirs: string[] = [join(process.cwd(), ".agents/skills")]): AgentMiddleware {
+     9	  return {
+    10	    beforeAgentRun: async () => {
+    11	      const skills: SkillFrontmatter[] = [];
+    12	      const seen = new Set<string>();
+    13	      for (let dir of skillsDirs) {
+    14	        if (dir.startsWith("~")) dir = join(os.homedir(), dir.slice(1));
+    15	        if (!(await exists(dir))) continue;
+    16	        let folders: any[];
+    17	        try { folders = await readdir(dir, { withFileTypes: true }); } catch { continue; }
+    18	        const folderPromises = folders.map(async (folder) => {
+    19	          const skillPath = join(dir, folder.name, "SKILL.md");
+    20	          if (!folder.isDirectory() || seen.has(skillPath)) return null;
+    21	          seen.add(skillPath);
+    22	          if (!(await exists(skillPath))) return null;
+    23	          try { return await readSkillFrontMatter(skillPath); } catch { return null; }
+    24	        });
+    25	        const results = await Promise.all(folderPromises);
+    26	        for (const res of results) {
+    27	          if (res) skills.push(res);
+    28	        }
+    29	      }
+    30	      return { skills };
+    31	    },
+    32	    beforeModel: async ({ modelContext, agentContext }) => {
+    33	      const skills = agentContext.skills as SkillFrontmatter[] | undefined;
+    34	      if (skills && skills.length > 0) {
+    35	        const requested = agentContext.requestedSkillName
+    36	          ? skills.find((s) => (s.name ?? "").toLowerCase() === (agentContext.requestedSkillName as string).toLowerCase())
+    37	          : null;
+    38	        return {
+    39	          prompt: `${modelContext.prompt}\n\n<skills>\n${JSON.stringify(skills, null, 2)}\n</skills>\n${requested ? `<explicit_skill>${requested.name}</explicit_skill>\n` : ""}`,
+    40	        };
+    41	      }
+    42	    },
+    43	  };
+    44	}
+=== coding/agents/lead-agent.ts
+     1	import { join } from "node:path";
+     2	import { Agent } from "@/agent";
+     3	import { createSkillsMiddleware } from "../../agent/skills/skills-middleware";
+     4	import type { Model, NonSystemMessage, FunctionTool } from "@/foundation";
+     5	import { bashTool } from "../tools/bash";
+     6	import { readFileTool } from "../tools/read-file";
+     7	import { writeFileTool } from "../tools/write-file";
+     8	import { strReplaceTool } from "../tools/str-replace";
+     9	import { listFilesTool } from "../tools/list-files";
+    10	import { globSearchTool } from "../tools/glob-search";
+    11	import { grepSearchTool } from "../tools/grep-search";
+    12	import { applyPatchTool } from "../tools/apply-patch";
+    13	import { fileInfoTool } from "../tools/file-info";
+    14	import { mkdirTool } from "../tools/mkdir";
+    15	import { movePathTool } from "../tools/move-path";
+    16
+    17	export async function createCodingAgent({
+    18	  model,
+    19	  cwd = process.cwd(),
+    20	  skillsDirs = [join(process.cwd(), ".agents/skills")],
+    21	}: {
+    22	  model: Model;
+    23	  cwd?: string;
+    24	  skillsDirs?: string[];
+    25	}) {
+    26	  const agentsFile = Bun.file(`${cwd}/AGENTS.md`);
+    27	  const messages: NonSystemMessage[] = [];
+    28	  if (await agentsFile.exists()) {
+    29	    const content = await agentsFile.text();
+    30	    messages.push({ role: "user", content: [{ type: "text", text: `The AGENTS.md file has been automatically loaded:\n\n${content}` }] });
+    31	  }
+    32	  const tools = [bashTool, fileInfoTool, listFilesTool, globSearchTool, grepSearchTool, mkdirTool, movePathTool, readFileTool, writeFileTool, strReplaceTool, applyPatchTool] as unknown as FunctionTool[];
+    33	  return new Agent({ model, prompt: "You are a coding assistant. Use the available tools to help the user.", messages, tools, middlewares: [createSkillsMiddleware(skillsDirs)] });
+    34	}
+=== coding/index.ts
+     1	export { createCodingAgent } from "./agents/lead-agent";
+     2	export { bashTool } from "./tools/bash";
+     3	export { readFileTool } from "./tools/read-file";
+     4	export { writeFileTool } from "./tools/write-file";
+     5	export { strReplaceTool } from "./tools/str-replace";
+     6	export { listFilesTool } from "./tools/list-files";
+     7	export { globSearchTool } from "./tools/glob-search";
+     8	export { grepSearchTool } from "./tools/grep-search";
+     9	export { applyPatchTool } from "./tools/apply-patch";
+    10	export { fileInfoTool } from "./tools/file-info";
+    11	export { mkdirTool } from "./tools/mkdir";
+    12	export { movePathTool } from "./tools/move-path";
+=== coding/tools/apply-patch.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	export const applyPatchTool = defineTool({
+     4	  name: "apply_patch",
+     5	  description: "Apply a unified diff patch",
+     6	  parameters: z.object({ description: z.string(), patch: z.string() }),
+     7	  invoke: async ({ patch }) => {
+     8	    try {
+     9	      const proc = Bun.spawn({ cmd: ["patch", "-p1"], stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+    10	      proc.stdin.write(patch);
+    11	      proc.stdin.end();
+    12	      const stdout = await new Response(proc.stdout).text();
+    13	      const exitCode = await proc.exited;
+    14	      if (exitCode !== 0) { const stderr = await new Response(proc.stderr).text(); return { ok: false, error: stderr || stdout }; }
+    15	      return { ok: true, summary: "Patch applied successfully", output: stdout };
+    16	    } catch (error) { return { ok: false, error: String(error) }; }
+    17	  },
+    18	});
+=== coding/tools/bash.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	export const bashTool = defineTool({
+     4	  name: "bash",
+     5	  description: "Execute a bash command",
+     6	  parameters: z.object({ description: z.string(), command: z.string() }),
+     7	  invoke: async ({ command }, signal) => {
+     8	    const proc = Bun.spawn({ cmd: ["bash", "-c", command], stdout: "pipe", stderr: "pipe" });
+     9	    if (signal) { const onAbort = () => proc.kill(); signal.addEventListener("abort", onAbort, { once: true }); void proc.exited.then(() => signal.removeEventListener("abort", onAbort)); }
+    10	    const output = await new Response(proc.stdout).text();
+    11	    const exitCode = await proc.exited;
+    12	    if (exitCode !== 0) { const stderr = await new Response(proc.stderr).text(); return `Error: Command failed with exit code ${exitCode}: ${stderr}`; }
+    13	    return output;
+    14	  },
+    15	});
+=== coding/tools/file-info.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	import { stat } from "node:fs/promises";
+     4	export const fileInfoTool = defineTool({
+     5	  name: "file_info",
+     6	  description: "Get information about a file",
+     7	  parameters: z.object({ description: z.string(), path: z.string() }),
+     8	  invoke: async ({ path }) => {
+     9	    try {
+    10	      const info = await stat(path);
+    11	      return { path, size: info.size, isFile: info.isFile(), isDirectory: info.isDirectory(), modified: info.mtime.toISOString() };
+    12	    } catch (error) { return { ok: false, error: String(error) }; }
+    13	  },
+    14	});
+=== coding/tools/glob-search.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	export const globSearchTool = defineTool({
+     4	  name: "glob_search",
+     5	  description: "Find files matching a glob pattern",
+     6	  parameters: z.object({ description: z.string(), path: z.string(), pattern: z.string(), limit: z.number().optional() }),
+     7	  invoke: async ({ path, pattern, limit }) => {
+     8	    const matches: string[] = [];
+     9	    try {
+    10	      const globber = new Bun.Glob(pattern);
+    11	      for await (const entry of globber.scan({ cwd: path, absolute: true })) {
+    12	        matches.push(entry);
+    13	        if (matches.length >= (limit ?? 200)) break;
+    14	      }
+    15	    } catch (error) { return { ok: false, error: String(error) }; }
+    16	    return { path, pattern, matchCount: matches.length, matches, content: matches.join("\n") };
+    17	  },
+    18	});
+=== coding/tools/grep-search.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	export const grepSearchTool = defineTool({
+     4	  name: "grep_search",
+     5	  description: "Search file contents with ripgrep",
+     6	  parameters: z.object({ description: z.string(), path: z.string(), pattern: z.string(), glob: z.string().optional(), caseSensitive: z.boolean().optional(), limit: z.number().optional() }),
+     7	  invoke: async ({ path, pattern, glob, caseSensitive, limit }, signal) => {
+     8	    const cmd = ["rg", "--line-number", "--no-heading"];
+     9	    if (!caseSensitive) cmd.push("--ignore-case");
+    10	    if (glob) cmd.push("--glob", glob);
+    11	    cmd.push(pattern, path);
+    12	    try {
+    13	      const proc = Bun.spawn({ cmd, stdout: "pipe", stderr: "pipe" });
+    14	      if (signal) { const onAbort = () => proc.kill(); signal.addEventListener("abort", onAbort, { once: true }); void proc.exited.then(() => signal.removeEventListener("abort", onAbort)); }
+    15	      const stdout = await new Response(proc.stdout).text();
+    16	      const exitCode = await proc.exited;
+    17	      if (exitCode !== 0 && exitCode !== 1) return { ok: false, error: `rg failed with exit code ${exitCode}` };
+    18	      const lines = stdout.split("\n").filter(Boolean);
+    19	      const capped = lines.slice(0, limit ?? 200);
+    20	      return { path, pattern, totalMatches: lines.length, shownMatches: capped.length, matches: capped, content: capped.join("\n") };
+    21	    } catch (error) { return { ok: false, error: String(error) }; }
+    22	  },
+    23	});
+=== coding/tools/list-files.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	import { readdir } from "node:fs/promises";
+     4	export const listFilesTool = defineTool({
+     5	  name: "list_files",
+     6	  description: "List files and directories",
+     7	  parameters: z.object({ description: z.string(), path: z.string(), recursive: z.boolean().optional(), maxDepth: z.number().optional(), limit: z.number().optional() }),
+     8	  invoke: async ({ path, recursive, maxDepth, limit }) => {
+     9	    const entries: string[] = [];
+    10	    async function walk(dir: string, depth: number, prefix: string) {
+    11	      const items = await readdir(dir, { withFileTypes: true });
+    12	      items.sort((a, b) => a.name.localeCompare(b.name));
+    13	      for (const item of items) {
+    14	        const rel = prefix ? `${prefix}/${item.name}` : item.name;
+    15	        entries.push(item.isDirectory() ? `${rel}/` : rel);
+    16	        if (item.isDirectory() && depth < (maxDepth ?? 3) && recursive) await walk(`${dir}/${item.name}`, depth + 1, rel);
+    17	      }
+    18	    }
+    19	    await walk(path, 0, "");
+    20	    const capped = entries.slice(0, limit ?? 200);
+    21	    return { path, totalEntries: entries.length, shownEntries: capped.length, entries: capped, content: capped.join("\n") };
+    22	  },
+    23	});
+=== coding/tools/mkdir.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	import { mkdir } from "node:fs/promises";
+     4	export const mkdirTool = defineTool({
+     5	  name: "mkdir",
+     6	  description: "Create a directory",
+     7	  parameters: z.object({ description: z.string(), path: z.string(), recursive: z.boolean().optional() }),
+     8	  invoke: async ({ path, recursive }) => {
+     9	    await mkdir(path, { recursive: recursive ?? true });
+    10	    return `Created directory ${path}`;
+    11	  },
+    12	});
+=== coding/tools/move-path.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	import { rename } from "node:fs/promises";
+     4	export const movePathTool = defineTool({
+     5	  name: "move_path",
+     6	  description: "Move or rename a file or directory",
+     7	  parameters: z.object({ description: z.string(), source: z.string(), destination: z.string() }),
+     8	  invoke: async ({ source, destination }) => {
+     9	    await rename(source, destination);
+    10	    return `Moved ${source} to ${destination}`;
+    11	  },
+    12	});
+=== coding/tools/read-file.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	import { assertFileExists } from "@/foundation/utils/file";
+     4	export const readFileTool = defineTool({
+     5	  name: "read_file",
+     6	  description: "Read a file from an absolute path",
+     7	  parameters: z.object({ description: z.string(), path: z.string(), startLine: z.number().optional(), endLine: z.number().optional() }),
+     8	  invoke: async ({ path, startLine, endLine }) => {
+     9	    let file;
+    10	    try {
+    11	      file = await assertFileExists(path);
+    12	    } catch {
+    13	      return `Error: File ${path} does not exist`;
+    14	    }
+    15	    const text = await file.text();
+    16	    const lines = text.split("\n");
+    17	    const start = startLine ? startLine - 1 : 0;
+    18	    const end = endLine ? Math.min(endLine, lines.length) : lines.length;
+    19	    const selected = lines.slice(start, end);
+    20	    return selected.map((line, i) => `${start + i + 1}: ${line}`).join("\n");
+    21	  },
+    22	});
+=== coding/tools/str-replace.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	import { assertFileExists } from "@/foundation/utils/file";
+     4	export const strReplaceTool = defineTool({
+     5	  name: "str_replace",
+     6	  description: "Replace occurrences of a substring in a file",
+     7	  parameters: z.object({ description: z.string(), path: z.string(), old: z.string(), new: z.string(), count: z.number().optional() }),
+     8	  invoke: async ({ path, old, new: replacement, count }) => {
+     9	    let file;
+    10	    try {
+    11	      file = await assertFileExists(path);
+    12	    } catch {
+    13	      return { ok: false, error: `File ${path} does not exist` };
+    14	    }
+    15	    const text = await file.text();
+    16	    if (!old) return { ok: false, error: "old must be non-empty" };
+    17
+    18	    let updated = text;
+    19	    let replacements = 0;
+    20
+    21	    if (count === undefined) {
+    22	      const parts = text.split(old);
+    23	      replacements = parts.length - 1;
+    24	      updated = parts.join(replacement);
+    25	    } else {
+    26	      const maxReplacements = Math.max(0, Math.trunc(count));
+    27	      let startIndex = 0;
+    28	      let result = "";
+    29
+    30	      while (replacements < maxReplacements) {
+    31	        const matchIndex = text.indexOf(old, startIndex);
+    32	        if (matchIndex === -1) break;
+    33
+    34	        result += text.slice(startIndex, matchIndex) + replacement;
+    35	        startIndex = matchIndex + old.length;
+    36	        replacements += 1;
+    37	      }
+    38
+    39	      if (replacements > 0) {
+    40	        updated = result + text.slice(startIndex);
+    41	      }
+    42	    }
+    43
+    44	    if (updated === text) return { ok: true, path, replacements: 0, changed: false };
+    45	    await file.write(updated);
+    46	    return { ok: true, path, replacements, changed: true };
+    47	  },
+    48	});
+=== coding/tools/write-file.ts
+     1	import z from "zod";
+     2	import { defineTool } from "@/foundation";
+     3	export const writeFileTool = defineTool({
+     4	  name: "write_file",
+     5	  description: "Write to a file at an absolute path",
+     6	  parameters: z.object({ description: z.string(), path: z.string(), content: z.string() }),
+     7	  invoke: async ({ path, content }) => {
+     8	    const file = Bun.file(path);
+     9	    await file.write(content);
+    10	    return `Successfully wrote ${content.length} bytes to ${path}`;
+    11	  },
+    12	});
+=== community/anthropic/index.ts
+     1	export { AnthropicModelProvider } from "./model-provider";
+=== community/anthropic/model-provider.ts
+     1	import Anthropic from "@anthropic-ai/sdk";
+     2	import type { AssistantMessage, ModelProvider, ModelProviderInvokeParams, TokenUsage } from "@/foundation";
+     3
+     4	function extractSystemPrompt(messages: any[]): string | undefined {
+     5	  const parts: string[] = [];
+     6	  for (const m of messages) { if (m.role === "system") parts.push(m.content.map((c: any) => c.text).join("\n")); }
+     7	  return parts.length > 0 ? parts.join("\n\n") : undefined;
+     8	}
+     9
+    10	export class AnthropicModelProvider implements ModelProvider {
+    11	  _client: Anthropic;
+    12	  constructor({ baseURL, apiKey }: { baseURL?: string; apiKey?: string } = {}) {
+    13	    const isDefault = !baseURL || baseURL === "https://api.anthropic.com";
+    14	    this._client = new Anthropic({ ...(isDefault ? {} : { baseURL }), apiKey });
+    15	  }
+    16	  async invoke(params: ModelProviderInvokeParams): Promise<AssistantMessage> {
+    17	    const system = extractSystemPrompt(params.messages);
+    18	    const anthropicMessages = params.messages.filter((m) => m.role !== "system").map((m) => {
+    19	      if (m.role === "user") return { role: "user", content: m.content.map((c: any) => c.type === "text" ? { type: "text", text: c.text } : null).filter(Boolean) };
+    20	      if (m.role === "assistant") return { role: "assistant", content: m.content.map((c: any) => c.type === "tool_use" ? { type: "tool_use", id: c.id, name: c.name, input: c.input } : c.type === "thinking" ? { type: "thinking", thinking: c.thinking } : { type: "text", text: c.text }) };
+    21	      if (m.role === "tool") return { role: "user", content: m.content.map((c: any) => ({ type: "tool_result", tool_use_id: c.tool_use_id, content: c.content })) };
+    22	      return null;
+    23	    }).filter(Boolean);
+    24	    const anthropicTools = (params.tools as any[] | undefined)?.map((t: any) => ({ name: t.name, description: t.description, input_schema: { type: "object" as const, properties: t.parameters ?? {} } }));
+    25	    const response = await this._client.messages.create({ model: params.model, max_tokens: 8192, messages: anthropicMessages as any, ...(system ? { system } : {}), ...(anthropicTools ? { tools: anthropicTools as any } : {}), ...params.options } as Anthropic.MessageCreateParamsNonStreaming, { signal: params.signal });
+    26	    const content: any[] = [];
+    27	    for (const block of response.content as any[]) {
+    28	      if (block.type === "text") content.push({ type: "text", text: block.text });
+    29	      else if (block.type === "thinking") content.push({ type: "thinking", thinking: block.thinking });
+    30	      else if (block.type === "tool_use") content.push({ type: "tool_use", id: block.id, name: block.name, input: block.input });
+    31	    }
+    32	    const usage: TokenUsage | undefined = response.usage ? { promptTokens: response.usage.input_tokens ?? 0, completionTokens: response.usage.output_tokens ?? 0, totalTokens: (response.usage.input_tokens ?? 0) + (response.usage.output_tokens ?? 0) } : undefined;
+    33	    return { role: "assistant", content: content.length > 0 ? content : [{ type: "text", text: "" }], ...(usage ? { usage } : {}) };
+    34	  }
+    35	  async *stream(params: ModelProviderInvokeParams): AsyncGenerator<AssistantMessage> {
+    36	    const msg = await this.invoke(params);
+    37	    yield { ...msg, streaming: true };
+    38	    yield { ...msg, streaming: false };
+    39	  }
+    40	}
+=== community/index.ts
+     1	export { OpenAIModelProvider } from "./openai";
+     2	export { AnthropicModelProvider } from "./anthropic";
+=== community/openai/index.ts
+     1	export { OpenAIModelProvider } from "./model-provider";
+=== community/openai/model-provider.ts
+     1	import OpenAI from "openai";
+     2	import type { AssistantMessage, ModelProvider, ModelProviderInvokeParams } from "@/foundation";
+     3	import { StreamAccumulator } from "./stream-utils";
+     4	import { convertToOpenAIMessages, parseAssistantMessage } from "./utils";
+     5
+     6	export class OpenAIModelProvider implements ModelProvider {
+     7	  _client: OpenAI;
+     8	  constructor({ baseURL, apiKey }: { baseURL?: string; apiKey?: string } = {}) {
+     9	    this._client = new OpenAI({ baseURL, apiKey });
+    10	  }
+    11	  async invoke(params: ModelProviderInvokeParams): Promise<AssistantMessage> {
+    12	    const openaiTools = (params.tools as any[] | undefined)?.map((t: any) => ({
+    13	      type: "function" as const,
+    14	      function: { name: t.name, description: t.description, parameters: t.parameters ?? {} },
+    15	    }));
+    16	    const response = await this._client.chat.completions.create({
+    17	      model: params.model,
+    18	      messages: convertToOpenAIMessages(params.messages),
+    19	      ...(openaiTools && openaiTools.length > 0 ? { tools: openaiTools } : {}),
+    20	      temperature: 0,
+    21	      ...(params.options as Record<string, unknown>),
+    22	    } as unknown as OpenAI.ChatCompletionCreateParamsNonStreaming, { signal: params.signal });
+    23	    return parseAssistantMessage(response.choices[0]?.message ?? {}, response.usage);
+    24	  }
+    25	  async *stream(params: ModelProviderInvokeParams): AsyncGenerator<AssistantMessage> {
+    26	    const openaiTools = (params.tools as any[] | undefined)?.map((t: any) => ({
+    27	      type: "function" as const,
+    28	      function: { name: t.name, description: t.description, parameters: t.parameters ?? {} },
+    29	    }));
+    30	    const response = await this._client.chat.completions.create({
+    31	      model: params.model,
+    32	      messages: convertToOpenAIMessages(params.messages),
+    33	      ...(openaiTools && openaiTools.length > 0 ? { tools: openaiTools } : {}),
+    34	      stream: true,
+    35	      stream_options: { include_usage: true },
+    36	      temperature: 0,
+    37	      ...(params.options as Record<string, unknown>),
+    38	    } as unknown as OpenAI.ChatCompletionCreateParamsStreaming, { signal: params.signal });
+    39	    const acc = new StreamAccumulator();
+    40	    for await (const chunk of response) { acc.push(chunk as any); yield acc.snapshot(); }
+    41	  }
+    42	}
+=== community/openai/stream-utils.ts
+     1	import type { AssistantMessage, TextContent, ThinkingContent, ToolUseContent, TokenUsage } from "@/foundation";
+     2
+     3	interface ToolCallAccumulator { id: string; name: string; arguments: string; }
+     4
+     5	export class StreamAccumulator {
+     6	  private _text = "";
+     7	  private _thinking = "";
+     8	  private _toolCalls: Map<number, ToolCallAccumulator> = new Map();
+     9	  private _usage: TokenUsage | undefined;
+    10
+    11	  push(chunk: { choices?: Array<{ delta?: { content?: string | null; reasoning_content?: string | null; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }): void {
+    12	    const choice = chunk.choices?.[0];
+    13	    if (!choice?.delta) return;
+    14	    const delta = choice.delta;
+    15	    if (delta.content) this._text += delta.content;
+    16	    if (delta.reasoning_content) this._thinking += delta.reasoning_content;
+    17	    if (delta.tool_calls) {
+    18	      for (const tc of delta.tool_calls) {
+    19	        const index = tc.index ?? 0;
+    20	        const existing = this._toolCalls.get(index);
+    21	        if (existing) {
+    22	          if (tc.function?.name) existing.name = tc.function.name;
+    23	          if (tc.function?.arguments) existing.arguments += tc.function.arguments;
+    24	          if (tc.id) existing.id = tc.id;
+    25	        } else {
+    26	          this._toolCalls.set(index, { id: tc.id ?? "", name: tc.function?.name ?? "", arguments: tc.function?.arguments ?? "" });
+    27	        }
+    28	      }
+    29	    }
+    30	    if (chunk.usage) {
+    31	      this._usage = { promptTokens: chunk.usage.prompt_tokens ?? 0, completionTokens: chunk.usage.completion_tokens ?? 0, totalTokens: chunk.usage.total_tokens ?? 0 };
+    32	    }
+    33	  }
+    34
+    35	  snapshot(): AssistantMessage {
+    36	    const content: (TextContent | ThinkingContent | ToolUseContent)[] = [];
+    37	    if (this._thinking) content.push({ type: "thinking", thinking: this._thinking });
+    38	    if (this._text) content.push({ type: "text", text: this._text });
+    39	    const sortedKeys = [...this._toolCalls.keys()].toSorted((a, b) => a - b);
+    40	    for (const key of sortedKeys) {
+    41	      const tc = this._toolCalls.get(key)!;
+    42	      let input: Record<string, unknown> = {};
+    43	      try { input = JSON.parse(tc.arguments); } catch { input = { __raw: tc.arguments }; }
+    44	      content.push({ type: "tool_use", id: tc.id, name: tc.name, input });
+    45	    }
+    46	    return { role: "assistant", content: content.length > 0 ? content : [{ type: "text", text: "" }], streaming: true, ...(this._usage ? { usage: this._usage } : {}) };
+    47	  }
+    48	}
+=== community/openai/utils.ts
+     1	import type {
+     2	  Message, AssistantMessage, ToolUseContent, TextContent, ThinkingContent,
+     3	  ToolResultContent, UserMessage, SystemMessage, TokenUsage,
+     4	} from "@/foundation";
+     5
+     6	export function convertToOpenAIMessages(messages: Message[]): Record<string, unknown>[] {
+     7	  const result: Record<string, unknown>[] = [];
+     8	  for (const message of messages) {
+     9	    if (message.role === "system") {
+    10	      const sys = message as SystemMessage;
+    11	      result.push({ role: "system", content: sys.content.map((c) => c.text).join("\n") });
+    12	    } else if (message.role === "user") {
+    13	      const user = message as UserMessage;
+    14	      if (user.content.length === 1 && user.content[0]?.type === "text") {
+    15	        result.push({ role: "user", content: user.content[0].text });
+    16	      } else {
+    17	        result.push({
+    18	          role: "user",
+    19	          content: user.content.map((c) => {
+    20	            if (c.type === "text") return { type: "text", text: c.text };
+    21	            if (c.type === "image_url") return { type: "image_url", image_url: c.image_url };
+    22	            return null;
+    23	          }).filter(Boolean),
+    24	        });
+    25	      }
+    26	    } else if (message.role === "assistant") {
+    27	      const asst = message as AssistantMessage;
+    28	      const toolCalls = asst.content
+    29	        .filter((c): c is ToolUseContent => c.type === "tool_use")
+    30	        .map((c) => ({
+    31	          type: "function" as const,
+    32	          id: c.id,
+    33	          function: { name: c.name, arguments: JSON.stringify(c.input) },
+    34	        }));
+    35	      const textParts = asst.content
+    36	        .filter((c): c is TextContent => c.type === "text")
+    37	        .map((c) => c.text)
+    38	        .join("\n");
+    39	      const entry: Record<string, unknown> = { role: "assistant" };
+    40	      if (textParts) entry.content = textParts;
+    41	      if (toolCalls.length > 0) entry.tool_calls = toolCalls;
+    42	      if (!textParts && toolCalls.length === 0) entry.content = null;
+    43	      result.push(entry);
+    44	    } else if (message.role === "tool") {
+    45	      const toolMsg = message as { role: "tool"; content: ToolResultContent[] };
+    46	      for (const tr of toolMsg.content) {
+    47	        result.push({ role: "tool", tool_call_id: tr.tool_use_id, content: tr.content });
+    48	      }
+    49	    }
+    50	  }
+    51	  return result;
+    52	}
+    53
+    54	export function convertToOpenAITools(tools: Array<{ name: string; description: string; parameters: { _def?: { shape?: Record<string, unknown> } } }>): Record<string, unknown>[] {
+    55	  return tools.map((tool) => ({
+    56	    type: "function",
+    57	    function: {
+    58	      name: tool.name,
+    59	      description: tool.description,
+    60	      parameters: tool.parameters._def?.shape ? { type: "object", properties: tool.parameters._def.shape } : {},
+    61	    },
+    62	  }));
+    63	}
+    64
+    65	export function parseAssistantMessage(
+    66	  choice: { content?: string | null; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> | null },
+    67	  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number },
+    68	): AssistantMessage {
+    69	  const content: (TextContent | ThinkingContent | ToolUseContent)[] = [];
+    70	  if (choice.content) content.push({ type: "text", text: choice.content });
+    71	  if (choice.tool_calls) {
+    72	    for (const tc of choice.tool_calls) {
+    73	      let input: Record<string, unknown> = {};
+    74	      try { input = JSON.parse(tc.function.arguments); } catch { input = { raw: tc.function.arguments }; }
+    75	      content.push({ type: "tool_use", id: tc.id, name: tc.function.name, input });
+    76	    }
+    77	  }
+    78	  const tokenUsage: TokenUsage | undefined = usage ? {
+    79	    promptTokens: usage.prompt_tokens ?? 0,
+    80	    completionTokens: usage.completion_tokens ?? 0,
+    81	    totalTokens: usage.total_tokens ?? 0,
+    82	  } : undefined;
+    83	  return { role: "assistant", content, ...(tokenUsage ? { usage: tokenUsage } : {}) };
+    84	}
+=== foundation/index.ts
+     1	export type {
+     2	  Role,
+     3	  TextContent,
+     4	  ImageURLContent,
+     5	  ThinkingContent,
+     6	  ToolUseContent,
+     7	  ToolResultContent,
+     8	  SystemMessageContent,
+     9	  UserMessageContent,
+    10	  AssistantMessageContent,
+    11	  ToolMessageContent,
+    12	  TokenUsage,
+    13	  SystemMessage,
+    14	  UserMessage,
+    15	  AssistantMessage,
+    16	  ToolMessage,
+    17	  Tool,
+    18	  NonSystemMessage,
+    19	  Message,
+    20	} from "./messages";
+    21	export type { ModelProvider, ModelProviderInvokeParams } from "./models";
+    22	export type { ModelContext } from "./models";
+    23	export { Model } from "./models";
+    24	export type { FunctionTool } from "./tools";
+    25	export { defineTool } from "./tools";
+    26	export type { StructuredToolSuccess, StructuredToolError, StructuredToolResult } from "./tools";
+=== foundation/messages/index.ts
+     1	export type { Role } from "./types/role";
+     2	export type {
+     3	  TextContent,
+     4	  ImageURLContent,
+     5	  ThinkingContent,
+     6	  ToolUseContent,
+     7	  ToolResultContent,
+     8	  SystemMessageContent,
+     9	  UserMessageContent,
+    10	  AssistantMessageContent,
+    11	  ToolMessageContent,
+    12	} from "./types/content";
+    13	export type {
+    14	  TokenUsage,
+    15	  SystemMessage,
+    16	  UserMessage,
+    17	  AssistantMessage,
+    18	  ToolMessage,
+    19	  Tool,
+    20	  NonSystemMessage,
+    21	  Message,
+    22	} from "./types/message";
+=== foundation/messages/types/content.ts
+     1	/**
+     2	 * Plain text segment in a message.
+     3	 */
+     4	export interface TextContent {
+     5	  type: "text";
+     6	  text: string;
+     7	}
+     8
+     9	/**
+    10	 * Image referenced by URL, for multimodal user input.
+    11	 */
+    12	export interface ImageURLContent {
+    13	  type: "image_url";
+    14	  image_url: {
+    15	    url: string;
+    16	    detail?: "auto" | "high" | "low";
+    17	  };
+    18	}
+    19
+    20	/**
+    21	 * Model reasoning or chain-of-thought text.
+    22	 */
+    23	export interface ThinkingContent {
+    24	  type: "thinking";
+    25	  thinking: string;
+    26	}
+    27
+    28	/**
+    29	 * Assistant-initiated tool invocation with structured arguments.
+    30	 */
+    31	export interface ToolUseContent<T extends Record<string, unknown> = Record<string, unknown>> {
+    32	  type: "tool_use";
+    33	  id: string;
+    34	  name: string;
+    35	  input: T;
+    36	}
+    37
+    38	/**
+    39	 * Result of executing a tool, linked back to a prior ToolUseContent by id.
+    40	 */
+    41	export interface ToolResultContent {
+    42	  type: "tool_result";
+    43	  tool_use_id: string;
+    44	  content: string;
+    45	}
+    46
+    47	/** Content allowed in a system message. */
+    48	export type SystemMessageContent = TextContent[];
+    49
+    50	/** Content allowed in a user message (text and/or images). */
+    51	export type UserMessageContent = (TextContent | ImageURLContent)[];
+    52
+    53	/** Content allowed in an assistant message. */
+    54	export type AssistantMessageContent = (TextContent | ThinkingContent | ToolUseContent)[];
+    55
+    56	/** Content allowed in a tool role message. */
+    57	export type ToolMessageContent = ToolResultContent[];
+=== foundation/messages/types/message.ts
+     1	import type { AssistantMessageContent, SystemMessageContent, ToolMessageContent, UserMessageContent } from "./content";
+     2
+     3	export interface TokenUsage {
+     4	  promptTokens: number;
+     5	  completionTokens: number;
+     6	  totalTokens: number;
+     7	}
+     8
+     9	export interface SystemMessage {
+    10	  role: "system";
+    11	  content: SystemMessageContent;
+    12	}
+    13
+    14	export interface UserMessage {
+    15	  role: "user";
+    16	  content: UserMessageContent;
+    17	}
+    18
+    19	export interface AssistantMessage {
+    20	  role: "assistant";
+    21	  content: AssistantMessageContent;
+    22	  usage?: TokenUsage;
+    23	  streaming?: boolean;
+    24	}
+    25
+    26	export interface ToolMessage {
+    27	  role: "tool";
+    28	  content: ToolMessageContent;
+    29	}
+    30
+    31	export interface Tool {
+    32	  name: string;
+    33	  description: string;
+    34	  parameters: Record<string, unknown>;
+    35	}
+    36
+    37	export type NonSystemMessage = UserMessage | AssistantMessage | ToolMessage;
+    38	export type Message = SystemMessage | NonSystemMessage;
+=== foundation/messages/types/role.ts
+     1	/**
+     2	 * Speaker role in a chat transcript (system, user, assistant, or tool).
+     3	 */
+     4	export type Role = "system" | "user" | "assistant" | "tool";
+=== foundation/models/index.ts
+     1	export type { ModelProvider, ModelProviderInvokeParams } from "./model-provider";
+     2	export type { ModelContext } from "./model-context";
+     3	export { Model } from "./model";
+=== foundation/models/model-context.ts
+     1	import type { NonSystemMessage, Tool } from "../messages";
+     2
+     3	export interface ModelContext {
+     4	  prompt: string;
+     5	  messages: NonSystemMessage[];
+     6	  tools?: Tool[];
+     7	  signal?: AbortSignal;
+     8	}
+=== foundation/models/model-provider.ts
+     1	import type { AssistantMessage, Message, Tool } from "../messages";
+     2
+     3	export interface ModelProviderInvokeParams {
+     4	  model: string;
+     5	  messages: Message[];
+     6	  tools?: Tool[];
+     7	  options?: Record<string, unknown>;
+     8	  signal?: AbortSignal;
+     9	}
+    10
+    11	/**
+    12	 * A provider for a model. Implementations wrap specific LLM APIs
+    13	 * (OpenAI, Anthropic, etc.) and handle message conversion and streaming.
+    14	 */
+    15	export interface ModelProvider {
+    16	  invoke(params: ModelProviderInvokeParams): Promise<AssistantMessage>;
+    17	  stream(params: ModelProviderInvokeParams): AsyncGenerator<AssistantMessage>;
+    18	}
+=== foundation/models/model.ts
+     1	import type { Message, } from "../messages";
+     2	import type { ModelContext } from "./model-context";
+     3	import type { ModelProvider, ModelProviderInvokeParams } from "./model-provider";
+     4
+     5	/**
+     6	 * Represents a model that can be used to generate text.
+     7	 */
+     8	export class Model {
+     9	  constructor(
+    10	    readonly name: string,
+    11	    readonly provider: ModelProvider,
+    12	    readonly options?: Record<string, unknown>,
+    13	  ) {}
+    14
+    15	  invoke(context: ModelContext) {
+    16	    const params = this._buildModelProviderParams(context);
+    17	    return this.provider.invoke(params);
+    18	  }
+    19
+    20	  stream(context: ModelContext) {
+    21	    const params = this._buildModelProviderParams(context);
+    22	    return this.provider.stream(params);
+    23	  }
+    24
+    25	  private _buildModelProviderParams(context: ModelContext): ModelProviderInvokeParams {
+    26	    const messages: Message[] = [];
+    27	    if (context.prompt) {
+    28	      messages.push({ role: "system", content: [{ type: "text", text: context.prompt }] });
+    29	    }
+    30	    messages.push(...context.messages);
+    31	    return {
+    32	      model: this.name,
+    33	      options: this.options,
+    34	      messages,
+    35	      tools: context.tools,
+    36	      signal: context.signal,
+    37	    };
+    38	  }
+    39	}
+=== foundation/tools/function-tool.ts
+     1	import type { z } from "zod";
+     2
+     3	export interface FunctionTool<
+     4	  P extends z.ZodSchema<Record<string, unknown>> = z.ZodSchema<Record<string, unknown>>,
+     5	  R = unknown,
+     6	> {
+     7	  name: string;
+     8	  description: string;
+     9	  parameters: P;
+    10	  invoke: (input: z.infer<P>, signal?: AbortSignal) => Promise<R>;
+    11	}
+    12
+    13	export function defineTool<P extends z.ZodSchema<Record<string, unknown>>, R>({
+    14	  name,
+    15	  description,
+    16	  parameters,
+    17	  invoke,
+    18	}: {
+    19	  name: string;
+    20	  description: string;
+    21	  parameters: P;
+    22	  invoke: (input: z.infer<P>, signal?: AbortSignal) => Promise<R>;
+    23	}): FunctionTool<P, R> {
+    24	  return { name, description, parameters, invoke } as FunctionTool<P, R>;
+    25	}
+=== foundation/tools/index.ts
+     1	export type { FunctionTool } from "./function-tool";
+     2	export { defineTool } from "./function-tool";
+     3	export type { StructuredToolSuccess, StructuredToolError, StructuredToolResult } from "./structured-tool-result";
+=== foundation/tools/structured-tool-result.ts
+     1	export type StructuredToolSuccess<T = unknown> = {
+     2	  ok: true;
+     3	  summary: string;
+     4	  data?: T;
+     5	};
+     6
+     7	export type StructuredToolError = {
+     8	  ok: false;
+     9	  summary: string;
+    10	  error: string;
+    11	  code?: string;
+    12	  details?: Record<string, unknown>;
+    13	};
+    14
+    15	export type StructuredToolResult<T = unknown> = StructuredToolSuccess<T> | StructuredToolError;
+=== foundation/utils/file.ts
+     1	import type { BunFile } from "bun";
+     2
+     3	export async function assertFileExists(path: string): Promise<BunFile> {
+     4	  const file = Bun.file(path);
+     5	  if (!(await file.exists())) throw new Error(`File ${path} does not exist`);
+     6	  return file;
+     7	}
+=== index.ts
+     1	// Foundation
+     2	export type { Role, TextContent, ImageURLContent, ThinkingContent, ToolUseContent, ToolResultContent, SystemMessageContent, UserMessageContent, AssistantMessageContent, ToolMessageContent, TokenUsage, SystemMessage, UserMessage, AssistantMessage, ToolMessage, NonSystemMessage, Message } from "./foundation";
+     3	export type { ModelProvider, ModelProviderInvokeParams, ModelContext } from "./foundation";
+     4	export { Model } from "./foundation";
+     5	export type { FunctionTool } from "./foundation";
+     6	export { defineTool } from "./foundation";
+     7	export type { StructuredToolSuccess, StructuredToolError, StructuredToolResult } from "./foundation";
+     8
+     9	// Agent
+    10	export { Agent } from "./agent";
+    11	export type { AgentContext, AgentOptions } from "./agent";
+    12	export type { AgentEvent, AgentEventType, AgentProgressSubtype, AgentMessageEvent, AgentProgressThinkingEvent, AgentProgressToolEvent, AgentProgressEvent } from "./agent";
+    13	export type { AgentMiddleware } from "./agent";
+    14	export { formatToolResultForMessage } from "./agent";
+    15	export type { SkillFrontmatter } from "./agent";
+    16
+    17	// Community
+    18	export { OpenAIModelProvider } from "./community";
+    19	export { AnthropicModelProvider } from "./community";
+    20
+    21	// Coding
+    22	export { createCodingAgent } from "./coding";
+    23	export { bashTool, readFileTool, writeFileTool, strReplaceTool, listFilesTool, globSearchTool, grepSearchTool, applyPatchTool, fileInfoTool, mkdirTool, movePathTool } from "./coding";

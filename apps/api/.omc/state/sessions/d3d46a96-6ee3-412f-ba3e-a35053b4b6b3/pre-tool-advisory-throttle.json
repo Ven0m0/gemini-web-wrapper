@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "entries": {
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1793709601855,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1793709569266,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "4c219064ffc83b440cb2a7775f21ff0b7023de6f8c105fdd3f43ac8311cdd175": {
+      "last_emitted_at_ms": 1793709513034,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: Frontend remaining fixes | Active agents: 1"
+    },
+    "b09c679defd4fa4e4df312f5d1b60dafac265317f523491fe000047dd67d0b78": {
+      "last_emitted_at_ms": 1793709505086,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: Backend remaining fixes"
+    }
+  },
+  "updated_at": "2026-11-03T12:40:01.855Z"
+}

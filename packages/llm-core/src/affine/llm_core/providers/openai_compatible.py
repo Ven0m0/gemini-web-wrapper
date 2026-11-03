@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 
 import httpx
 import orjson
@@ -176,13 +177,13 @@ class OpenAICompatibleProvider(LLMProvider):
         if not self._client.is_closed:
             await self._client.aclose()
 
-    async def __aenter__(self) -> OpenAICompatibleProvider:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: object | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         await self.aclose()

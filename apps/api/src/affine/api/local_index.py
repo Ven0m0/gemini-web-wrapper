@@ -3,31 +3,79 @@
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from affine.api.utils import create_local_embedder
 from affine.code_index import (
     CodeIndexer,
     CodeIndexStore,
     CodeSearchEngine,
+    Embedder,
+    EmbedderFactory,
+    SearchResult,
 )
 from affine.config.settings import Settings, get_settings
 
 router = APIRouter(prefix="/v1/local-index", tags=["local-index"])
 
+RESULT_CODE_LIMIT = 500
 
-def get_embedder(settings: Settings):
-    """Factory for embedder based on settings."""
+
+def create_local_embedder(settings: Settings) -> Embedder:
+    """Create an embedder from settings; the chat provider only supplies keys."""
+    choice = settings.embedding_provider
+    auto = choice == "auto"
+    if choice == "voyage" or (auto and settings.model_provider == "voyage"):
+        if not settings.voyage_api_key:
+            raise ValueError("No Voyage API key configured for embedding")
+        return EmbedderFactory.create(
+            provider="voyage", api_key=settings.voyage_api_key
+        )
+    if choice == "gemini" or (
+        auto and settings.model_provider == "gemini" and settings.google_api_key
+    ):
+        if not settings.google_api_key:
+            raise ValueError("No Google API key configured for embedding")
+        return EmbedderFactory.create(
+            provider="gemini", api_key=settings.google_api_key
+        )
+    if auto and settings.model_provider == "anthropic":
+        raise ValueError(
+            "Anthropic has no embeddings API; set EMBEDDING_PROVIDER=voyage"
+        )
+    api_key = settings.provider_api_key()
+    if api_key:
+        return EmbedderFactory.create(
+            provider="openai",
+            api_key=api_key,
+            base_url=settings.provider_base_url(),
+        )
+    raise ValueError("No API key configured for embedding")
+
+
+@asynccontextmanager
+async def open_engine(
+    settings: Settings,
+) -> AsyncIterator[tuple[CodeIndexStore, CodeSearchEngine]]:
+    """Yield an initialized store and search engine; always closes the embedder."""
     try:
-        return create_local_embedder(settings)
-    except ValueError as exc:
+        embedder = create_local_embedder(settings)
+    except HTTPException:
+        raise
+    except Exception as exc:
         raise HTTPException(
-            status_code=500,
-            detail=str(exc),
+            status_code=500, detail=f"Failed to initialize embedder: {exc}"
         ) from exc
+    try:
+        store = CodeIndexStore(settings.local_index_db_path, embedder.dimension)
+        await store.initialize()
+        yield store, CodeSearchEngine(store, embedder)
+    finally:
+        await embedder.aclose()
 
 
 class LocalIndexRequest(BaseModel):
@@ -107,6 +155,8 @@ class LocalStructuralSearchRequest(BaseModel):
 class LocalSearchResult(BaseModel):
     """Single search result."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     path: str
     kind: str
     name: str
@@ -140,6 +190,13 @@ class LocalStatsResponse(BaseModel):
     indexed_files: int
 
 
+def _to_results(rows: Sequence[SearchResult]) -> list[LocalSearchResult]:
+    results = [LocalSearchResult.model_validate(r) for r in rows]
+    for r in results:
+        r.code = r.code[:RESULT_CODE_LIMIT]
+    return results
+
+
 @router.post("/index", response_model=LocalIndexResponse)
 async def index_local(
     request: LocalIndexRequest,
@@ -150,28 +207,11 @@ async def index_local(
     Scans the specified directory, extracts AST nodes and chunks,
     generates embeddings, and stores in LanceDB.
     """
-    try:
-        embedder = get_embedder(settings)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize embedder: {exc}",
-        ) from exc
-
-    db_path = settings.repo_index_db_path.parent / "lancedb"
-
     # Securely validate that the requested root is within the current workspace.
-    # We use os.path.realpath to resolve symlinks and '..' components, and then
-    # ensure the result starts with the canonical path of the current directory.
+    # realpath resolves symlinks and '..' before the commonpath check.
     try:
-        # Canonicalize paths to handle symlinks and '..'
         workspace_path = os.path.realpath(os.getcwd())
         requested_path = os.path.realpath(request.root)
-
-        # Check that requested_path is within workspace_path
-        # Using commonpath is a robust way to verify the relationship
         if os.path.commonpath([workspace_path, requested_path]) != workspace_path:
             raise HTTPException(
                 status_code=400,
@@ -186,14 +226,22 @@ async def index_local(
             detail=f"Invalid root directory: {exc}",
         ) from exc
 
-    indexer = CodeIndexer(
-        root=root_path,
-        embedder=embedder,
-        db_path=db_path,
-    )
-    await indexer.initialize()
+    try:
+        embedder = create_local_embedder(settings)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initialize embedder: {exc}"
+        ) from exc
 
     try:
+        indexer = CodeIndexer(
+            root=root_path,
+            embedder=embedder,
+            db_path=settings.local_index_db_path,
+        )
+        await indexer.initialize()
         result = await indexer.index(force=request.force)
     except Exception as exc:
         raise HTTPException(
@@ -222,56 +270,21 @@ async def search_local(
     Performs semantic search using embeddings stored in LanceDB.
     Returns AST nodes and chunks ranked by relevance.
     """
-    try:
-        embedder = get_embedder(settings)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize embedder: {exc}",
-        ) from exc
-
-    db_path = settings.repo_index_db_path.parent / "lancedb"
-
-    store = CodeIndexStore(db_path, embedder.dimension)
-    await store.initialize()
-
-    engine = CodeSearchEngine(store, embedder)
-
-    try:
-        results = await engine.search(
-            query=request.query,
-            k=request.k,
-            path_prefix=request.path_prefix,
-            prefer_ast=request.prefer_ast,
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Search failed: {exc}",
-        ) from exc
-    finally:
-        await embedder.aclose()
-
-    return LocalSearchResponse(
-        query=request.query,
-        results=[
-            LocalSearchResult(
-                path=r.path,
-                kind=r.kind,
-                name=r.name,
-                signature=r.signature,
-                code=r.code[:500],  # Truncate for response
-                start_line=r.start_line,
-                end_line=r.end_line,
-                score=r.score,
-                is_ast_node=r.is_ast_node,
-                pattern=r.pattern,
+    async with open_engine(settings) as (_, engine):
+        try:
+            results = await engine.search(
+                query=request.query,
+                k=request.k,
+                path_prefix=request.path_prefix,
+                prefer_ast=request.prefer_ast,
             )
-            for r in results
-        ],
-    )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Search failed: {exc}",
+            ) from exc
+
+    return LocalSearchResponse(query=request.query, results=_to_results(results))
 
 
 @router.post("/search/structural", response_model=LocalSearchResponse)
@@ -284,56 +297,24 @@ async def search_structural(
     Performs literal search on symbol names, kinds, and code.
     Returns results matching filters.
     """
-    try:
-        embedder = get_embedder(settings)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize embedder: {exc}",
-        ) from exc
-
-    db_path = settings.repo_index_db_path.parent / "lancedb"
-
-    store = CodeIndexStore(db_path, embedder.dimension)
-    await store.initialize()
-
-    engine = CodeSearchEngine(store, embedder)
-
-    try:
-        results = await engine.search_structural(
-            kind=request.kind,
-            name_pattern=request.name_pattern,
-            code_pattern=request.code_pattern,
-            path_prefix=request.path_prefix,
-            k=request.k,
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Structural search failed: {exc}",
-        ) from exc
-    finally:
-        await embedder.aclose()
+    async with open_engine(settings) as (_, engine):
+        try:
+            results = await engine.search_structural(
+                kind=request.kind,
+                name_pattern=request.name_pattern,
+                code_pattern=request.code_pattern,
+                path_prefix=request.path_prefix,
+                k=request.k,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Structural search failed: {exc}",
+            ) from exc
 
     return LocalSearchResponse(
         query=f"structural:{request.name_pattern or ''}:{request.kind or ''}",
-        results=[
-            LocalSearchResult(
-                path=r.path,
-                kind=r.kind,
-                name=r.name,
-                signature=r.signature,
-                code=r.code[:500],
-                start_line=r.start_line,
-                end_line=r.end_line,
-                score=r.score,
-                is_ast_node=r.is_ast_node,
-                pattern=r.pattern,
-            )
-            for r in results
-        ],
+        results=_to_results(results),
     )
 
 
@@ -343,51 +324,16 @@ async def file_outline(
     settings: Settings = Depends(get_settings),
 ):
     """Get symbol outline for a specific file."""
-    try:
-        embedder = get_embedder(settings)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize embedder: {exc}",
-        ) from exc
+    async with open_engine(settings) as (_, engine):
+        try:
+            results = await engine.get_file_outline(path)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get file outline: {exc}",
+            ) from exc
 
-    db_path = settings.repo_index_db_path.parent / "lancedb"
-
-    store = CodeIndexStore(db_path, embedder.dimension)
-    await store.initialize()
-
-    engine = CodeSearchEngine(store, embedder)
-
-    try:
-        results = await engine.get_file_outline(path)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get file outline: {exc}",
-        ) from exc
-    finally:
-        await embedder.aclose()
-
-    return LocalOutlineResponse(
-        path=path,
-        results=[
-            LocalSearchResult(
-                path=r.path,
-                kind=r.kind,
-                name=r.name,
-                signature=r.signature,
-                code=r.code[:500],
-                start_line=r.start_line,
-                end_line=r.end_line,
-                score=r.score,
-                is_ast_node=r.is_ast_node,
-                pattern=r.pattern,
-            )
-            for r in results
-        ],
-    )
+    return LocalOutlineResponse(path=path, results=_to_results(results))
 
 
 @router.get("/outline/repo", response_model=LocalOutlineResponse)
@@ -396,50 +342,16 @@ async def repo_outline(
     settings: Settings = Depends(get_settings),
 ):
     """Get repository symbol outline."""
-    try:
-        embedder = get_embedder(settings)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize embedder: {exc}",
-        ) from exc
+    async with open_engine(settings) as (_, engine):
+        try:
+            results = await engine.get_repo_outline(k=k)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get repo outline: {exc}",
+            ) from exc
 
-    db_path = settings.repo_index_db_path.parent / "lancedb"
-
-    store = CodeIndexStore(db_path, embedder.dimension)
-    await store.initialize()
-
-    engine = CodeSearchEngine(store, embedder)
-
-    try:
-        results = await engine.get_repo_outline(k=k)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get repo outline: {exc}",
-        ) from exc
-    finally:
-        await embedder.aclose()
-
-    return LocalOutlineResponse(
-        results=[
-            LocalSearchResult(
-                path=r.path,
-                kind=r.kind,
-                name=r.name,
-                signature=r.signature,
-                code=r.code[:500],
-                start_line=r.start_line,
-                end_line=r.end_line,
-                score=r.score,
-                is_ast_node=r.is_ast_node,
-                pattern=r.pattern,
-            )
-            for r in results
-        ],
-    )
+    return LocalOutlineResponse(results=_to_results(results))
 
 
 @router.get("/stats", response_model=LocalStatsResponse)
@@ -447,31 +359,15 @@ async def index_stats(
     settings: Settings = Depends(get_settings),
 ):
     """Get local index statistics."""
-    try:
-        embedder = get_embedder(settings)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize embedder: {exc}",
-        ) from exc
-
-    db_path = settings.repo_index_db_path.parent / "lancedb"
-
-    store = CodeIndexStore(db_path, embedder.dimension)
-    await store.initialize()
-
-    try:
-        stats = await store.get_stats()
-        hashes = await store.get_indexed_file_hashes()
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get stats: {exc}",
-        ) from exc
-    finally:
-        await embedder.aclose()
+    async with open_engine(settings) as (store, _):
+        try:
+            stats = await store.get_stats()
+            hashes = await store.get_indexed_file_hashes()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get stats: {exc}",
+            ) from exc
 
     return LocalStatsResponse(
         total_records=stats.get("total_records", 0),

@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ProviderName = Literal[
@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     kilo_api_key: str | None = None
     voyage_api_key: str | None = None
     model_provider: ProviderName = "gemini"
+    embedding_provider: Literal["auto", "openai", "voyage", "gemini"] = "auto"
     model_name: str | None = None
     copilot_base_url: str = "https://api.githubcopilot.com"
     opencode_base_url: str = "http://localhost:4096/zen/v1"
@@ -33,6 +34,7 @@ class Settings(BaseSettings):
     frontend_dist_dir: Path = Path("apps/web/dist")
     repo_index_enabled: bool = True
     repo_index_db_path: Path = Path(".cache/repo-index.db")
+    local_index_db_path: Path = Path(".cache/lancedb")
     repo_index_turso_sync_url: str | None = None
     repo_index_turso_auth_token: str | None = None
     repo_index_max_files: int = 1000
@@ -40,6 +42,14 @@ class Settings(BaseSettings):
     repo_index_bash_lsp_command: str = "bash-language-server"
     repo_index_python_lsp_command: str = "pylsp"
     repo_index_rust_lsp_command: str = "rust-analyzer"
+
+    @model_validator(mode="after")
+    def default_local_index_next_to_repo_index(self) -> Settings:
+        # Keep the local index beside the repo index unless set explicitly, so a
+        # custom REPO_INDEX_DB_PATH does not orphan an existing lancedb dir.
+        if "local_index_db_path" not in self.model_fields_set:
+            self.local_index_db_path = self.repo_index_db_path.parent / "lancedb"
+        return self
 
     @field_validator("cors_allow_origins", mode="before")
     @classmethod

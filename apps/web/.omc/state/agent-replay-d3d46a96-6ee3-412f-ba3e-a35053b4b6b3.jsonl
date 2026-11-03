@@ -1,0 +1,1 @@
+{"t":0,"agent":"abacken","agent_type":"backend-cleanup","event":"agent_stop","success":true,"synthetic":true,"telemetry_status":"unmatched_stop","reason":"SubagentStop arrived without a matching SubagentStart; native Agent/Task start telemetry was not observed."}

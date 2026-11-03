@@ -16,9 +16,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from affine.api.server import app
 from affine.config.settings import Settings, get_settings
 from fastapi.testclient import TestClient
+
+from affine.api.server import app
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -397,9 +398,10 @@ def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> No
 
 
 def test_cors_middleware_configuration() -> None:
-    from affine.api.server import app
     from affine.config.settings import get_settings
     from fastapi.middleware.cors import CORSMiddleware
+
+    from affine.api.server import app
 
     settings = get_settings()
 
@@ -408,3 +410,81 @@ def test_cors_middleware_configuration() -> None:
     # Assert that allow_credentials is True and origins match settings
     assert cors_middleware.kwargs["allow_credentials"] is True
     assert cors_middleware.kwargs["allow_origins"] == settings.cors_allow_origins
+
+
+# ---------------------------------------------------------------------------
+# Agent chat
+# ---------------------------------------------------------------------------
+
+
+def _agent_provider(chunks: list[str]) -> MagicMock:
+    async def _stream(*_args: object, **_kwargs: object):
+        for chunk in chunks:
+            yield chunk
+
+    provider = _mock_provider()
+    provider.stream = _stream
+    return provider
+
+
+def test_agent_chat_uses_header_provider(client_with_key: TestClient) -> None:
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _agent_provider(["hi", " there"])
+        response = client_with_key.post(
+            "/v1/agent/chat",
+            headers=AUTH,
+            json={
+                "model": "claude-sonnet-4-6",
+                "messages": VALID_MESSAGES,
+                "x_provider": "anthropic",
+                "x_provider_api_key": "user-anthropic-key",
+            },
+        )
+
+    assert response.status_code == 200
+    assert mock_create.call_args.args[0] == "anthropic"
+    assert mock_create.call_args.kwargs["api_key"] == "user-anthropic-key"
+    assert mock_create.call_args.kwargs["model"] == "claude-sonnet-4-6"
+    assert response.text == (
+        'data: {"type":"text_delta","text":"hi"}\n\n'
+        'data: {"type":"text_delta","text":" there"}\n\n'
+        'data: {"type":"done"}\n\n'
+    )
+
+
+def test_agent_chat_falls_back_to_server_provider(
+    client_with_key: TestClient,
+) -> None:
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _agent_provider([])
+        response = client_with_key.post(
+            "/v1/agent/chat",
+            headers=AUTH,
+            json={
+                "model": "requested-model",
+                "messages": VALID_MESSAGES,
+                "x_provider": "anthropic",
+            },
+        )
+
+    assert response.status_code == 200
+    assert mock_create.call_args.args[0] == "gemini"
+    assert mock_create.call_args.kwargs["api_key"] == "server-google-key"
+    # "requested-model" belongs to anthropic, so the server provider must not get it.
+    assert mock_create.call_args.kwargs["model"] == "gemini-3.1-pro-preview"
+
+
+def test_agent_chat_keeps_request_model_for_server_provider(
+    client_with_key: TestClient,
+) -> None:
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _agent_provider([])
+        response = client_with_key.post(
+            "/v1/agent/chat",
+            headers=AUTH,
+            json={"model": "requested-model", "messages": VALID_MESSAGES},
+        )
+
+    assert response.status_code == 200
+    assert mock_create.call_args.args[0] == "gemini"
+    assert mock_create.call_args.kwargs["model"] == "requested-model"

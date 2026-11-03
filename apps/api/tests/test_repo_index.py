@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from affine.api.repo_indexing import GitHubRepositoryClient, GitHubTreeEntry
-from affine.api.server import app
 from affine.config.settings import Settings, get_settings
 from fastapi.testclient import TestClient
+
+from affine.api.repo_indexing import (
+    GitHubRepositoryClient,
+    GitHubTreeEntry,
+    RepositoryIndexService,
+)
+from affine.api.server import app
 
 AUTH = {"Authorization": "Bearer server-gate-key"}
 
@@ -122,3 +127,34 @@ def test_repo_search_requires_existing_index(tmp_path: Path) -> None:
         }
     finally:
         app.dependency_overrides.clear()
+
+
+def test_extract_symbols_python_functions(tmp_path: Path) -> None:
+    service = RepositoryIndexService(make_settings(tmp_path))
+    content = (
+        "def top():\n    pass\n\n\nclass Box:\n    def inner(self):\n        pass\n"
+    )
+
+    symbols = service._extract_symbols("a.py", content, "python")
+
+    assert {(s.kind, s.name) for s in symbols} >= {
+        ("function", "top"),
+        ("function", "inner"),
+        ("class", "Box"),
+    }
+    assert service._extract_symbols("a.md", content, None) == []
+
+
+def test_repo_index_parser_is_per_thread(tmp_path: Path) -> None:
+    import threading
+
+    service = RepositoryIndexService(
+        Settings(api_key="k", repo_index_db_path=tmp_path / "r.db")
+    )
+    seen: dict[str, object] = {}
+    seen["main"] = service._parser()
+    assert service._parser() is seen["main"]
+    t = threading.Thread(target=lambda: seen.update(other=service._parser()))
+    t.start()
+    t.join()
+    assert seen["other"] is not seen["main"]

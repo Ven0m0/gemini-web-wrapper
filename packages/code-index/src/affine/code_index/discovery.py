@@ -7,6 +7,7 @@ import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 
 @dataclass
@@ -24,7 +25,7 @@ class FileInfo:
 class FileDiscovery:
     """Discover and track source files."""
 
-    DEFAULT_IGNORE = {
+    DEFAULT_IGNORE: ClassVar[set[str]] = {
         ".git",
         "node_modules",
         "__pycache__",
@@ -43,7 +44,7 @@ class FileDiscovery:
         ".ruff_cache",
     }
 
-    DEFAULT_EXTENSIONS = {
+    DEFAULT_EXTENSIONS: ClassVar[set[str]] = {
         ".py",
         ".rs",
         ".ts",
@@ -82,9 +83,7 @@ class FileDiscovery:
         """Check if directory should be ignored."""
         if dirname.startswith("."):
             return True
-        if dirname in self.ignore_dirs:
-            return True
-        return False
+        return dirname in self.ignore_dirs
 
     def discover(self) -> Iterator[FileInfo]:
         """Yield all matching files with content hashes."""

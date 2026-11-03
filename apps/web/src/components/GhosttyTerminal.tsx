@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { errorMessage } from '../utils/error';
 
 export interface GhosttyTerminalChunk {
   id: number;
@@ -90,7 +91,7 @@ export function GhosttyTerminal({ chunks, fontSize, active, onData }: GhosttyTer
         chunkCountRef.current = 0;
         appendPendingChunks();
       } catch (error) {
-        setLoadError(error instanceof Error ? error.message : String(error));
+        setLoadError(errorMessage(error));
       }
     };
 

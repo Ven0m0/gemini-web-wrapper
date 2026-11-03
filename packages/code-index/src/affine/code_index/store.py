@@ -63,7 +63,7 @@ class CodeIndexStore:
         # Create table if not exists
         try:
             self._table = await self._db.open_table(self.TABLE_NAME)
-        except Exception:
+        except Exception:  # noqa: BLE001 - lancedb has no stable 'table missing' exception
             # Create with schema
             schema = self._get_schema()
             self._table = await self._db.create_table(
@@ -180,7 +180,7 @@ class CodeIndexStore:
             results = await self._table.to_arrow()
             hashes = results.column("file_hash").to_pylist()
             return set(hashes)
-        except Exception:
+        except Exception:  # noqa: BLE001 - treat any read failure as an empty index
             return set()
 
     async def get_stats(self) -> dict[str, Any]:
@@ -191,5 +191,5 @@ class CodeIndexStore:
         try:
             count = await self._table.count_rows()
             return {"total_records": count}
-        except Exception:
+        except Exception:  # noqa: BLE001 - treat any read failure as an empty index
             return {"total_records": 0}

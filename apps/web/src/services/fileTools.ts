@@ -215,3 +215,19 @@ export function isTextPath(path: string, mimeType = ''): boolean {
   const extension = filename.slice(dotIndex + 1);
   return TEXT_FILE_EXTENSIONS.has(extension);
 }
+
+/** Read a file as a base64 string (no data-URL prefix). */
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('Failed to encode file'));
+        return;
+      }
+      resolve(reader.result.split(',', 2)[1] || '');
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}

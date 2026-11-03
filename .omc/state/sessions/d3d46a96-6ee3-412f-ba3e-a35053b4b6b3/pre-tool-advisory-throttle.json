@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "entries": {
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1793709732474,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "459c54e5f35d6a58dcd90d2aecc21fa6d1f35d241bc5b134c506f87dc7b6d67b": {
+      "last_emitted_at_ms": 1793708940163,
+      "message": "Combine searches in parallel when investigating multiple patterns."
+    },
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1793708931892,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    },
+    "2b374d63410bd1183593f518cbf6bb3c5f83d855fdd5197f6e6f84bffbb9c443": {
+      "last_emitted_at_ms": 1793708909794,
+      "message": "Spawning agent: oh-my-claudecode:code-reviewer (inherit) | Task: Review cleanup diff | Active agents: 1"
+    },
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1793708752269,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "6fb64f6e7dac2e04a6e7ac1d950e88847e4be2358d7376bdc5e06242795b7fc3": {
+      "last_emitted_at_ms": 1793708671286,
+      "message": "[SLOP WARNING] Detected fallback/workaround language in this tool input. Do not make potential slop: avoid ad-hoc fallback layers, workaround shims, or environment-specific patches unless explicitly justified. For architecture concerns, consult the architect for a concrete design first. If this seems environment-specific, ask the user to confirm constraints before proceeding.\n\nUse parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "6ecba3cb87bf1c61ac3e3288287119fcf778513e929409a7610cf5e50c4aa24a": {
+      "last_emitted_at_ms": 1793708544621,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: Frontend deletions and dedupe | Active agents: 1"
+    },
+    "108dfa0e5527d21c8a560cc1c0872bf536ec5f946985979b33e8dc5a59caa1b3": {
+      "last_emitted_at_ms": 1793708540987,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: Backend dedupe and bug fixes"
+    },
+    "d4e8bc79f252232e8d48234a3ff5db6e9325d756222b035fc0fbf0753adada93": {
+      "last_emitted_at_ms": 1793708244531,
+      "message": "Spawning agent: Explore (inherit) | Task: Explore helixent package"
+    },
+    "25987d43a4e037e5f97cfe0b480465a09d76128209741a9e9cb30669bdc0c0c3": {
+      "last_emitted_at_ms": 1793708240585,
+      "message": "Spawning agent: Explore (inherit) | Task: Explore web frontend for duplication"
+    },
+    "3067c51224d89d667624c061c61b60164adf3c1a93915878873b984855abb3be": {
+      "last_emitted_at_ms": 1793708234767,
+      "message": "Spawning agent: Explore (inherit) | Task: Explore Python backend for duplication"
+    }
+  },
+  "updated_at": "2026-11-03T12:42:12.474Z"
+}

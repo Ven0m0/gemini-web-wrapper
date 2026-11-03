@@ -1,3 +1,5 @@
+import { requestJson } from './http';
+
 export interface GitHubFileResponse {
   content: string;
   sha: string;
@@ -45,7 +47,7 @@ export class GitHubService {
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
-    const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/${endpoint}`, {
+    return requestJson<any>(`https://api.github.com/repos/${this.owner}/${this.repo}/${endpoint}`, {
       ...options,
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -54,12 +56,6 @@ export class GitHubService {
         ...options.headers,
       },
     });
-
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
   }
 
   async getFile(path: string, branch: string = 'main', force: boolean = false): Promise<GitHubFileResponse> {
@@ -72,18 +68,12 @@ export class GitHubService {
     const url = `https://api.github.com/repos/${this.owner}/${this.repo}/contents/${path}?ref=${branch}`;
 
     try {
-      const response = await fetch(url, {
+      const data = await requestJson<{ content: string; sha: string }>(url, {
         headers: {
           Authorization: `token ${this.token}`,
           Accept: 'application/vnd.github.v3+json',
         },
       });
-
-      if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
       const binaryString = atob(data.content);
       const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
       const content = new TextDecoder('utf-8').decode(bytes);
@@ -154,7 +144,7 @@ export class GitHubService {
 
   async createBranch(newBranch: string, fromBranch: string = 'main'): Promise<void> {
     try {
-      const { data: ref } = await this.request(`git/ref/heads/${fromBranch}`);
+      const ref = await this.request(`git/ref/heads/${fromBranch}`);
       const sha = ref.object.sha;
 
       await this.request(`git/refs`, {

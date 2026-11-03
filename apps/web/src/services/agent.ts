@@ -20,6 +20,57 @@ export interface AgentMessage {
 }
 
 import { API_BASE } from '../constants/api';
+import { generateId } from '../utils/id';
+
+const CURRENT_ID = 'a-current';
+
+function updateCurrent(messages: AgentMessage[], update: (current: AgentMessage) => AgentMessage): AgentMessage[] {
+  const last = messages[messages.length - 1];
+  if (last?.role === 'assistant' && last.id === CURRENT_ID) {
+    return [...messages.slice(0, -1), update(last)];
+  }
+  const fresh: AgentMessage = { id: CURRENT_ID, role: 'assistant', content: '', timestamp: Date.now() };
+  return [...messages, update(fresh)];
+}
+
+/** Gives the in-progress assistant message a unique id so later turns never share the streaming id. */
+export function finalizeCurrent(messages: AgentMessage[]): AgentMessage[] {
+  if (!messages.some((m) => m.id === CURRENT_ID)) return messages;
+  return messages.map((m) => (m.id === CURRENT_ID ? { ...m, id: `a-${generateId()}` } : m));
+}
+
+/** Pure reducer folding one streamed agent event into the message list. */
+export function reduceAgentEvent(messages: AgentMessage[], event: AgentEvent): AgentMessage[] {
+  switch (event.type) {
+    case 'text_delta':
+      if (!event.text) return messages;
+      return updateCurrent(messages, (m) => ({ ...m, content: m.content + event.text }));
+    case 'thinking_delta':
+      if (!event.thinking) return messages;
+      return updateCurrent(messages, (m) => ({ ...m, thinking: (m.thinking ?? '') + event.thinking }));
+    case 'tool_call':
+      return updateCurrent(messages, (m) => ({
+        ...m,
+        toolCalls: [
+          ...(m.toolCalls ?? []),
+          { id: event.tool_id ?? '', name: event.tool_name ?? '', args: event.arguments ?? {} },
+        ],
+      }));
+    case 'tool_result':
+      return messages.map((m) =>
+        m.toolCalls?.some((tc) => tc.id === event.tool_id)
+          ? {
+              ...m,
+              toolCalls: m.toolCalls.map((tc) => (tc.id === event.tool_id ? { ...tc, result: event.result } : tc)),
+            }
+          : m
+      );
+    case 'done':
+      return finalizeCurrent(messages);
+    default:
+      return messages;
+  }
+}
 
 export class AgentService {
   constructor(private apiKey: string) {}
