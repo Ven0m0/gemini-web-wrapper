@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,8 +18,8 @@ from affine.api.server import app
 AUTH = {"Authorization": "Bearer server-gate-key"}
 
 
-def make_settings(tmp_path: Path, **kwargs: object) -> Settings:
-    defaults: dict[str, object] = {
+def make_settings(tmp_path: Path, **kwargs: Any) -> Settings:
+    defaults: dict[str, Any] = {
         "api_key": "server-gate-key",
         "google_api_key": "server-google-key",
         "model_provider": "gemini",

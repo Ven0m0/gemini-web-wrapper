@@ -7,7 +7,7 @@ from affine.llm_core.providers.copilot import CopilotProvider
 from affine.llm_core.providers.gemini import GeminiProvider
 from affine.llm_core.providers.openai_compatible import OpenAICompatibleProvider
 
-PROVIDER_REGISTRY: dict[ProviderName, type[LLMProvider]] = {
+PROVIDER_REGISTRY: dict[str, type[LLMProvider]] = {
     "gemini": GeminiProvider,
     "anthropic": AnthropicProvider,
     "copilot": CopilotProvider,

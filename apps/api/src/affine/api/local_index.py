@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -60,7 +60,7 @@ def create_local_embedder(settings: Settings) -> Embedder:
 @asynccontextmanager
 async def open_engine(
     settings: Settings,
-) -> AsyncIterator[tuple[CodeIndexStore, CodeSearchEngine]]:
+) -> AsyncGenerator[tuple[CodeIndexStore, CodeSearchEngine]]:
     """Yield an initialized store and search engine; always closes the embedder."""
     try:
         embedder = create_local_embedder(settings)

@@ -12,6 +12,7 @@ Covers:
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -28,8 +29,8 @@ from affine.api.server import app
 VALID_MESSAGES = [{"role": "user", "content": "hello"}]
 
 
-def make_settings(**kwargs: object) -> Settings:
-    defaults: dict[str, object] = {
+def make_settings(**kwargs: Any) -> Settings:
+    defaults: dict[str, Any] = {
         "api_key": "server-gate-key",
         "google_api_key": "server-google-key",
         "anthropic_api_key": "server-anthropic-key",

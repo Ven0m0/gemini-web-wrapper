@@ -6,7 +6,6 @@ from json import JSONDecodeError
 from typing import Any
 
 import httpx
-import orjson
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -104,7 +103,7 @@ def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
         data = response.json()
-    except JSONDecodeError, orjson.JSONDecodeError:
+    except JSONDecodeError:
         return _extract_non_empty_text(response.text) or (
             f"Upstream provider returned {response.status_code}"
         )

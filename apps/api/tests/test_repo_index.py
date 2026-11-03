@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from affine.config.settings import Settings, get_settings
 from fastapi.testclient import TestClient
@@ -35,8 +36,8 @@ class FakeGitHubRepositoryClient(GitHubRepositoryClient):
         return self._files[sha]
 
 
-def make_settings(tmp_path: Path, **kwargs: object) -> Settings:
-    defaults: dict[str, object] = {
+def make_settings(tmp_path: Path, **kwargs: Any) -> Settings:
+    defaults: dict[str, Any] = {
         "api_key": "server-gate-key",
         "google_api_key": "server-google-key",
         "model_provider": "gemini",

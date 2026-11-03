@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, cast
 
 import httpx
 import numpy as np
@@ -225,12 +225,13 @@ class VoyageEmbedder(BatchEmbedderMixin):
             input_type=input_type,
         )
 
-        # Voyage AI embeddings are already normalized
-        return response.embeddings
+        # Voyage AI embeddings are already normalized. The SDK types them as
+        # float | int lists because of output_dtype; the default dtype is float.
+        return cast(list[list[float]], response.embeddings)
 
     async def aclose(self) -> None:
-        if self._client is not None:
-            await self._client.aclose()
+        # voyageai.AsyncClient has no close method; just drop the reference.
+        self._client = None
 
 
 class LocalEmbedder(BatchEmbedderMixin):

@@ -86,10 +86,12 @@ class CursorLike(Protocol):
 
 
 class ConnectionLike(Protocol):
-    def execute(self, sql: str, parameters: tuple[object, ...] = ()) -> CursorLike: ...
+    def execute(
+        self, sql: str, parameters: tuple[object, ...] = (), /
+    ) -> CursorLike: ...
 
     def executemany(
-        self, sql: str, parameters: Iterable[tuple[object, ...]]
+        self, sql: str, parameters: Iterable[tuple[object, ...]], /
     ) -> CursorLike: ...
 
     def commit(self) -> None: ...
@@ -620,7 +622,7 @@ class RepositoryIndexService:
         sync = getattr(connection, "sync", None)
         if callable(sync):
             sync()
-        return connection
+        return cast(ConnectionLike, connection)
 
     def _init_schema(self, connection: ConnectionLike) -> None:
         connection.execute(
