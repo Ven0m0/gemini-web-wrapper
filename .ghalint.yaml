@@ -1,0 +1,12 @@
+# SHA pinning is intentionally not used; actions float on their latest major tag.
+excludes:
+  - policy_name: action_ref_should_be_full_length_commit_sha
+    action_name: actions/checkout
+  - policy_name: action_ref_should_be_full_length_commit_sha
+    action_name: actions/setup-node
+  - policy_name: action_ref_should_be_full_length_commit_sha
+    action_name: actions/setup-python
+  - policy_name: action_ref_should_be_full_length_commit_sha
+    action_name: astral-sh/setup-uv
+  - policy_name: action_ref_should_be_full_length_commit_sha
+    action_name: oven-sh/setup-bun

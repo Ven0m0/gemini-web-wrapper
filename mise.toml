@@ -28,6 +28,7 @@ fd = "latest"
 PROJECT_ROOT = "{{config_root}}"
 UV_PYTHON = { value = "{{ tools.python.path }}", tools = true }
 UV_LINK_MODE = "symlink"
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 _.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed", "--system-site-packages"] }
 
 [hooks]
@@ -35,7 +36,17 @@ enter = "mise i -yq"
 
 [tasks.install]
 description = 'Mise ci install'
-file = '.mise/tasks/install'
+shell = "bash -c"
+run = '''
+export DEBIAN_FRONTEND=noninteractive DEBCONF_NOWARNINGS=yes
+
+bun install --frozen-lockfile || true
+uv sync --all-extras --all-packages --all-groups --link-mode symlink --locked || true
+cd apps/web && bun install --frozen-lockfile || true
+cd ../api && uv sync --all-extras --all-packages --all-groups --link-mode symlink --locked || true
+cd ../..
+[[ -f .venv/bin/activate ]] && source .venv/bin/activate
+'''
 
 [tasks.test]
 description = "Run tests"

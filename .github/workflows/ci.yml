@@ -9,12 +9,21 @@ on:
 permissions:
   contents: read
 
+env:
+  # libsql builds from source via PyO3 0.25, which predates Python 3.15
+  PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+
 jobs:
   web:
     name: Web (lint, typecheck, build)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: "24.22.0"
@@ -33,10 +42,15 @@ jobs:
   api:
     name: API (lint, typecheck, test)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     env:
       PYTHONPATH: src:../../packages/config/src
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.15.0"
@@ -52,7 +66,7 @@ jobs:
       - name: Write pyrefly config
         run: |
           cat > pyrefly.toml <<'EOF'
-          python-version = "3.14"
+          python-version = "3.15"
           project-includes = ["src"]
           search-path = [
               "src",
@@ -73,8 +87,13 @@ jobs:
   config:
     name: Config package
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.15.0"
@@ -91,8 +110,13 @@ jobs:
   shared:
     name: Shared package
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.15.0"

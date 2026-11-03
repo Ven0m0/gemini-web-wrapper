@@ -92,3 +92,7 @@ gha-creds-*.json
 
 # Local Netlify folder
 .netlify/
+
+.claude/context-archive/
+.codegraph/
+.omc/

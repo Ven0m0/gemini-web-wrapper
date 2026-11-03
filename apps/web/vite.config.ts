@@ -60,7 +60,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
+        navigateFallbackDenylist: [/^\/_/, /^\/v1\//, /^\/api\//, /^\/health$/, /\/[^/?]+\.[^/]+$/],
+        cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
@@ -79,12 +80,28 @@ export default defineConfig({
               ]
             }
           },
+          // Google Fonts: stylesheet revalidates, font files are immutable
+          {
+            urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com',
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-css' }
+          },
+          {
+            urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-files',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 }
+            }
+          },
           // Cache Wasmer SDK from common CDNs
           {
             urlPattern: new RegExp('^https://(esm\\.sh|cdn\\.jsdelivr\\.net|unpkg\\.com|cdn\\.skypack\\.dev|esm\\.run)/'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'wasmer-sdk',
+              cacheableResponse: { statuses: [0, 200] },
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 7 }
             }
           },
@@ -94,6 +111,7 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'wasmer-registry',
+              cacheableResponse: { statuses: [0, 200] },
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 }
             }
           },
@@ -103,21 +121,22 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'webassembly-sh',
+              cacheableResponse: { statuses: [0, 200] },
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 }
             }
           }
         ]
       },
-      includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png', 'maskable-icon-512x512.png'],
+      includeAssets: ['apple-touch-icon.png', 'icons/*.svg'],
       manifest: {
         name: 'Gemini Web Wrapper - GitHub Editor',
         short_name: 'Gemini GitHub',
         description: 'Mobile-First AI Editor for GitHub with Gemini',
         theme_color: '#000000',
         background_color: '#000000',
+        id: '/',
         scope: '/',
         display: 'standalone',
-        orientation: 'portrait-primary',
         start_url: '/',
         categories: ['developer', 'productivity', 'utilities'],
         lang: 'en',

@@ -140,9 +140,7 @@ Characteristics:
 
 ### Workspace toolchain
 
-- Node.js `24.15.0`
-- Bun `1.3.13`
-- Python `3.14.4`
+- Node.js 24, Bun 1.4+, Python 3.15+ (exact pins in `mise.toml` and CI)
 - `uv`
 
 ### CI workflows

@@ -28,9 +28,8 @@ A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the brows
 
 ### Prerequisites
 
-- Node.js **24.15.0**
-- Bun **1.3.13**
-- Python **3.14.4**
+- Node.js **24** and Bun **1.4+** (exact pins live in `mise.toml` and `.github/workflows/`)
+- Python **3.15+** (`requires-python` in `pyproject.toml`)
 - `uv`
 - Git
 - Optional: [mise](https://mise.jdx.dev/) to install the pinned toolchain from `mise.toml`
@@ -40,7 +39,8 @@ A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the brows
 ```bash
 git clone https://github.com/Ven0m0/gemini-web-wrapper.git
 cd gemini-web-wrapper
-mise install   # optional but recommended
+mise install   # optional but recommended; installs the pinned toolchain
+mise run install   # optional: installs web + API dependencies in one step
 cp .env.example .env
 ```
 

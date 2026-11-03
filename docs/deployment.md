@@ -4,11 +4,11 @@ This repository is split into a static frontend (`apps/web`) and a FastAPI backe
 
 ## Pinned toolchain
 
-The repository pins the following versions in `mise.toml` and CI:
+Exact versions are pinned in `mise.toml` and `.github/workflows/`; treat those files as the source of truth. Minimums:
 
-- Node.js **24.15.0**
-- Bun **1.3.13**
-- Python **3.14.4**
+- Node.js 24
+- Bun 1.4+
+- Python 3.15+ (`requires-python` in `pyproject.toml`)
 - `uv` (latest)
 
 If you use [mise](https://mise.jdx.dev/), run:
@@ -75,6 +75,19 @@ export PYTHONPATH=src:../../packages/config/src
 uv run uvicorn affine.api.server:app --reload --host 0.0.0.0 --port 9000
 ```
 
+#### Windows: building `libsql`
+
+`libsql` has no Python 3.15 wheel and compiles from source (Rust + CMake). On Windows, run `uv sync` from a shell with the MSVC environment loaded, and select Ninja because the `cmake` crate does not recognise newer Visual Studio generators:
+
+```bat
+call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+set CMAKE_GENERATOR=Ninja
+set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+uv sync --all-extras --all-packages --all-groups
+```
+
+Requires Visual Studio Build Tools with the C++ workload. `cmake` and `ninja` ship with it under `Common7\IDE\CommonExtensions\Microsoft\CMake`; add them to `PATH` if they are not already there.
+
 ### Frontend
 
 ```bash
@@ -137,6 +150,11 @@ uv run pytest
 
 - Build command: `bun install && bun run build`
 - Publish directory: `apps/web/dist`
+- SPA fallback redirect to `/index.html`
+- Cache headers: `/assets/*` is immutable for one year; `/sw.js`, `/index.html`, and `/manifest.webmanifest` are `no-cache` so PWA updates roll out promptly
+- Security headers: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`
+
+If you host elsewhere, replicate the cache headers. A service worker served with a long `max-age` delays PWA updates.
 
 ### Vercel (frontend)
 
@@ -164,10 +182,10 @@ Set provider credentials and `API_KEY` in the Render environment as needed.
 
 ### Railway (backend)
 
-Use a Python 3.14-compatible base image. Example Dockerfile:
+Use a base image that matches `requires-python` (3.15+). Example Dockerfile:
 
 ```dockerfile
-FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.15-bookworm-slim
 WORKDIR /app
 COPY . .
 RUN cd apps/api && uv sync --all-extras
