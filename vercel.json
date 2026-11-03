@@ -8,7 +8,7 @@
     },
     "api": {
       "root": "apps/api",
-      "entrypoint": "affine.api.server:app"
+      "entrypoint": "index:app"
     }
   },
   "rewrites": [
