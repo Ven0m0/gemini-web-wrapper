@@ -11,7 +11,7 @@
       "entrypoint": "index:app",
       "functions": {
         "index.py": {
-          "excludeFiles": "{apps/web/**,**/node_modules/**,docs/**,.git/**,**/tests/**}"
+          "excludeFiles": "{node_modules/**,**/node_modules/**,apps/web/**,docs/**,.git/**,**/tests/**}"
         }
       }
     }
