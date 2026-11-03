@@ -20,10 +20,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: "24.22.0"
+          node-version: "26.13.0"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.3"
+          bun-version: "1.4.4"
 
       - name: Install frontend dependencies
         run: bun install
