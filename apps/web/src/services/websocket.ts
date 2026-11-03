@@ -69,9 +69,15 @@ export class WebSocketService {
           }
         };
 
-        this.ws.onerror = (error) => {
-          this.onStatusChange('error', error instanceof Error ? error : String(error));
-          reject(new Error(`WebSocket connection failed: ${error}`));
+        // Browsers give onerror a bare Event with no cause, so name the likely ones ourselves.
+        this.ws.onerror = () => {
+          const mixedContent = typeof location !== 'undefined' && location.protocol === 'https:' && this.url.startsWith('ws://');
+          const cause = mixedContent
+            ? 'ws:// is blocked from an https page (mixed content); use wss://'
+            : 'the server is unreachable or refused the connection; check the URL and that the shell server is running';
+          const error = new Error(`Could not connect to ${this.url}: ${cause}`);
+          this.onStatusChange('error', error);
+          reject(error);
         };
       } catch (error) {
         reject(error);
