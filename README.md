@@ -29,7 +29,7 @@ A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the brows
 ### Prerequisites
 
 - Node.js **24** and Bun **1.4+** (exact pins live in `mise.toml` and `.github/workflows/`)
-- Python **3.15+** (`requires-python` in `pyproject.toml`)
+- Python **3.14+** (`requires-python` in `pyproject.toml`; local dev and CI pin 3.15)
 - `uv`
 - Git
 - Optional: [mise](https://mise.jdx.dev/) to install the pinned toolchain from `mise.toml`

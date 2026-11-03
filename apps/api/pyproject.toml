@@ -1,7 +1,7 @@
 [project]
 name = "affine-api"
 version = "0.1.0"
-requires-python = ">=3.15"
+requires-python = ">=3.14"
 dependencies = [
     "ast-grep-py>=0.42.1",
     "fastapi>=0.100.0",
@@ -47,3 +47,10 @@ known-first-party = ["affine"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends"]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "affine.api"
