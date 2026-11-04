@@ -13,6 +13,15 @@ interface GitHubCommitResponse {
   };
 }
 
+/** Raw item from the contents API: an array for a directory, a single object for a file. */
+interface GitHubContentItem {
+  name: string;
+  path: string;
+  type: string;
+  size?: number;
+  sha: string;
+}
+
 export interface GitHubDirectoryItem {
   name: string;
   path: string;
@@ -46,8 +55,8 @@ export class GitHubService {
     GitHubService.fileCache.delete(this.cacheKey(path, branch));
   }
 
-  private async request(endpoint: string, options: RequestInit = {}) {
-    return requestJson<any>(`https://api.github.com/repos/${this.owner}/${this.repo}/${endpoint}`, {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return requestJson<T>(`https://api.github.com/repos/${this.owner}/${this.repo}/${endpoint}`, {
       ...options,
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -85,6 +94,27 @@ export class GitHubService {
     }
   }
 
+  /** PUT base64 content to a path and drop the stale cache entry. `sha` is omitted for new files. */
+  private async putContents(
+    path: string,
+    base64Content: string,
+    sha: string,
+    message: string,
+    branch: string
+  ): Promise<GitHubCommitResponse['content']> {
+    const data = await this.request<GitHubCommitResponse>(`contents/${path}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        message,
+        content: base64Content,
+        branch,
+        ...(sha && sha.trim() !== '' ? { sha } : {}),
+      }),
+    });
+    this.invalidateFile(path, branch);
+    return data.content;
+  }
+
   async updateFile(
     path: string,
     content: string,
@@ -94,24 +124,7 @@ export class GitHubService {
   ): Promise<string> {
     try {
       const encodedContent = btoa(unescape(encodeURIComponent(content)));
-
-      const requestBody: any = {
-        message,
-        content: encodedContent,
-        branch,
-      };
-
-      if (sha && sha.trim() !== '') {
-        requestBody.sha = sha;
-      }
-
-      const data: GitHubCommitResponse = await this.request(`contents/${path}`, {
-        method: 'PUT',
-        body: JSON.stringify(requestBody),
-      });
-
-      this.invalidateFile(path, branch);
-      return data.content.sha;
+      return (await this.putContents(path, encodedContent, sha, message, branch)).sha;
     } catch (error) {
       throw new Error(`Failed to commit file: ${error}`, { cause: error });
     }
@@ -125,18 +138,8 @@ export class GitHubService {
     branch: string = 'main'
   ): Promise<{ sha: string; download_url?: string }> {
     try {
-      const requestBody: any = {
-        message,
-        content: base64Content,
-        branch,
-      };
-      if (sha && sha.trim() !== '') requestBody.sha = sha;
-      const data: GitHubCommitResponse = await this.request(`contents/${path}`, {
-        method: 'PUT',
-        body: JSON.stringify(requestBody),
-      });
-      this.invalidateFile(path, branch);
-      return { sha: data.content.sha, download_url: (data.content as any)?.download_url };
+      const committed = await this.putContents(path, base64Content, sha, message, branch);
+      return { sha: committed.sha, download_url: committed.download_url };
     } catch (error) {
       throw new Error(`Failed to commit binary file: ${error}`, { cause: error });
     }
@@ -144,7 +147,7 @@ export class GitHubService {
 
   async createBranch(newBranch: string, fromBranch: string = 'main'): Promise<void> {
     try {
-      const ref = await this.request(`git/ref/heads/${fromBranch}`);
+      const ref = await this.request<{ object: { sha: string } }>(`git/ref/heads/${fromBranch}`);
       const sha = ref.object.sha;
 
       await this.request(`git/refs`, {
@@ -161,8 +164,8 @@ export class GitHubService {
 
   async listBranches(): Promise<string[]> {
     try {
-      const branches = await this.request(`branches`);
-      return branches.map((branch: { name: string }) => branch.name);
+      const branches = await this.request<Array<{ name: string }>>(`branches`);
+      return branches.map((branch) => branch.name);
     } catch (error) {
       throw new Error(`Failed to list branches: ${error}`, { cause: error });
     }
@@ -170,10 +173,10 @@ export class GitHubService {
 
   async listDirectory(path: string = '', branch: string = 'main'): Promise<GitHubDirectoryItem[]> {
     try {
-      const data = await this.request(`contents/${path}?ref=${branch}`);
+      const data = await this.request<GitHubContentItem | GitHubContentItem[]>(`contents/${path}?ref=${branch}`);
 
       if (Array.isArray(data)) {
-        return data.map((item: any) => ({
+        return data.map((item) => ({
           name: item.name,
           path: item.path,
           type: item.type === 'dir' ? 'dir' : 'file',

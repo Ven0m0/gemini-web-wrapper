@@ -397,6 +397,106 @@ def test_chat_completions_returns_upstream_http_errors(
     )
 
 
+def test_chat_completions_unreachable_provider_returns_502_without_url(
+    client_with_key: TestClient,
+) -> None:
+    provider = _mock_provider()
+    provider.name = "opencode-zen"
+    request = httpx.Request("POST", "http://localhost:4096/zen/v1/chat/completions")
+    provider.generate = AsyncMock(
+        side_effect=httpx.ConnectError("refused", request=request)
+    )
+
+    with patch("affine.api.server.ProviderFactory.create", return_value=provider):
+        resp = client_with_key.post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={"model": "glm-5.1", "messages": VALID_MESSAGES},
+        )
+
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert "Could not reach provider 'opencode-zen'" in detail
+    assert "localhost" not in detail
+    provider.aclose.assert_awaited()
+
+
+def test_chat_completions_stream_failure_is_reported_in_band(
+    client_with_key: TestClient,
+) -> None:
+    async def _broken_stream(*_args: object, **_kwargs: object):
+        raise httpx.ConnectError("secret-key-in-url")
+        yield ""  # pragma: no cover - makes this an async generator
+
+    provider = _mock_provider()
+    provider.stream = _broken_stream
+
+    with patch("affine.api.server.ProviderFactory.create", return_value=provider):
+        resp = client_with_key.post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={
+                "model": "gemini-3.1-pro-preview",
+                "messages": VALID_MESSAGES,
+                "stream": True,
+            },
+        )
+
+    assert resp.status_code == 200
+    assert '"error"' in resp.text
+    assert "secret-key-in-url" not in resp.text
+    assert resp.text.rstrip().endswith("data: [DONE]")
+    provider.aclose.assert_awaited()
+
+
+def test_chat_completions_strips_opencode_prefix_for_zen(
+    client_with_key: TestClient,
+) -> None:
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _mock_provider()
+
+        resp = client_with_key.post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={
+                "model": "opencode/glm-5.1",
+                "messages": VALID_MESSAGES,
+                "x_provider": "opencode-zen",
+                "x_provider_api_key": "zen-user-key",
+                "x_provider_base_url": "https://opencode.ai/zen/v1",
+            },
+        )
+
+    assert resp.status_code == 200
+    assert mock_create.call_args[1].get("model") == "glm-5.1"
+
+
+def test_chat_completions_zen_uses_server_key_and_endpoint_only() -> None:
+    app.dependency_overrides[get_settings] = lambda: make_settings(
+        opencode_api_key="server-zen-key"
+    )
+    try:
+        with patch("affine.api.server.ProviderFactory.create") as mock_create:
+            mock_create.return_value = _mock_provider()
+            resp = TestClient(app).post(
+                "/v1/chat/completions",
+                headers=AUTH,
+                json={
+                    "model": "glm-5.1",
+                    "messages": VALID_MESSAGES,
+                    "x_provider": "opencode-zen",
+                    "x_provider_base_url": "https://attacker.example/v1",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    kwargs = mock_create.call_args[1]
+    assert kwargs["api_key"] == "server-zen-key"
+    assert kwargs["base_url"] == "https://opencode.ai/zen/v1"
+
+
 def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> None:
     resp = client_with_key.get("/v1/models", headers=AUTH)
 
@@ -404,7 +504,7 @@ def test_list_models_includes_gateway_presets(client_with_key: TestClient) -> No
     model_ids = {item["id"] for item in resp.json()["data"]}
     assert "gemini-3.1-pro-preview" in model_ids
     assert "claude-sonnet-4.6" in model_ids
-    assert "opencode/glm-5.1" in model_ids
+    assert "glm-5.1" in model_ids
     assert "kilo-auto/frontier" in model_ids
     assert "kilo-auto/balanced" in model_ids
 

@@ -8,7 +8,7 @@ Exact versions are pinned in `mise.toml` and `.github/workflows/`; treat those f
 
 - Node.js 24
 - Bun 1.4+
-- Python 3.14+ (`requires-python` in `pyproject.toml`; local dev and CI pin 3.15)
+- Python 3.14+ (`requires-python` in `pyproject.toml`; local dev and CI pin 3.14)
 - `uv` (latest)
 
 If you use [mise](https://mise.jdx.dev/), run:
@@ -77,7 +77,7 @@ uv run uvicorn affine.api.server:app --reload --host 0.0.0.0 --port 9000
 
 #### Windows: building `libsql`
 
-`libsql` has no Python 3.15 wheel and compiles from source (Rust + CMake). On Windows, run `uv sync` from a shell with the MSVC environment loaded, and select Ninja because the `cmake` crate does not recognise newer Visual Studio generators:
+`libsql` has no wheel for this platform/Python combination and compiles from source (Rust + CMake). On Windows, run `uv sync` from a shell with the MSVC environment loaded, and select Ninja because the `cmake` crate does not recognise newer Visual Studio generators:
 
 ```bat
 call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
@@ -191,10 +191,10 @@ Set provider credentials and `API_KEY` in the Render environment as needed.
 
 ### Railway (backend)
 
-Use a base image that satisfies `requires-python` (3.14+; 3.15 shown). Example Dockerfile:
+Use a base image that satisfies `requires-python` (3.14+). Example Dockerfile:
 
 ```dockerfile
-FROM ghcr.io/astral-sh/uv:python3.15-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 WORKDIR /app
 COPY . .
 RUN cd apps/api && uv sync --all-extras

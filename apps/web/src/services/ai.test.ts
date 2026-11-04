@@ -62,58 +62,6 @@ describe('AIService', () => {
     });
   });
 
-  describe('transformFile', () => {
-    it('successfully transforms file and removes AI artifacts', async () => {
-      mockFetchSuccess({
-        choices: [{ message: { content: '---START FILE---\nconst x = 1;\n---END FILE---' } }],
-      });
-
-      const result = await aiService.transformFile('add const', 'const y = 1;');
-      expect(result).toBe('const x = 1;');
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        `${API_BASE}/chat/completions`,
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            Authorization: 'Bearer test-api-key',
-          }),
-          body: expect.stringContaining('"x_provider":"test-provider"'),
-        })
-      );
-    });
-
-    it('handles special gpt-5 model parameters', async () => {
-      const gpt5Service = new AIService('key', 'gpt-5');
-      mockFetchSuccess({
-        choices: [{ message: { content: 'result' } }],
-      });
-
-      await gpt5Service.transformFile('inst', 'content');
-
-      const fetchArgs = vi.mocked(global.fetch).mock.calls[0];
-      const body = JSON.parse(fetchArgs[1]?.body as string);
-
-      expect(body.model).toBe('gpt-5');
-      expect(body.max_completion_tokens).toBe(4000);
-      expect(body.temperature).toBeUndefined(); // gpt-5 does not get temperature
-    });
-
-    it('throws error when API response is not ok', async () => {
-      mockFetchError(500, 'Internal Server Error', 'Error');
-
-      await expect(aiService.transformFile('inst', 'content')).rejects.toThrow(
-        '500 Internal Server Error: Error'
-      );
-    });
-
-    it('throws error when no choices returned', async () => {
-      mockFetchSuccess({ choices: [] });
-
-      await expect(aiService.transformFile('inst', 'content')).rejects.toThrow('No response from AI');
-    });
-  });
-
   describe('chatCompletion', () => {
     it('successfully returns completion', async () => {
       mockFetchSuccess({
@@ -124,11 +72,34 @@ describe('AIService', () => {
       expect(result).toBe('Hello there');
     });
 
+    it('sends the gateway key and provider override fields', async () => {
+      mockFetchSuccess({ choices: [{ message: { content: 'ok' } }] });
+
+      await aiService.chatCompletion([{ role: 'user', content: 'Hi' }]);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${API_BASE}/chat/completions`,
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ Authorization: 'Bearer test-api-key' }),
+          body: expect.stringContaining('"x_provider":"test-provider"'),
+        })
+      );
+    });
+
     it('throws error when API response is not ok', async () => {
       mockFetchError(400, 'Bad Request', 'Error');
 
       await expect(aiService.chatCompletion([{ role: 'user', content: 'Hi' }])).rejects.toThrow(
         '400 Bad Request: Error'
+      );
+    });
+
+    it('throws error when no choices returned', async () => {
+      mockFetchSuccess({ choices: [] });
+
+      await expect(aiService.chatCompletion([{ role: 'user', content: 'Hi' }])).rejects.toThrow(
+        'No response from AI'
       );
     });
   });

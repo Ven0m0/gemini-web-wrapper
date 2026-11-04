@@ -98,4 +98,6 @@ gha-creds-*.json
 .omc/
 **/.omc/
 **/.omc/**
-
+.omx/
+**/.omx/
+**/.omx/**

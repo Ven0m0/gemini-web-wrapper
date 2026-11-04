@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     embedding_provider: Literal["auto", "openai", "voyage", "gemini"] = "auto"
     model_name: str | None = None
     copilot_base_url: str = "https://api.githubcopilot.com"
-    opencode_base_url: str = "http://localhost:4096/zen/v1"
+    opencode_base_url: str = "https://opencode.ai/zen/v1"
     kilo_base_url: str = "https://api.kilo.ai/api/gateway"
     host: str = "0.0.0.0"
     port: int = 9000
@@ -119,7 +119,7 @@ class Settings(BaseSettings):
         if self.model_provider == "copilot":
             return "claude-sonnet-4.6"
         if self.model_provider == "opencode-zen":
-            return "opencode/glm-5.1"
+            return "glm-5.1"
         if self.model_provider == "kilo-gateway":
             return "kilo-auto/balanced"
         if self.model_provider == "voyage":

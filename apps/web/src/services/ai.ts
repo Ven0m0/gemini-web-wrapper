@@ -3,15 +3,9 @@ import { requestJson } from './http';
 import { type HealedResponse, healJSON } from '../utils/jsonHealer';
 
 /**
- * AI Service - Wired to local API endpoints
- *
- * All requests go through the local API server which handles:
- * - Provider routing (Gemini, Anthropic, Copilot, Bifrost)
- * - Authentication (API keys, cookie auth)
- * - Rate limiting and quotas
- *
- * The local API is accessed via /v1/chat/completions (proxied by Vite dev server)
- * and production deployments serve the API directly.
+ * Client for the backend's /v1/chat/completions endpoint (proxied by the Vite
+ * dev server; served directly in production). The backend picks the provider,
+ * using the x_provider* fields when the user supplied their own key.
  */
 export class AIService {
   private apiKey: string;
@@ -78,45 +72,6 @@ export class AIService {
     return data.choices[0].message.content.trim();
   }
 
-  async transformFile(instruction: string, currentContent: string): Promise<string> {
-    const systemPrompt = `You rewrite the whole file based on the instruction. Return ONLY the full updated file with no explanations. Support Chinese text properly and preserve Chinese characters, formatting, and encoding.`;
-
-    const userPrompt = `Instruction: ${instruction}
-
-Current file content:
----START FILE---
-${currentContent}
----END FILE---
-
-Note: Preserve proper character encoding and formatting for all text content.`;
-
-    let content = await this.postCompletion({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      ...(this.model === 'gpt-5'
-        ? {
-            max_completion_tokens: 4000,
-            // GPT-5 only supports default temperature (1.0)
-          }
-        : {
-            temperature: this.temperature,
-            max_tokens: 4000,
-          }),
-    });
-
-    // Clean up common AI response artifacts
-    if (content.startsWith('---START FILE---')) {
-      content = content.replace(/^---START FILE---\s*/, '');
-    }
-    if (content.endsWith('---END FILE---')) {
-      content = content.replace(/\s*---END FILE---$/, '');
-    }
-
-    return content;
-  }
-
   async chatCompletion(
     messages: Array<{ role: string; content: string }>,
     options?: {
@@ -136,9 +91,9 @@ Note: Preserve proper character encoding and formatting for all text content.`;
   /**
    * Chat completion with JSON response healing
    */
-  async chatCompletionJSON<T = any>(
+  async chatCompletionJSON<T = unknown>(
     messages: Array<{ role: string; content: string }>,
-    schema?: any,
+    schema?: unknown,
     options?: {
       temperature?: number;
       maxTokens?: number;

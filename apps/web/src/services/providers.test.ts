@@ -177,5 +177,44 @@ describe('providers service', () => {
       expect(result.provider).toBe(firstBuiltinId);
       expect(result.model).toBe(firstBuiltinModelId);
     });
+
+    describe('OpenCode Zen legacy config', () => {
+      const legacyZen = (baseUrl: string) => ({
+        id: 'opencode-zen',
+        name: 'OpenCode Zen',
+        apiKey: 'zen-key',
+        baseUrl,
+        builtin: true,
+        models: [
+          { id: 'opencode/glm-5.1', name: 'GLM 5.1' },
+          { id: 'opencode/kimi-k2.5', name: 'Kimi K2.5' },
+        ],
+      });
+
+      it('moves the local default endpoint to hosted Zen and strips model prefixes', () => {
+        const result = migrateSavedConfig({
+          provider: 'opencode-zen',
+          model: 'opencode/kimi-k2.5',
+          providers: [legacyZen('http://localhost:4096/zen/v1')],
+        });
+
+        const zen = result.providers?.find((p) => p.id === 'opencode-zen');
+        expect(zen?.baseUrl).toBe('https://opencode.ai/zen/v1');
+        expect(zen?.apiKey).toBe('zen-key');
+        expect(zen?.models.map((m) => m.id)).toEqual(['glm-5.1', 'kimi-k2.5']);
+        expect(result.model).toBe('kimi-k2.5');
+      });
+
+      it('keeps a user-chosen custom endpoint', () => {
+        const result = migrateSavedConfig({
+          provider: 'opencode-zen',
+          model: 'glm-5.1',
+          providers: [legacyZen('https://my-proxy.example/zen/v1')],
+        });
+
+        const zen = result.providers?.find((p) => p.id === 'opencode-zen');
+        expect(zen?.baseUrl).toBe('https://my-proxy.example/zen/v1');
+      });
+    });
   });
 });

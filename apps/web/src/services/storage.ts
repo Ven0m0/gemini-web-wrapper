@@ -3,6 +3,10 @@ import { migrateSavedConfig, type ProviderConfig, type ProviderModelOption } fro
 
 const STORAGE_KEY = 'chat-github-config';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 /**
  * Safely parses and validates configuration data from a JSON string.
  */
@@ -10,8 +14,8 @@ function safeParseConfig(raw: string | null): Partial<ConfigState> {
   if (!raw) return {};
 
   try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) {
       return {};
     }
 
@@ -29,9 +33,9 @@ function safeParseConfig(raw: string | null): Partial<ConfigState> {
       'provider',
     ];
     for (const field of stringFields) {
-      const value = (parsed as any)[field];
+      const value = parsed[field];
       if (typeof value === 'string') {
-        (validated as any)[field] = value;
+        Object.assign(validated, { [field]: value });
       }
     }
 
@@ -43,8 +47,8 @@ function safeParseConfig(raw: string | null): Partial<ConfigState> {
     // Nested providers array
     if (Array.isArray(parsed.providers)) {
       validated.providers = parsed.providers
-        .map((p: any) => {
-          if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+        .map((p: unknown) => {
+          if (!isRecord(p)) return null;
 
           const provider: ProviderConfig = {
             id: typeof p.id === 'string' ? p.id : '',
@@ -57,8 +61,8 @@ function safeParseConfig(raw: string | null): Partial<ConfigState> {
 
           if (Array.isArray(p.models)) {
             provider.models = p.models
-              .map((m: any) => {
-                if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+              .map((m: unknown) => {
+                if (!isRecord(m)) return null;
                 return {
                   id: typeof m.id === 'string' ? m.id : '',
                   name: typeof m.name === 'string' ? m.name : '',

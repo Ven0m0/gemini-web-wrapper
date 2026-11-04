@@ -29,7 +29,7 @@ A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the brows
 ### Prerequisites
 
 - Node.js **24** and Bun **1.4+** (exact pins live in `mise.toml` and `.github/workflows/`)
-- Python **3.14+** (`requires-python` in `pyproject.toml`). Local dev uses 3.14, pinned in `.python-version` and `mise.toml`, because several native deps (ast-grep-py, tree-sitter, pyyaml) have no 3.15 wheels yet and would need a Rust/C toolchain to build. CI runs 3.15.2 (`.github/workflows/ci.yml`).
+- Python **3.14+** (`requires-python` in `pyproject.toml`). Local dev uses 3.14, pinned in `.python-version` and `mise.toml`, because several native deps (ast-grep-py, tree-sitter, pyyaml) have no 3.15 wheels yet and would need a Rust/C toolchain to build. CI also runs 3.14 (`.github/workflows/ci.yml`); Renovate is capped below 3.15 in `renovate.json`.
 - `uv`
 - Git
 - Optional: [mise](https://mise.jdx.dev/) to install the pinned toolchain from `mise.toml`
@@ -97,7 +97,7 @@ The frontend stores this value in the **Server API Key** field in Settings.
 | Gemini | `GOOGLE_API_KEY` | Google Gemini API | `gemini-3.1-pro-preview` |
 | Anthropic | `ANTHROPIC_API_KEY` | Anthropic API | `claude-sonnet-4-6` |
 | Copilot | `COPILOT_API_KEY` | `https://api.githubcopilot.com` | `claude-sonnet-4.6` |
-| OpenCode Zen | `OPENCODE_API_KEY` | `http://localhost:4096/zen/v1` | `opencode/glm-5.1` |
+| OpenCode Zen | `OPENCODE_API_KEY` | `https://opencode.ai/zen/v1` | `glm-5.1` |
 | Kilo Gateway | `KILO_API_KEY` | `https://api.kilo.ai/api/gateway` | `kilo-auto/balanced` |
 
 ### Repo indexing settings

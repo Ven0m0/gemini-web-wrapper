@@ -51,8 +51,8 @@ def test_settings_opencode_provider_metadata() -> None:
     )
 
     assert settings.provider_api_key() == "opencode-key"
-    assert settings.provider_base_url() == "http://localhost:4096/zen/v1"
-    assert settings.provider_default_model() == "opencode/glm-5.1"
+    assert settings.provider_base_url() == "https://opencode.ai/zen/v1"
+    assert settings.provider_default_model() == "glm-5.1"
 
 
 def test_get_settings_is_cached() -> None:

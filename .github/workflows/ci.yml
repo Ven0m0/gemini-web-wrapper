@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  # libsql builds from source via PyO3 0.25, which predates Python 3.15
+  # libsql builds from source via PyO3 0.25, which supports Python 3.14 at most
   PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.15.2"
+          python-version: "3.14"
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
@@ -64,7 +64,7 @@ jobs:
       - name: Write pyrefly config
         run: |
           cat > pyrefly.toml <<'EOF'
-          python-version = "3.15"
+          python-version = "3.14"
           project-includes = ["src"]
           search-path = [
               "src",
@@ -94,7 +94,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.15.2"
+          python-version: "3.14"
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
@@ -117,7 +117,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.15.2"
+          python-version: "3.14"
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true

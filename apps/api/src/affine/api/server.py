@@ -1,3 +1,4 @@
+import json
 import logging
 import secrets
 import uuid
@@ -44,9 +45,9 @@ _MODELS = [
     ("claude-sonnet-4-6", "anthropic"),
     ("claude-opus-4-6", "anthropic"),
     ("claude-haiku-4-5", "anthropic"),
-    ("opencode/glm-5.1", "opencode"),
-    ("opencode/kimi-k2.5", "opencode"),
-    ("opencode/big-pickle", "opencode"),
+    ("glm-5.1", "opencode"),
+    ("kimi-k2.5", "opencode"),
+    ("big-pickle", "opencode"),
     ("kilo-auto/frontier", "kilo"),
     ("kilo-auto/balanced", "kilo"),
     ("kilo-auto/free", "kilo"),
@@ -135,6 +136,14 @@ def _raw_upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     return f"Upstream provider returned {response.status_code}"
 
 
+def _provider_model(provider: str, model: str) -> str:
+    # Zen's API takes bare model IDs; "opencode/" is OpenCode CLI config syntax
+    # that older saved browser configs and server defaults still carry.
+    if provider == "opencode-zen":
+        return model.removeprefix("opencode/")
+    return model
+
+
 def _build_provider(
     x_provider: str | None,
     api_key: str | None,
@@ -151,11 +160,28 @@ def _build_provider(
     provider default.
     """
     if x_provider:
-        provider_kwargs: dict[str, Any] = {"model": model}
+        provider_kwargs: dict[str, Any] = {"model": _provider_model(x_provider, model)}
         if api_key:
             provider_kwargs["api_key"] = api_key
         if base_url:
             provider_kwargs["base_url"] = base_url
+
+        server_key = (
+            None
+            if ProviderFactory.is_registered(x_provider)
+            else settings.provider_api_key(x_provider)
+        )
+        server_base_url = settings.provider_base_url(x_provider)
+        if not api_key and server_key and server_base_url:
+            # Gateway preset (e.g. opencode-zen) with server credentials. The
+            # server key only ever goes to the server-configured endpoint, never
+            # to a caller-supplied URL.
+            return ProviderFactory.create(
+                x_provider,
+                model=provider_kwargs["model"],
+                api_key=server_key,
+                base_url=server_base_url,
+            )
 
         if ProviderFactory.is_registered(x_provider):
             if api_key:
@@ -173,9 +199,10 @@ def _build_provider(
     # Server-configured fallback.
     server_provider_kwargs: dict[str, Any] = {
         "api_key": settings.provider_api_key(),
-        "model": settings.model_name
-        or fallback_model
-        or settings.provider_default_model(),
+        "model": _provider_model(
+            settings.model_provider,
+            settings.model_name or fallback_model or settings.provider_default_model(),
+        ),
     }
     provider_base_url = settings.provider_base_url()
     if provider_base_url:
@@ -399,6 +426,16 @@ async def chat_completions(
                 )
                 yield f"data: {final_chunk.model_dump_json()}\n\n"
                 yield "data: [DONE]\n\n"
+            except Exception as exc:  # noqa: BLE001 - headers are sent, so report in-band
+                logger.error("Chat stream failed: %s", type(exc).__name__)
+                # Never echo str(exc): httpx errors can carry the request URL and key.
+                message = (
+                    f"Provider returned {exc.response.status_code}"
+                    if isinstance(exc, httpx.HTTPStatusError)
+                    else "Could not complete the request to the provider"
+                )
+                yield f"data: {json.dumps({'error': {'message': message}})}\n\n"
+                yield "data: [DONE]\n\n"
             finally:
                 await provider.aclose()
 
@@ -410,6 +447,13 @@ async def chat_completions(
     except httpx.HTTPStatusError as exc:
         upstream_error = exc
         content = ""
+    except httpx.RequestError as exc:
+        # Connection/timeout failures have no response; str(exc) can leak the URL.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not reach provider '{provider.name}' "
+            f"({type(exc).__name__}). Check the provider base URL and network.",
+        ) from exc
     finally:
         await provider.aclose()
 

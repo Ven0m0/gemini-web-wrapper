@@ -24,6 +24,31 @@ type LegacyConfigLike = {
   providers?: unknown;
 };
 
+const ZEN_PROVIDER_ID = 'opencode-zen';
+const ZEN_BASE_URL = 'https://opencode.ai/zen/v1';
+// Earlier builds defaulted to a local `opencode serve` that is absent on hosted deployments.
+const LEGACY_ZEN_BASE_URL = 'http://localhost:4096/zen/v1';
+
+// Zen's API takes bare model IDs; `opencode/` is OpenCode CLI config syntax that saved configs may still carry.
+function stripZenPrefix(modelId: string): string {
+  return modelId.startsWith('opencode/') ? modelId.slice('opencode/'.length) : modelId;
+}
+
+function migrateZenProvider(provider: ProviderConfig): ProviderConfig {
+  if (provider.id !== ZEN_PROVIDER_ID) {
+    return provider;
+  }
+  const seen = new Set<string>();
+  const models = provider.models
+    .map((model) => ({ ...model, id: stripZenPrefix(model.id) }))
+    .filter((model) => !seen.has(model.id) && seen.add(model.id));
+  return {
+    ...provider,
+    baseUrl: provider.baseUrl === LEGACY_ZEN_BASE_URL ? ZEN_BASE_URL : provider.baseUrl,
+    models,
+  };
+}
+
 const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
   {
     id: 'gemini',
@@ -65,12 +90,12 @@ const BUILTIN_PROVIDER_DEFINITIONS: ProviderConfig[] = [
     id: 'opencode-zen',
     name: 'OpenCode Zen',
     apiKey: '',
-    baseUrl: 'http://localhost:4096/zen/v1',
+    baseUrl: ZEN_BASE_URL,
     builtin: true,
     models: [
-      { id: 'opencode/glm-5.1', name: 'GLM 5.1 (Recommended)' },
-      { id: 'opencode/kimi-k2.5', name: 'Kimi K2.5' },
-      { id: 'opencode/big-pickle', name: 'Big Pickle' },
+      { id: 'glm-5.1', name: 'GLM 5.1 (Recommended)' },
+      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
+      { id: 'big-pickle', name: 'Big Pickle' },
     ],
   },
   {
@@ -149,14 +174,14 @@ function normalizeProvider(provider: unknown): ProviderConfig | null {
       })()
     : [];
 
-  return {
+  return migrateZenProvider({
     id,
     name: normalizeString(candidate.name) || id,
     apiKey: normalizeString(candidate.apiKey),
     baseUrl: normalizeString(candidate.baseUrl),
     builtin: candidate.builtin === true,
     models,
-  };
+  });
 }
 
 export function createDefaultProviders(): ProviderConfig[] {
@@ -286,7 +311,12 @@ export function migrateProviderSelections<
 >(config: T): T {
   const providers = normalizeProvidersConfig(config);
   const provider = ensureProviderSelection(config.provider ?? DEFAULT_PROVIDER_ID, providers);
-  const model = ensureModelSelection(provider, config.model ?? DEFAULT_MODEL_ID, providers);
+  const requestedModel = config.model ?? DEFAULT_MODEL_ID;
+  const model = ensureModelSelection(
+    provider,
+    provider === ZEN_PROVIDER_ID ? stripZenPrefix(requestedModel) : requestedModel,
+    providers
+  );
 
   return {
     ...config,

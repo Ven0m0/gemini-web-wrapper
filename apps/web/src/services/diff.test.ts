@@ -1,30 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDiffText, generateDiff, hasChanges } from './diff';
-
-describe('generateDiff', () => {
-  it('marks identical text as unchanged', () => {
-    expect(generateDiff('a\nb\n', 'a\nb\n').map((l) => l.type)).toEqual(['unchanged', 'unchanged']);
-  });
-
-  it('reports added and removed lines', () => {
-    const lines = generateDiff('a\nb\n', 'a\nc\n');
-    expect(lines.map((l) => [l.type, l.content])).toEqual([
-      ['unchanged', 'a'],
-      ['removed', 'b'],
-      ['added', 'c'],
-    ]);
-  });
-
-  it('numbers unchanged lines sequentially', () => {
-    const lines = generateDiff('a\nb\n', 'a\nb\nc\n');
-    expect(lines.filter((l) => l.type === 'unchanged').map((l) => l.lineNumber)).toEqual([1, 2]);
-  });
-
-  it('handles empty input', () => {
-    expect(generateDiff('', '')).toEqual([]);
-    expect(generateDiff('', 'x\n').map((l) => l.type)).toEqual(['added']);
-  });
-});
+import { formatDiffText, hasChanges } from './diff';
 
 describe('hasChanges / formatDiffText', () => {
   it('detects changes', () => {

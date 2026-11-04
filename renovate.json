@@ -50,6 +50,11 @@
   },
   "packageRules": [
     {
+      "description": "Python 3.15 lacks wheels for libsql (PyO3), tree-sitter, ast-grep-py and pyyaml; stay on 3.14",
+      "matchDepNames": ["python"],
+      "allowedVersions": "<3.15"
+    },
+    {
       "description": "Apply all eligible updates directly to the base branch without automatic pull requests",
       "matchPackageNames": ["*"],
       "automerge": true,
