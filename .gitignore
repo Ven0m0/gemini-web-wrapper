@@ -96,3 +96,6 @@ gha-creds-*.json
 .claude/context-archive/
 .codegraph/
 .omc/
+**/.omc/
+**/.omc/**
+
