@@ -1,8 +1,49 @@
-import { defineConfig } from 'vite'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { minify as minifyHtml } from 'html-minifier-terser'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const HTML_MINIFY_OPTIONS = {
+  collapseWhitespace: true,
+  // Keep one space where whitespace separated inline content, so text never fuses.
+  conservativeCollapse: true,
+  removeComments: true,
+  minifyCSS: true,
+  minifyJS: true,
+}
+
+// Vite has no HTML minifier. This also covers copied public/*.html (offline.html).
+// It runs in writeBundle, before vite-plugin-pwa hashes files in closeBundle, so
+// precache revisions match the minified bytes.
+function minifyHtmlOutput(): Plugin {
+  let outDir = 'dist'
+  return {
+    name: 'minify-html-output',
+    apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir
+    },
+    async writeBundle() {
+      const entries = await readdir(outDir, { recursive: true, withFileTypes: true })
+      const htmlFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
+      await Promise.all(
+        htmlFiles.map(async (entry) => {
+          const file = join(entry.parentPath, entry.name)
+          await writeFile(file, await minifyHtml(await readFile(file, 'utf8'), HTML_MINIFY_OPTIONS))
+        })
+      )
+    },
+  }
+}
+
 export default defineConfig({
+  build: {
+    // Vite 8 defaults, pinned so production output is always minified.
+    minify: 'oxc',
+    cssMinify: 'lightningcss',
+  },
   server: {
     proxy: {
       // Proxy API requests to the backend API server
@@ -46,9 +87,8 @@ export default defineConfig({
   })(),
   plugins: [
     react(),
+    minifyHtmlOutput(),
     VitePWA({
-      // Avoid terser/minify issues in some environments
-      minify: false,
       registerType: 'autoUpdate',
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

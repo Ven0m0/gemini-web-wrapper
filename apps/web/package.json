@@ -41,9 +41,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
+    "@types/html-minifier-terser": "^7.0.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react-swc": "^4.3.3",
+    "html-minifier-terser": "^7.2.0",
     "oxlint": "^1.77.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
