@@ -218,6 +218,22 @@ def test_chat_completions_missing_api_key_falls_back_to_server(
     assert call_args[1].get("api_key") == "server-google-key"
 
 
+def test_chat_completions_no_provider_key_returns_400() -> None:
+    """No request key and no server provider key is a clear 400, not a bare 500."""
+    app.dependency_overrides[get_settings] = lambda: make_settings(google_api_key=None)
+    try:
+        resp = TestClient(app).post(
+            "/v1/chat/completions",
+            headers=AUTH,
+            json={"model": "gemini-3.1-pro-preview", "messages": VALID_MESSAGES},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 400
+    assert "No API key" in resp.json()["detail"]
+
+
 # ---------------------------------------------------------------------------
 # Custom provider validation
 # ---------------------------------------------------------------------------

@@ -247,9 +247,9 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
             type={showTokens ? 'text' : 'password'}
             value={localConfig.openaiKey}
             onChange={(e) => setLocalConfig({ ...localConfig, openaiKey: e.target.value })}
-            placeholder="Backend gateway key (leave blank if server is in open mode)"
+            placeholder="Backend gateway key (the server's API_KEY)"
           />
-          <small>Only needed when the server requires gateway authentication.</small>
+          <small>Required: must match the API_KEY set on the server.</small>
         </div>
 
         <div className="config-field">

@@ -170,7 +170,14 @@ def _build_provider(
     provider_base_url = settings.provider_base_url()
     if provider_base_url:
         server_provider_kwargs["base_url"] = provider_base_url
-    return ProviderFactory.create(settings.model_provider, **server_provider_kwargs)
+    try:
+        return ProviderFactory.create(settings.model_provider, **server_provider_kwargs)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No API key for provider '{settings.model_provider}'. "
+            "Enter a provider key in Settings or configure one on the server.",
+        ) from exc
 
 
 def _sse(event: TextDeltaEvent | DoneEvent | ErrorEvent) -> str:
