@@ -10,12 +10,7 @@ class ChatMessage(BaseModel):
     content: str | list[dict[str, Any]]
 
 
-class ChatCompletionRequest(BaseModel):
-    model: str
-    messages: list[ChatMessage]
-    stream: bool = False
-    max_tokens: int | None = None
-    temperature: float | None = None
+class ProviderOverride(BaseModel):
     # Optional request-level provider override. Built-in providers use the
     # request API key when supplied; custom providers also require a base URL.
     x_provider: str | None = None
@@ -23,10 +18,23 @@ class ChatCompletionRequest(BaseModel):
     x_provider_base_url: str | None = None
 
     @model_validator(mode="after")
-    def validate_provider_override(self) -> ChatCompletionRequest:
+    def validate_provider_override(self) -> ProviderOverride:
         if self.x_provider_base_url and not self.x_provider:
             raise ValueError("x_provider_base_url requires x_provider")
         return self
+
+
+class ChatCompletionRequest(ProviderOverride):
+    model: str
+    messages: list[ChatMessage]
+    stream: bool = False
+    max_tokens: int | None = None
+    temperature: float | None = None
+
+
+class ModelListRequest(ProviderOverride):
+    # Omitted fields fall back to the server-configured provider.
+    pass
 
 
 class ChatResponseMessage(BaseModel):

@@ -25,3 +25,9 @@ sys.path.insert(0, str(ROOT / "apps/api/src"))
 sys.path.insert(0, str(ROOT / "packages/shared/python/src"))
 sys.path.insert(0, str(ROOT / "packages/llm-core/src"))
 sys.path.insert(0, str(ROOT / "packages/config/src"))
+
+from affine.config.settings import Settings
+
+# server.py builds settings at import time, before any fixture runs, so a
+# developer's repo-root .env (real keys, CORS) is disabled for the whole session.
+Settings.model_config["env_file"] = None

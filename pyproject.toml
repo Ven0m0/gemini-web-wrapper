@@ -24,6 +24,7 @@ affine-code-index = { workspace = true }
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "ruff",
     "pyrefly",
 ]

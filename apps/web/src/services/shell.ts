@@ -1,8 +1,6 @@
 import { generateId } from '../utils/id';
 import { normalizeString } from '../utils/string';
 
-export type ShellTerminalMode = 'classic' | 'ghostty';
-
 export interface ShellProfile {
   id: string;
   name: string;
@@ -11,7 +9,6 @@ export interface ShellProfile {
 }
 
 export interface ShellPreferences {
-  terminalMode: ShellTerminalMode;
   fontSize: number;
   enableHaptics: boolean;
   showAccessoryBar: boolean;
@@ -30,7 +27,6 @@ type ShellStateCandidate = {
 export const SHELL_STATE_STORAGE_KEY = 'gemini-shell-state';
 
 const DEFAULT_PREFERENCES: ShellPreferences = {
-  terminalMode: 'ghostty',
   fontSize: 14,
   enableHaptics: true,
   showAccessoryBar: true,
@@ -114,17 +110,9 @@ export function migrateSavedShellState(raw: unknown): ShellState {
       ? (candidate.preferences as Partial<ShellPreferences>)
       : {};
 
-  const terminalMode =
-    preferencesCandidate.terminalMode === 'classic'
-      ? 'classic'
-      : preferencesCandidate.terminalMode === 'ghostty'
-        ? 'ghostty'
-        : DEFAULT_PREFERENCES.terminalMode;
-
   return {
     profiles,
     preferences: {
-      terminalMode,
       fontSize: normalizeFontSize(preferencesCandidate.fontSize),
       enableHaptics:
         typeof preferencesCandidate.enableHaptics === 'boolean'
@@ -185,14 +173,22 @@ export function isValidGitUrl(url: string): boolean {
   return SAFE_HTTPS_URL.test(url) || SAFE_SSH_URL.test(url);
 }
 
+/** Conservative git ref allowlist; a leading '-' is rejected so it can never parse as an option. */
+const SAFE_BRANCH = /^[A-Za-z0-9._/-]+$/;
+
 /** Build the clone command string. */
-export function buildCloneCommand(url: string, useToken: boolean, token: string): string {
+export function buildCloneCommand(url: string, useToken: boolean, token: string, branch = ''): string {
+  const trimmedBranch = branch.trim();
+  const branchArg = trimmedBranch && !trimmedBranch.startsWith('-') && SAFE_BRANCH.test(trimmedBranch)
+    ? ` --branch ${trimmedBranch}`
+    : '';
   if (useToken && token && url.startsWith('https://github.com/')) {
-    // Set token via environment variable and use a temporary git credential helper
-    // This prevents the token from leaking into the git URL or shell history
-    // Single-quote the token so the shell never expands it; embedded quotes are escaped.
+    // Pass the token via a per-command env var and a temporary credential helper so it never
+    // lands in the git URL or .git/config. Single-quote it so the shell never expands it.
+    // The empty helper resets inherited ones; scoping to github.com keeps the token from any
+    // redirect target. The leading space keeps the line out of history under HISTCONTROL=ignorespace.
     const quoted = `'${token.replace(/'/g, "'\\''")}'`;
-    return `GITHUB_TOKEN=${quoted} git -c credential.helper='!f() { echo "username=oauth2"; echo "password=$GITHUB_TOKEN"; }; f' clone ${url}`;
+    return ` GITHUB_TOKEN=${quoted} git -c credential.https://github.com.helper= -c credential.https://github.com.helper='!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f' clone${branchArg} ${url}`;
   }
-  return `git clone ${url}`;
+  return `git clone${branchArg} ${url}`;
 }

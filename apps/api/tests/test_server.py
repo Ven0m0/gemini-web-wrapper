@@ -112,7 +112,7 @@ def test_chat_completions_fails_closed_when_unconfigured(
         },
     )
     assert resp.status_code == 500
-    assert resp.json()["detail"] == "Server API key is not configured"
+    assert resp.json()["detail"].startswith("Server API key is not configured")
 
 
 # ---------------------------------------------------------------------------
@@ -505,3 +505,205 @@ def test_agent_chat_keeps_request_model_for_server_provider(
     assert response.status_code == 200
     assert mock_create.call_args.args[0] == "gemini"
     assert mock_create.call_args.kwargs["model"] == "requested-model"
+
+
+# ---------------------------------------------------------------------------
+# Live provider model listing
+# ---------------------------------------------------------------------------
+
+
+def _listing_provider(models: list[dict[str, str]] | Exception) -> MagicMock:
+    provider = _mock_provider()
+    if isinstance(models, Exception):
+        provider.list_models = AsyncMock(side_effect=models)
+    else:
+        provider.list_models = AsyncMock(return_value=models)
+    return provider
+
+
+def test_post_models_requires_auth(client_with_key: TestClient) -> None:
+    resp = client_with_key.post("/v1/models", json={})
+    assert resp.status_code == 401
+
+
+def test_post_models_returns_sorted_unique_models(
+    client_with_key: TestClient,
+) -> None:
+    provider = _listing_provider(
+        [
+            {"id": "b-model", "name": "B"},
+            {"id": "a-model", "name": "A"},
+            {"id": "b-model", "name": "B"},
+        ]
+    )
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = provider
+        resp = client_with_key.post(
+            "/v1/models",
+            headers=AUTH,
+            json={"x_provider": "anthropic", "x_provider_api_key": "user-key"},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "data": [{"id": "a-model", "name": "A"}, {"id": "b-model", "name": "B"}]
+    }
+    assert mock_create.call_args.args[0] == "anthropic"
+    assert mock_create.call_args.kwargs["api_key"] == "user-key"
+    provider.aclose.assert_awaited_once()
+
+
+def test_post_models_uses_server_provider_without_override(
+    client_with_key: TestClient,
+) -> None:
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _listing_provider([])
+        resp = client_with_key.post("/v1/models", headers=AUTH, json={})
+
+    assert resp.status_code == 200
+    assert mock_create.call_args.args[0] == "gemini"
+    assert mock_create.call_args.kwargs["api_key"] == "server-google-key"
+
+
+def test_post_models_maps_upstream_error_to_502_without_key(
+    client_with_key: TestClient,
+) -> None:
+    request = httpx.Request("GET", "https://example.test/models?key=user-key")
+    response = httpx.Response(
+        403, json={"error": {"message": "bad key user-key"}}, request=request
+    )
+    error = httpx.HTTPStatusError("denied", request=request, response=response)
+    provider = _listing_provider(error)
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = provider
+        resp = client_with_key.post(
+            "/v1/models",
+            headers=AUTH,
+            json={"x_provider": "gemini", "x_provider_api_key": "user-key"},
+        )
+
+    assert resp.status_code == 502
+    assert "user-key" not in resp.text
+    assert "403" in resp.json()["detail"]
+    provider.aclose.assert_awaited_once()
+
+
+def test_post_models_maps_connection_error_to_502(
+    client_with_key: TestClient,
+) -> None:
+    error = httpx.ConnectError("boom https://example.test/models?key=user-key")
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _listing_provider(error)
+        resp = client_with_key.post(
+            "/v1/models",
+            headers=AUTH,
+            json={"x_provider": "gemini", "x_provider_api_key": "user-key"},
+        )
+
+    assert resp.status_code == 502
+    assert "user-key" not in resp.text
+
+
+def test_post_models_returns_400_without_any_provider_key(
+    client_with_key: TestClient,
+) -> None:
+    app.dependency_overrides[get_settings] = lambda: make_settings(google_api_key=None)
+    resp = client_with_key.post("/v1/models", headers=AUTH, json={})
+
+    assert resp.status_code == 400
+    assert "No API key" in resp.json()["detail"]
+
+
+def test_post_models_uses_server_key_for_requested_builtin_provider(
+    client_with_key: TestClient,
+) -> None:
+    app.dependency_overrides[get_settings] = lambda: make_settings(
+        model_provider="anthropic", anthropic_api_key=None
+    )
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _listing_provider([])
+        resp = client_with_key.post(
+            "/v1/models", headers=AUTH, json={"x_provider": "gemini"}
+        )
+        evil = client_with_key.post(
+            "/v1/models",
+            headers=AUTH,
+            json={"x_provider": "copilot", "x_provider_base_url": "https://evil"},
+        )
+
+    assert resp.status_code == 200
+    assert mock_create.call_args_list[0].args[0] == "gemini"
+    assert mock_create.call_args_list[0].kwargs["api_key"] == "server-google-key"
+    assert evil.status_code == 200
+    assert mock_create.call_args_list[1].kwargs["api_key"] == "server-copilot-key"
+    assert mock_create.call_args_list[1].kwargs["base_url"] == (
+        "https://api.githubcopilot.com"
+    )
+
+
+def test_post_models_returns_400_without_server_key_for_requested_provider(
+    client_with_key: TestClient,
+) -> None:
+    app.dependency_overrides[get_settings] = lambda: make_settings(
+        anthropic_api_key=None
+    )
+    resp = client_with_key.post(
+        "/v1/models", headers=AUTH, json={"x_provider": "anthropic"}
+    )
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == (
+        "No API key for provider 'anthropic'. "
+        "Enter a provider key in Settings or configure one on the server."
+    )
+
+
+def test_post_models_maps_malformed_list_to_502(client_with_key: TestClient) -> None:
+    provider = _listing_provider(AttributeError("'list' object has no attribute 'get'"))
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = provider
+        resp = client_with_key.post("/v1/models", headers=AUTH, json={})
+
+    assert resp.status_code == 502
+    assert resp.json()["detail"] == "Provider returned an invalid model list"
+    provider.aclose.assert_awaited_once()
+
+
+def test_post_models_drops_non_string_ids(client_with_key: TestClient) -> None:
+    models = [{"id": 7, "name": "seven"}, {"id": "a-model", "name": "A"}]
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _listing_provider(models)  # type: ignore[arg-type]
+        resp = client_with_key.post("/v1/models", headers=AUTH, json={})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"data": [{"id": "a-model", "name": "A"}]}
+
+
+def test_post_models_caps_echoed_upstream_body(client_with_key: TestClient) -> None:
+    request = httpx.Request("GET", "http://internal.test/models")
+    response = httpx.Response(404, text="x" * 5000, request=request)
+    error = httpx.HTTPStatusError("missing", request=request, response=response)
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _listing_provider(error)
+        resp = client_with_key.post("/v1/models", headers=AUTH, json={})
+
+    assert resp.status_code == 502
+    assert resp.json()["detail"].count("x") <= 300
+
+
+def test_post_models_redacts_key_before_truncating(client_with_key: TestClient) -> None:
+    key = "user-secret-key-0123456789"
+    request = httpx.Request("GET", "https://example.test/models")
+    # The key straddles the 300-char cap; truncating first would leak a prefix.
+    response = httpx.Response(400, text="x" * 290 + key, request=request)
+    error = httpx.HTTPStatusError("bad", request=request, response=response)
+    with patch("affine.api.server.ProviderFactory.create") as mock_create:
+        mock_create.return_value = _listing_provider(error)
+        resp = client_with_key.post(
+            "/v1/models",
+            headers=AUTH,
+            json={"x_provider": "gemini", "x_provider_api_key": key},
+        )
+
+    assert resp.status_code == 502
+    assert "user-secr" not in resp.text

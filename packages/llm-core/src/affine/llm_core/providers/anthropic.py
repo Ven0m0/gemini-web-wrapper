@@ -7,7 +7,7 @@ from typing import Any, Self
 import httpx
 import orjson
 
-from affine.llm_core.interfaces import LLMProvider
+from affine.llm_core.interfaces import LLMProvider, ModelInfo
 from affine.shared.models import TextMessage
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
@@ -53,6 +53,21 @@ class AnthropicProvider(LLMProvider):
     @property
     def name(self) -> str:
         return "anthropic"
+
+    async def list_models(self) -> list[ModelInfo]:
+        # shortcut: no pagination (has_more / nextPageToken ignored); fine at limit 1000, page if a provider exceeds it
+        response = await self._client.get(
+            f"{self.base_url}/models",
+            headers=self.headers,
+            params={"limit": 1000},
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return [
+            {"id": item["id"], "name": item.get("display_name") or item["id"]}
+            for item in response.json().get("data", [])
+            if item.get("id")
+        ]
 
     def _convert_messages(
         self, prompt: str, history: list[TextMessage] | None = None

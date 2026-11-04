@@ -23,8 +23,7 @@
 
 .shell-toolbar,
 .shell-sidebar,
-.shell-pane,
-.shell-wasm-panel {
+.shell-pane {
   border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
 }
@@ -136,6 +135,27 @@
   resize: vertical;
 }
 
+.shell-clone-panel select {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-code-bg);
+  color: var(--color-text);
+  padding: 0.8rem 0.9rem;
+  font-size: 0.95rem;
+}
+
+.shell-clone-panel .shell-clone-checkbox {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.shell-clone-panel .shell-clone-checkbox input {
+  width: auto;
+}
+
 .shell-inline-error {
   color: var(--color-error);
   font-size: 0.85rem;
@@ -243,8 +263,6 @@
 }
 
 .shell-pane-body,
-.ghostty-terminal-shell,
-.ghostty-terminal-canvas,
 .shell-classic-terminal {
   flex: 1;
   min-height: 0;
@@ -256,16 +274,6 @@
   overflow: hidden;
   background: #020817;
   border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
-}
-
-.ghostty-terminal-shell {
-  position: relative;
-  width: 100%;
-}
-
-.ghostty-terminal-canvas {
-  width: 100%;
-  height: 100%;
 }
 
 .shell-classic-terminal {
@@ -317,12 +325,6 @@
 .shell-empty-state-large {
   min-height: 240px;
   place-content: center;
-}
-
-.shell-wasm-panel {
-  min-height: 440px;
-  padding: 1rem;
-  border-radius: 1rem;
 }
 
 @media (max-width: 1100px) {

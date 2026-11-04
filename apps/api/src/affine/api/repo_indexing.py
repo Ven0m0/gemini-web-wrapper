@@ -15,7 +15,6 @@ from typing import Protocol, cast
 from urllib.parse import quote
 
 import httpx
-import libsql
 
 from affine.code_index.parser import ASTParser, PatternMatch
 from affine.config.settings import Settings
@@ -615,6 +614,14 @@ class RepositoryIndexService:
         }
         if self._settings.repo_index_turso_auth_token:
             connect_kwargs["auth_token"] = self._settings.repo_index_turso_auth_token
+        # Lazy import: libsql ships Linux wheels only, so it is a Linux-only dependency.
+        try:
+            import libsql
+        except ImportError as exc:
+            raise ValueError(
+                "REPO_INDEX_TURSO_SYNC_URL is set but libsql is not installed "
+                "(it is only installed on Linux)"
+            ) from exc
         connect_fn = getattr(libsql, "connect", None)
         if not callable(connect_fn):
             raise ValueError("libsql.connect is unavailable")

@@ -1,18 +1,34 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 ProviderName = Literal[
     "gemini", "anthropic", "copilot", "opencode-zen", "kilo-gateway", "voyage"
 ]
 
 
+def _find_workspace_env() -> Path:
+    # Only the uv workspace root qualifies, so a stray uv.lock in an ancestor is never trusted.
+    for parent in Path(__file__).resolve().parents:
+        pyproject = parent / "pyproject.toml"
+        if pyproject.is_file() and "[tool.uv.workspace]" in pyproject.read_text(
+            encoding="utf-8", errors="ignore"
+        ):
+            return parent / ".env"
+    return Path(".env")
+
+
+_REPO_ROOT_ENV = _find_workspace_env()
+
+
 class Settings(BaseSettings):
+    # Load the uv workspace-root .env so the API finds it whether
+    # started from the root or apps/api; a cwd .env wins.
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=(_REPO_ROOT_ENV, ".env"), env_file_encoding="utf-8", extra="ignore"
     )
 
     api_key: str | None = None
@@ -30,7 +46,8 @@ class Settings(BaseSettings):
     kilo_base_url: str = "https://api.kilo.ai/api/gateway"
     host: str = "0.0.0.0"
     port: int = 9000
-    cors_allow_origins: list[str] = []
+    # NoDecode: let the validator split comma lists instead of JSON-decoding .env values.
+    cors_allow_origins: Annotated[list[str], NoDecode] = []
     frontend_dist_dir: Path = Path("apps/web/dist")
     repo_index_enabled: bool = True
     repo_index_db_path: Path = Path(".cache/repo-index.db")
@@ -70,25 +87,29 @@ class Settings(BaseSettings):
             raise ValueError("Wildcard '*' is not allowed in CORS origins.")
         return origins
 
-    def provider_api_key(self) -> str | None:
-        if self.model_provider == "anthropic":
+    def provider_api_key(self, provider: str | None = None) -> str | None:
+        provider = provider or self.model_provider
+        if provider == "anthropic":
             return self.anthropic_api_key
-        if self.model_provider == "copilot":
+        if provider == "copilot":
             return self.copilot_api_key
-        if self.model_provider == "opencode-zen":
+        if provider == "opencode-zen":
             return self.opencode_api_key
-        if self.model_provider == "kilo-gateway":
+        if provider == "kilo-gateway":
             return self.kilo_api_key
-        if self.model_provider == "voyage":
+        if provider == "voyage":
             return self.voyage_api_key
-        return self.google_api_key
+        if provider == "gemini":
+            return self.google_api_key
+        return None
 
-    def provider_base_url(self) -> str | None:
-        if self.model_provider == "opencode-zen":
+    def provider_base_url(self, provider: str | None = None) -> str | None:
+        provider = provider or self.model_provider
+        if provider == "opencode-zen":
             return self.opencode_base_url
-        if self.model_provider == "copilot":
+        if provider == "copilot":
             return self.copilot_base_url
-        if self.model_provider == "kilo-gateway":
+        if provider == "kilo-gateway":
             return self.kilo_base_url
         return None
 

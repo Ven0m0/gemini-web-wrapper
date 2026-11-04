@@ -7,7 +7,7 @@ from typing import Any, Self
 import httpx
 import orjson
 
-from affine.llm_core.interfaces import LLMProvider
+from affine.llm_core.interfaces import LLMProvider, ModelInfo
 from affine.shared.models import TextMessage
 
 DEFAULT_MODEL = "gemini-3.1-pro-preview"
@@ -117,6 +117,26 @@ class GeminiProvider(LLMProvider):
                     data_str = line[6:].strip()
                     if data_str:
                         yield self._extract_text(orjson.loads(data_str))
+
+    async def list_models(self) -> list[ModelInfo]:
+        # shortcut: no pagination (has_more / nextPageToken ignored); fine at limit 1000, page if a provider exceeds it
+        response = await self._client.get(
+            f"{self.base_url}/models",
+            params={"key": self.api_key, "pageSize": 1000},
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        models: list[ModelInfo] = []
+        for item in response.json().get("models", []):
+            # Embedding and other non-chat models cannot serve chat requests.
+            if "generateContent" not in item.get("supportedGenerationMethods", []):
+                continue
+            model_id = item.get("name", "").removeprefix("models/")
+            if model_id:
+                models.append(
+                    {"id": model_id, "name": item.get("displayName") or model_id}
+                )
+        return models
 
     async def aclose(self) -> None:
         if not self._client.is_closed:

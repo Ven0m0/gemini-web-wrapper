@@ -14,6 +14,7 @@ from affine.shared.openai_schemas import (
     ChatCompletionRequest,
     ChatCompletionResponse,
     ChatMessage,
+    ModelListRequest,
 )
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "FinishReason",
     "Message",
     "MessageRole",
+    "ModelListRequest",
     "TextMessage",
     "ToolCall",
     "Usage",

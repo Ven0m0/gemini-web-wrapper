@@ -13,7 +13,7 @@ The web app stores its current mode in `apps/web/src/store.ts` and switches view
 | --- | --- | --- |
 | `chat` | Main chat UI for `/v1/chat/completions` | `OpenRouterChat` |
 | `agent` | SSE-based agent conversations | `AgentChat` |
-| `shell` | WebSocket shells, Ghostty terminal rendering, `webassembly.sh` fallback | `UnifiedShell` |
+| `shell` | WebSocket shells and a git clone helper | `UnifiedShell` |
 | `editor` | File editing and diff/review workflows | `Editor` |
 | `tool` | GitHub file browsing plus repo index status and symbol search | `Tool` |
 | `settings` | Provider, repo, GitHub token, and gateway key configuration | `ConfigOverlay` |
@@ -25,8 +25,7 @@ The shell view supports:
 
 - saved WebSocket endpoints,
 - multiple active panes,
-- a Ghostty-based terminal renderer, and
-- an embedded `webassembly.sh` fallback for browser-only command execution.
+- a git clone helper that sends `git clone` to a connected session.
 
 ### Provider runtime details
 

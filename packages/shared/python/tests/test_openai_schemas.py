@@ -1,6 +1,10 @@
 import pytest
 from affine.shared.models import MessageRole
-from affine.shared.openai_schemas import ChatCompletionRequest, ChatMessage
+from affine.shared.openai_schemas import (
+    ChatCompletionRequest,
+    ChatMessage,
+    ModelListRequest,
+)
 from pydantic import ValidationError
 
 
@@ -43,3 +47,10 @@ def test_chat_completion_request_invalid_base_url_without_provider():
         )
 
     assert "x_provider_base_url requires x_provider" in str(exc_info.value)
+
+
+def test_model_list_request_invalid_base_url_without_provider():
+    with pytest.raises(
+        ValidationError, match="x_provider_base_url requires x_provider"
+    ):
+        ModelListRequest(x_provider_base_url="https://api.custom-provider.com/v1")

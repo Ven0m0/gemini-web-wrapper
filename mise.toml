@@ -14,7 +14,7 @@ uvx = true
 [tools]
 node = "26"
 bun = "latest"
-python = "3.15.2"
+python = "3.14"
 uv = "latest"
 ruff = "latest"
 ty = "latest"
@@ -26,7 +26,6 @@ fd = "latest"
 
 [env]
 PROJECT_ROOT = "{{config_root}}"
-UV_PYTHON = { value = "{{ tools.python.path }}", tools = true }
 UV_LINK_MODE = "symlink"
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 _.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed", "--system-site-packages"] }

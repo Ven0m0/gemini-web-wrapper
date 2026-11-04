@@ -24,7 +24,7 @@ dependencies = [
     { name = "ast-grep-py" },
     { name = "fastapi" },
     { name = "httpx", extra = ["http2"] },
-    { name = "libsql" },
+    { name = "libsql", marker = "sys_platform == 'linux'" },
     { name = "orjson" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -58,7 +58,7 @@ requires-dist = [
     { name = "ast-grep-py", specifier = ">=0.42.1" },
     { name = "fastapi", specifier = ">=0.100.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.28.1" },
-    { name = "libsql", specifier = ">=0.1.11" },
+    { name = "libsql", marker = "sys_platform == 'linux'", specifier = ">=0.1.11" },
     { name = "orjson", specifier = ">=3.9.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -174,7 +174,7 @@ source = { editable = "packages/llm-core" }
 dependencies = [
     { name = "affine-config" },
     { name = "affine-shared" },
-    { name = "httpx" },
+    { name = "httpx", extra = ["http2"] },
     { name = "orjson" },
 ]
 
@@ -187,7 +187,7 @@ dev = [
 requires-dist = [
     { name = "affine-config", editable = "packages/config" },
     { name = "affine-shared", editable = "packages/shared/python" },
-    { name = "httpx", specifier = ">=0.24.0" },
+    { name = "httpx", extras = ["http2"], specifier = ">=0.24.0" },
     { name = "orjson", specifier = ">=3.9.0" },
 ]
 
@@ -229,6 +229,7 @@ dependencies = [
 dev = [
     { name = "pyrefly" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
 
@@ -245,6 +246,7 @@ requires-dist = [
 dev = [
     { name = "pyrefly" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
 

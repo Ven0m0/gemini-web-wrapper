@@ -29,7 +29,7 @@ A Bun + FastAPI monorepo for running a mobile-friendly AI workspace in the brows
 ### Prerequisites
 
 - Node.js **24** and Bun **1.4+** (exact pins live in `mise.toml` and `.github/workflows/`)
-- Python **3.14+** (`requires-python` in `pyproject.toml`; local dev and CI pin 3.15)
+- Python **3.14+** (`requires-python` in `pyproject.toml`). Local dev uses 3.14, pinned in `.python-version` and `mise.toml`, because several native deps (ast-grep-py, tree-sitter, pyyaml) have no 3.15 wheels yet and would need a Rust/C toolchain to build. CI runs 3.15.2 (`.github/workflows/ci.yml`).
 - `uv`
 - Git
 - Optional: [mise](https://mise.jdx.dev/) to install the pinned toolchain from `mise.toml`
@@ -44,7 +44,12 @@ mise run install   # optional: installs web + API dependencies in one step
 cp .env.example .env
 ```
 
-Edit `.env` and set the provider credentials you want to use. For the default Gemini setup you only need `GOOGLE_API_KEY`.
+Edit `.env`:
+
+- `API_KEY`: required. Any random string; the API rejects `/v1/*` calls while it is unset. Enter the same value as **Server API Key** in the web Settings.
+- Provider credentials: for the default Gemini setup set `GOOGLE_API_KEY`, or enter a provider key in Settings instead.
+
+The API reads this repo-root `.env` whether it is started from the root or from `apps/api`.
 
 ### 2. Install dependencies
 
@@ -59,13 +64,12 @@ uv sync --all-extras
 ### 3. Start the API and web app
 
 ```bash
-# Terminal 1
-cd apps/api
-PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload --host 0.0.0.0 --port 9000
-
-# Terminal 2
-cd apps/web
+# From the repo root: starts the API (port 9000) and the web app (port 5173) together
 bun run dev
+
+# Or separately
+bun run dev:api
+bun run dev:web
 ```
 
 Open:
@@ -127,6 +131,7 @@ These endpoints require `Authorization: Bearer <API_KEY>` when `API_KEY` is conf
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/v1/models` | Returns the built-in model catalog |
+| `POST` | `/v1/models` | Lists live models from the resolved provider endpoint (body: optional `x_provider`, `x_provider_api_key`, `x_provider_base_url`); upstream failures return 502 |
 | `POST` | `/v1/chat/completions` | OpenAI-compatible chat completions with optional streaming |
 | `POST` | `/v1/agent/chat` | Streams agent events over SSE |
 | `POST` | `/v1/repo/index` | Indexes a GitHub repository using a GitHub token |
@@ -142,7 +147,7 @@ The web app currently exposes these primary modes:
 
 - **Chat** — OpenAI-compatible chat UI with provider overrides and JSON healing helpers
 - **Agent** — SSE-driven agent session UI backed by `/v1/agent/chat`
-- **Shell** — saved WebSocket shell profiles, multi-pane layouts, Ghostty rendering, and a `webassembly.sh` fallback
+- **Shell** — saved WebSocket shell profiles, multi-pane layouts, and a git clone helper that runs in a connected session
 - **Editor** — code editing and review UI
 - **Files** — GitHub file browser plus repo index status and symbol search
 - **Settings** — GitHub token, gateway key, provider, and model management
@@ -167,7 +172,6 @@ bun run build
 ```bash
 cd apps/api
 uv sync --all-extras
-export PYTHONPATH=src:../../packages/config/src
 uv run ruff format --check
 uv run ruff check
 uv run pyrefly check

@@ -46,7 +46,7 @@ def test_verify_api_key_missing_settings_api_key():
         verify_api_key(credentials=credentials, settings=settings)
 
     assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert exc_info.value.detail == "Server API key is not configured"
+    assert exc_info.value.detail.startswith("Server API key is not configured")
 
 
 def test_verify_api_key_missing_credentials():

@@ -150,3 +150,24 @@ def test_local_index_path_follows_repo_index_path(tmp_path):
         local_index_db_path=tmp_path / "custom",
     )
     assert explicit.local_index_db_path == tmp_path / "custom"
+
+
+def test_workspace_env_resolves_to_repo_root():
+    from pathlib import Path
+
+    from affine.config.settings import _REPO_ROOT_ENV
+
+    # The only [tool.uv.workspace] pyproject is at the repo root.
+    root = Path(__file__).resolve().parents[3]
+    assert _REPO_ROOT_ENV == root / ".env"
+
+
+def test_env_example_loads(tmp_path):
+    """The README setup (cp .env.example .env) must produce valid settings."""
+    from pathlib import Path
+
+    from affine.config.settings import Settings
+
+    example = Path(__file__).resolve().parents[3] / ".env.example"
+    settings = Settings(_env_file=example)
+    assert settings.cors_allow_origins == ["http://localhost:5173"]

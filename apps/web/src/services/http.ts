@@ -1,9 +1,11 @@
 export class HttpError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  body: string;
+  constructor(status: number, message: string, body = '') {
     super(message);
     this.name = 'HttpError';
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -12,7 +14,7 @@ export async function requestJson<T>(url: string, init?: RequestInit): Promise<T
   const response = await fetch(url, init);
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    throw new HttpError(response.status, `${response.status} ${response.statusText}${body ? `: ${body}` : ''}`);
+    throw new HttpError(response.status, `${response.status} ${response.statusText}${body ? `: ${body}` : ''}`, body);
   }
   return response.json() as Promise<T>;
 }

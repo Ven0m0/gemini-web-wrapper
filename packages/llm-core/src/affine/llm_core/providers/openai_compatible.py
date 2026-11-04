@@ -7,12 +7,31 @@ from typing import Any, Self
 import httpx
 import orjson
 
-from affine.llm_core.interfaces import LLMProvider
+from affine.llm_core.interfaces import LLMProvider, ModelInfo
 from affine.shared.models import TextMessage
 
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TEMPERATURE = 0.7
 REQUEST_TIMEOUT_SECONDS = 120.0
+NON_CHAT_MODEL_PREFIXES = (
+    "text-embedding",
+    "embedding",
+    "tts-",
+    "whisper",
+    "dall-e",
+    "omni-moderation",
+    "text-moderation",
+)
+
+
+def _is_chat_model(item: dict[str, Any]) -> bool:
+    if item["id"].startswith(NON_CHAT_MODEL_PREFIXES):
+        return False
+    # Copilot tags each model with capabilities.type ("chat", "embeddings", ...).
+    capabilities = item.get("capabilities")
+    if isinstance(capabilities, dict) and "type" in capabilities:
+        return capabilities["type"] == "chat"
+    return True
 
 
 class OpenAICompatibleProvider(LLMProvider):
@@ -172,6 +191,19 @@ class OpenAICompatibleProvider(LLMProvider):
                         f" {self.provider_name}: {data_str!r}"
                     ) from exc
                 yield self._extract_delta_text(data)
+
+    async def list_models(self) -> list[ModelInfo]:
+        response = await self._client.get(
+            f"{self.base_url}/models",
+            headers=self.headers,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return [
+            {"id": item["id"], "name": item.get("name") or item["id"]}
+            for item in response.json().get("data", [])
+            if isinstance(item.get("id"), str) and _is_chat_model(item)
+        ]
 
     async def aclose(self) -> None:
         if not self._client.is_closed:

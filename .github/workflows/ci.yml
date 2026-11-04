@@ -45,8 +45,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-    env:
-      PYTHONPATH: src:../../packages/config/src
     steps:
       - uses: actions/checkout@v7
         with:

@@ -3,12 +3,6 @@ import react from '@vitejs/plugin-react-swc'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      // Prevent bundler from trying to resolve optional SDK at build time
-      external: ['@wasmer/sdk']
-    }
-  },
   server: {
     proxy: {
       // Proxy API requests to the backend API server
@@ -93,36 +87,6 @@ export default defineConfig({
               cacheName: 'google-fonts-files',
               cacheableResponse: { statuses: [0, 200] },
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 }
-            }
-          },
-          // Cache Wasmer SDK from common CDNs
-          {
-            urlPattern: new RegExp('^https://(esm\\.sh|cdn\\.jsdelivr\\.net|unpkg\\.com|cdn\\.skypack\\.dev|esm\\.run)/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wasmer-sdk',
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 7 }
-            }
-          },
-          // Cache Wasmer registry packages
-          {
-            urlPattern: new RegExp('^https://registry\\.wasmer\\.io/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wasmer-registry',
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 }
-            }
-          },
-          // Cache Wasmer Web Shell (webassembly.sh) resources for offline usage
-          {
-            urlPattern: new RegExp('^https://webassembly\\.sh/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'webassembly-sh',
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 }
             }
           }
         ]

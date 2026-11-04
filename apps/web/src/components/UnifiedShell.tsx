@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createShellProfile, persistShellState, type ShellProfile, type ShellState } from "../services/shell";
 import { type WebSocketMessage, WebSocketConnections } from "../services/websocket";
 import { useStore } from "../store";
-import { GhosttyTerminal, type GhosttyTerminalChunk } from "./GhosttyTerminal";
-import { WebShell } from "./WebShell";
+import { GitClonePanel } from "./GitClonePanel";
 import { errorMessage } from "../utils/error";
 import "./UnifiedShell.css";
 
@@ -99,7 +98,6 @@ export function UnifiedShell() {
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [gridProfileIds, setGridProfileIds] = useState<string[]>([]);
   const [sessionState, setSessionState] = useState<Record<string, ShellSession>>({});
-  const [showWasmShell, setShowWasmShell] = useState(false);
   const [connections] = useState(() => new WebSocketConnections());
   const nextMessageIdRef = useRef(0);
 
@@ -267,6 +265,13 @@ export function UnifiedShell() {
         .filter((profile): profile is ShellProfile => profile !== undefined),
     [gridProfileIds, shell.profiles],
   );
+  const connectedTargets = useMemo(
+    () =>
+      shell.profiles
+        .filter((profile) => sessionState[profile.id]?.status === "connected")
+        .map((profile) => ({ id: profile.id, name: profile.name, url: profile.url })),
+    [sessionState, shell.profiles],
+  );
   const renderedSessionData = useMemo(
     () =>
       Object.fromEntries(
@@ -274,10 +279,6 @@ export function UnifiedShell() {
           profileId,
           {
             classicTranscript: session.messages.map((message) => message.terminalText).join(""),
-            terminalChunks: session.messages.map((message) => ({
-              id: message.id,
-              data: message.terminalText,
-            })),
           },
         ]),
       ),
@@ -422,20 +423,6 @@ export function UnifiedShell() {
         <div className="shell-toolbar-group">
           <button
             type="button"
-            className={`shell-chip ${shell.preferences.terminalMode === "ghostty" ? "active" : ""}`}
-            onClick={() => updateShellPreferences({ terminalMode: "ghostty" })}
-          >
-            Ghostty mode
-          </button>
-          <button
-            type="button"
-            className={`shell-chip ${shell.preferences.terminalMode === "classic" ? "active" : ""}`}
-            onClick={() => updateShellPreferences({ terminalMode: "classic" })}
-          >
-            Classic mode
-          </button>
-          <button
-            type="button"
             className="shell-chip"
             onClick={() => updateShellPreferences({ fontSize: clampFontSize(shell.preferences.fontSize - 1) })}
           >
@@ -465,13 +452,6 @@ export function UnifiedShell() {
             onClick={() => updateShellPreferences({ enableHaptics: !shell.preferences.enableHaptics })}
           >
             Haptics
-          </button>
-          <button
-            type="button"
-            className={`shell-chip ${showWasmShell ? "active" : ""}`}
-            onClick={() => setShowWasmShell((current) => !current)}
-          >
-            {showWasmShell ? "Hide" : "Show"} webassembly.sh
           </button>
         </div>
       </div>
@@ -517,11 +497,20 @@ export function UnifiedShell() {
             </div>
           </div>
 
+          <GitClonePanel
+            owner={config.owner}
+            repo={config.repo}
+            branch={config.branch}
+            githubToken={config.githubToken}
+            targets={connectedTargets}
+            onClone={(profileId, command) => sendInput(profileId, `${command}\n`)}
+          />
+
           {shell.profiles.length === 0 ? (
             <div className="shell-empty-state">
               <strong>No shells saved yet.</strong>
               <span>
-                Save a WebSocket endpoint to get multi-session panes, Ghostty rendering, and quick mobile actions.
+                Save a WebSocket endpoint to get multi-session panes and quick mobile actions.
               </span>
             </div>
           ) : (
@@ -597,7 +586,7 @@ export function UnifiedShell() {
           <div className="shell-main-header">
             <div>
               <h2>Session grid</h2>
-              <p>Pin up to four saved shells side-by-side and switch between lightweight and Ghostty terminals.</p>
+              <p>Pin up to four saved shells side-by-side.</p>
             </div>
             <div className="shell-toolbar-text">
               {activeProfiles.length} / {MAX_GRID_PANES} panes active
@@ -613,10 +602,7 @@ export function UnifiedShell() {
             <div className={buildGridClassName(activeProfiles.length)}>
               {activeProfiles.map((profile) => {
                 const session = sessionState[profile.id] ?? createEmptySession(profile.id);
-                const renderedSession = renderedSessionData[profile.id] ?? {
-                  classicTranscript: "",
-                  terminalChunks: [] as GhosttyTerminalChunk[],
-                };
+                const renderedSession = renderedSessionData[profile.id] ?? { classicTranscript: "" };
 
                 return (
                   <article
@@ -665,22 +651,13 @@ export function UnifiedShell() {
                     </div>
 
                     <div className="shell-pane-body">
-                      {shell.preferences.terminalMode === "ghostty" ? (
-                        <GhosttyTerminal
-                          chunks={renderedSession.terminalChunks}
-                          fontSize={shell.preferences.fontSize}
-                          active
-                          onData={(data) => sendInput(profile.id, data)}
-                        />
-                      ) : (
-                        <pre
-                          className={`shell-classic-terminal shell-font-${session.messages.length > 0 ? "ready" : "empty"}`}
-                          style={{ fontSize: `${shell.preferences.fontSize}px` }}
-                        >
-                          {renderedSession.classicTranscript ||
-                            "Connected output will appear here.\nUse the input box below or the accessory bar to interact with the session."}
-                        </pre>
-                      )}
+                      <pre
+                        className={`shell-classic-terminal shell-font-${session.messages.length > 0 ? "ready" : "empty"}`}
+                        style={{ fontSize: `${shell.preferences.fontSize}px` }}
+                      >
+                        {renderedSession.classicTranscript ||
+                          "Connected output will appear here.\nUse the input box below or the accessory bar to interact with the session."}
+                      </pre>
                     </div>
 
                     {shell.preferences.showAccessoryBar && (
@@ -723,20 +700,6 @@ export function UnifiedShell() {
                 );
               })}
             </div>
-          )}
-
-          {showWasmShell && (
-            <section className="shell-wasm-panel">
-              <div className="shell-main-header">
-                <div>
-                  <h2>webassembly.sh fallback</h2>
-                  <p>
-                    Keep the old browser shell available when you want a standalone sandbox tab beside the new grid.
-                  </p>
-                </div>
-              </div>
-              <WebShell />
-            </section>
           )}
         </section>
       </div>

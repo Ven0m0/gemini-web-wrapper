@@ -19,14 +19,13 @@ describe('shell service', () => {
         { name: 'Missing URL' },
       ],
       preferences: {
-        terminalMode: 'classic',
+        terminalMode: 'ghostty',
         fontSize: 40,
         enableHaptics: false,
       },
     });
 
     expect(state.preferences).toEqual({
-      terminalMode: 'classic',
       fontSize: 22,
       enableHaptics: false,
       showAccessoryBar: true,
@@ -75,10 +74,27 @@ describe('git clone helpers', () => {
 
   it('single-quotes the token and escapes embedded quotes', () => {
     const cmd = buildCloneCommand('https://github.com/a/b', true, 'ghp_abc');
-    expect(cmd.startsWith("GITHUB_TOKEN='ghp_abc' git -c credential.helper=")).toBe(true);
+    // Leading space keeps the line out of shell history under HISTCONTROL=ignorespace.
+    expect(cmd.startsWith(" GITHUB_TOKEN='ghp_abc' git -c credential.https://github.com.helper=")).toBe(true);
     expect(cmd.endsWith('clone https://github.com/a/b')).toBe(true);
+    // Helper is scoped to github.com so a redirect target never receives the token.
+    expect(cmd).toContain('-c credential.https://github.com.helper= -c credential.https://github.com.helper=');
+    expect(cmd).not.toContain(' -c credential.helper=');
+    expect(cmd).toContain('username=x-access-token');
+    expect(cmd).not.toContain('oauth2');
 
     const hostile = buildCloneCommand('https://github.com/a/b', true, "x'; touch /tmp/pwn; '$(id)");
-    expect(hostile.startsWith("GITHUB_TOKEN='x'\\''; touch /tmp/pwn; '\\''$(id)' git")).toBe(true);
+    expect(hostile.startsWith(" GITHUB_TOKEN='x'\\''; touch /tmp/pwn; '\\''$(id)' git")).toBe(true);
+  });
+
+  it('adds a safe branch and drops unsafe ones', () => {
+    expect(buildCloneCommand('https://github.com/a/b', false, '', 'feat/x-1.2_y')).toBe(
+      'git clone --branch feat/x-1.2_y https://github.com/a/b',
+    );
+    expect(buildCloneCommand('https://github.com/a/b', true, 'tok', 'main')).toContain(' clone --branch main https://');
+    expect(buildCloneCommand('https://github.com/a/b', false, '', '')).toBe('git clone https://github.com/a/b');
+    for (const bad of ['--upload-pack=evil', '-x', 'a b', 'a;id', '$(id)', 'a`id`']) {
+      expect(buildCloneCommand('https://github.com/a/b', false, '', bad)).toBe('git clone https://github.com/a/b');
+    }
   });
 });

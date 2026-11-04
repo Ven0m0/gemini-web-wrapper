@@ -38,7 +38,7 @@ The frontend currently routes between these modes:
 | --- | --- |
 | `chat` | OpenAI-compatible chat UI |
 | `agent` | SSE-driven agent chat UI |
-| `shell` | WebSocket shell sessions, Ghostty rendering, and `webassembly.sh` fallback |
+| `shell` | WebSocket shell sessions and a git clone helper |
 | `editor` | File editing and review |
 | `tool` | GitHub browsing plus repo index status and search |
 | `settings` | Provider, GitHub, and gateway configuration |
@@ -61,6 +61,7 @@ The FastAPI app in `apps/api/src/affine/api/server.py` mounts these active route
 | --- | --- | --- |
 | `GET` | `/health` | Health probe |
 | `GET` | `/v1/models` | Returns the built-in model catalog |
+| `POST` | `/v1/models` | Lists live models from the resolved provider endpoint (body: optional `x_provider`, `x_provider_api_key`, `x_provider_base_url`); upstream failures return 502 |
 | `POST` | `/v1/chat/completions` | OpenAI-compatible chat completions |
 | `POST` | `/v1/agent/chat` | Agent streaming over SSE |
 | `POST` | `/v1/repo/index` | GitHub repository indexing |
@@ -169,7 +170,6 @@ bun run build
 # API
 cd apps/api
 uv sync --all-extras
-export PYTHONPATH=src:../../packages/config/src
 uv run ruff format --check
 uv run ruff check
 uv run pyrefly check

@@ -77,7 +77,6 @@ bun run build
 ```bash
 cd apps/api
 uv sync --all-extras
-export PYTHONPATH=src:../../packages/config/src
 uv run ruff format --check
 uv run ruff check
 uv run pyrefly check
@@ -98,8 +97,8 @@ cd packages/code-index && uv sync && uv run ruff format --check src/ && uv run r
 ### Run the API
 
 ```bash
-cd apps/api
-PYTHONPATH=src:../../packages/config/src uv run uvicorn affine.api.server:app --reload
+# From the repo root (reads the root .env). `bun run dev` starts API + web together.
+bun run dev:api
 ```
 
 ### Run the web app

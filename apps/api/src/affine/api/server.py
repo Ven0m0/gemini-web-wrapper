@@ -27,6 +27,7 @@ from affine.shared.openai_schemas import (
     ChatCompletionChunk,
     ChatCompletionRequest,
     ChatCompletionResponse,
+    ModelListRequest,
 )
 
 app = FastAPI(title="Affine AI Workstation API")
@@ -74,7 +75,8 @@ def verify_api_key(
     if not settings.api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server API key is not configured",
+            detail="Server API key is not configured. Set API_KEY in .env (or the "
+            "environment) and enter the same value as Server API Key in Settings.",
         )
     if not credentials or not secrets.compare_digest(
         credentials.credentials, settings.api_key
@@ -99,7 +101,15 @@ def _extract_non_empty_text(value: object) -> str | None:
     return None
 
 
+# Upstream bodies can be arbitrary pages (e.g. an internal host behind a custom base URL).
+_MAX_UPSTREAM_DETAIL_CHARS = 300
+
+
 def _upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
+    return _raw_upstream_error_detail(exc)[:_MAX_UPSTREAM_DETAIL_CHARS]
+
+
+def _raw_upstream_error_detail(exc: httpx.HTTPStatusError) -> str:
     response = exc.response
     try:
         data = response.json()
@@ -261,6 +271,72 @@ async def health():
 @app.get("/v1/models", dependencies=[Depends(verify_api_key)])
 async def list_models():
     return {"data": MODEL_CATALOG}
+
+
+@app.post("/v1/models", dependencies=[Depends(verify_api_key)])
+async def list_provider_models(
+    request: ModelListRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """List models from the live provider endpoint for the resolved provider."""
+    api_key = request.x_provider_api_key
+    base_url = request.x_provider_base_url
+    if (
+        request.x_provider
+        and not api_key
+        and ProviderFactory.is_registered(request.x_provider)
+    ):
+        # Unlike chat, listing targets the requested builtin provider with the
+        # server key so the UI can show its models without a browser key.
+        api_key = settings.provider_api_key(request.x_provider)
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No API key for provider '{request.x_provider}'. "
+                "Enter a provider key in Settings or configure one on the server.",
+            )
+        # Never send the server key to a caller-supplied endpoint.
+        base_url = settings.provider_base_url(request.x_provider)
+    provider = _build_provider(
+        request.x_provider,
+        api_key,
+        base_url,
+        # Listing ignores the model, but providers require a non-empty one.
+        "model-list",
+        settings,
+    )
+    try:
+        models = await provider.list_models()
+        unique = {m["id"]: m for m in models if isinstance(m["id"], str)}
+        data = [unique[model_id] for model_id in sorted(unique)]
+    except httpx.HTTPStatusError as exc:
+        # Redact before truncating so a key cut at the boundary cannot leak a prefix.
+        detail = _raw_upstream_error_detail(exc)
+        for secret in (api_key, settings.provider_api_key()):
+            if secret:
+                detail = detail.replace(secret, "***")
+        detail = detail[:_MAX_UPSTREAM_DETAIL_CHARS]
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Provider returned {exc.response.status_code} while listing "
+            f"models: {detail}",
+        ) from exc
+    except httpx.RequestError as exc:
+        # str(exc) can include the request URL, which carries the Gemini key.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not reach the provider to list models",
+        ) from exc
+    except (ValueError, TypeError, AttributeError, KeyError) as exc:
+        # A non-conforming JSON shape surfaces as any of these while parsing.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Provider returned an invalid model list",
+        ) from exc
+    finally:
+        await provider.aclose()
+
+    return {"data": data}
 
 
 @app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])

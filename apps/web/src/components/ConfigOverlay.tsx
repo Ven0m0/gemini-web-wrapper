@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { canFetchProviderModels, describeModelError, fetchProviderModels } from '../services/models';
 import {
   ensureModelSelection,
   ensureProviderSelection,
@@ -9,6 +10,7 @@ import {
 } from '../services/providers';
 import { clearStorage, hasSavedConfig, loadConfig, saveConfig } from '../services/storage';
 import { useStore } from '../store';
+import { generateId } from '../utils/id';
 
 interface ConfigOverlayProps {
   /**
@@ -55,6 +57,10 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   /** Brief confirmation shown in inline mode after a successful save. */
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [storageMessage, setStorageMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  /** Incremented per model request so responses for a deselected provider are dropped. */
+  const modelRequestRef = useRef(0);
 
   useEffect(() => {
     const migratedConfig = migrateSavedConfig(config);
@@ -92,9 +98,58 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     setProviders(providers);
   };
 
+  const refreshModels = async (provider: ProviderConfig) => {
+    const requestId = ++modelRequestRef.current;
+    setModelsLoading(true);
+    setModelsError(null);
+    try {
+      const models = await fetchProviderModels(localConfig.openaiKey, provider);
+      if (requestId !== modelRequestRef.current) return;
+      if (models.length === 0) {
+        throw new Error('Provider returned no models');
+      }
+      // Functional update: the response can land after other edits to localConfig.
+      setLocalConfig((current) => {
+        // Keep a selected model the provider did not list (e.g. a hand-entered id).
+        const keepSelected =
+          current.provider === provider.id && current.model && !models.some((model) => model.id === current.model);
+        const listed = keepSelected ? [...models, { id: current.model, name: current.model }] : models;
+        const providers = current.providers.map((entry) =>
+          entry.id === provider.id
+            ? { ...entry, models: listed.map((model) => ({ ...model, uid: generateId() })) }
+            : entry
+        );
+        const providerId = ensureProviderSelection(current.provider, providers);
+        const model = ensureModelSelection(providerId, current.model, providers);
+        return { ...current, providers, provider: providerId, model };
+      });
+    } catch (error) {
+      if (requestId === modelRequestRef.current) {
+        setModelsError(describeModelError(error));
+      }
+    } finally {
+      if (requestId === modelRequestRef.current) {
+        setModelsLoading(false);
+      }
+    }
+  };
+
   const handleSelectProvider = (providerId: string) => {
     const provider = getProviderById(localConfig.providers, providerId);
     setProviders(localConfig.providers, providerId, provider?.models[0]?.id);
+    modelRequestRef.current += 1;
+    setModelsLoading(false);
+    setModelsError(null);
+    // Custom providers refresh only on explicit click, so switching never wipes hand-entered models.
+    if (provider?.builtin && localConfig.openaiKey && canFetchProviderModels(provider)) {
+      void refreshModels(provider);
+    }
+  };
+
+  /** Drop any in-flight model refresh so a late response cannot rewrite the draft. */
+  const cancelModelRefresh = () => {
+    modelRequestRef.current += 1;
+    setModelsLoading(false);
   };
 
   const handleAddProvider = () => {
@@ -135,6 +190,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
       return;
     }
 
+    cancelModelRefresh();
     const normalized = migrateProviderSelections({
       ...localConfig,
       owner: parsedRepo.owner,
@@ -162,6 +218,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
   };
 
   const handleCancel = () => {
+    cancelModelRefresh();
     const migratedConfig = migrateSavedConfig(config);
     setLocalConfig(migratedConfig);
     setTemperatureInput(String(migratedConfig.temperature));
@@ -176,6 +233,7 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
     if (hasSavedConfig()) {
       try {
         const loaded = loadConfig(localConfig);
+        cancelModelRefresh();
         setLocalConfig(loaded);
         setTemperatureInput(String(loaded.temperature));
         setRepoInput(formatRepositoryInput(loaded.owner, loaded.repo));
@@ -359,16 +417,37 @@ export const ConfigOverlay: React.FC<ConfigOverlayProps> = ({ inline = false }) 
 
             <div className="config-field">
               <label>Model</label>
-              <select
-                value={localConfig.model}
-                onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
-              >
-                {availableModels.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <select
+                  value={localConfig.model}
+                  onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
+                  style={{ flex: 1 }}
+                >
+                  {availableModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="config-action-btn"
+                  onClick={() => void refreshModels(selectedProvider)}
+                  disabled={modelsLoading || !localConfig.openaiKey || !canFetchProviderModels(selectedProvider)}
+                >
+                  {modelsLoading ? 'Loading...' : 'Refresh models'}
+                </button>
+              </div>
+              <small>
+                {localConfig.openaiKey && canFetchProviderModels(selectedProvider)
+                  ? 'Fetches the live model list from the provider endpoint.'
+                  : 'Enter the Server API Key (and a base URL for custom providers) to fetch live models.'}
+              </small>
+              {modelsError && (
+                <div className="config-status error" role="alert">
+                  Could not refresh models: {modelsError}
+                </div>
+              )}
             </div>
 
             {!selectedProvider.builtin && (
