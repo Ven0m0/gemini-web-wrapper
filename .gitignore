@@ -5,52 +5,48 @@ node_modules/
 .bun/
 bun.lockb
 
-# Testing
-coverage/
-
-# Production
+# Build output
 build/
 dist/
-
-# Misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Logs
-*.log
-*.logs/
-
-# Runtime data
-*.pid
-*.pid.lock
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
+dev-dist/
+*.tsbuildinfo
 *.tgz
 
-# dotenv environment variables file
+# Testing and coverage
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+.vitest/
+
+# Caches
+.cache/
+.eslintcache
+.vite/
+.turbo/
+.npm
+.ruff_cache/
+.mypy_cache/
+.pyrefly/
+.node_repl_history
+
+# Environment and secrets (keep .env.example tracked)
 .env
-.env.test
-.env.production
+.env.*
+!.env.example
+*.local
+gha-creds-*.json
+
+# Logs and runtime data
+*.log
+logs/
+*.pid
+*.pid.lock
 
 # Temporary folders
 tmp/
 temp/
-
-# Editor directories and files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
 
 # Python
 __pycache__/
@@ -60,44 +56,42 @@ __pycache__/
 .Python
 venv/
 .venv/
-.pytest_cache/
-.coverage
-htmlcov/
 *.egg-info/
-*.tsbuildinfo
+
+# Local databases (e.g. REPO_INDEX_DB_PATH)
 *.db
+*.db-shm
+*.db-wal
 
-# Vercel
-.vercel
-
-# PWA
-dev-dist/
-*.local
+# Editors and IDEs (keep shared extension recommendations tracked)
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
 # OS
+.DS_Store
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# IDE
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# GitHub App credentials
-gha-creds-*.json
-
-# Local Netlify folder
+# Deployment tooling
+.vercel
 .netlify/
 
+# Agent tooling and local state
 .claude/context-archive/
+.claude/logs/
+.claude/settings.local.json
 .codegraph/
 .omc/
 **/.omc/
-**/.omc/**
 .omx/
 **/.omx/
-**/.omx/**
