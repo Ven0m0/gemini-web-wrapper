@@ -2811,7 +2811,7 @@ wheels = [
 
 [[package]]
 name = "voyageai"
-version = "0.5.0"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2824,9 +2824,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "tokenizers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/d3/b96ecab961692dd55fc5b54fef916c2bc37a942ef33fcc937779d2aaa161/voyageai-0.5.0.tar.gz", hash = "sha256:ed2775fe9faeb96cc2b3931edc35d76185d19f34f1523d1f70535f0451126ae9", size = 37000, upload-time = "2026-07-10T20:13:14.884Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/4d/f5cd158dbeb75e63ed955e84ac242184a8a73e07bdab0cbb6cdc6bc651d1/voyageai-0.6.0.tar.gz", hash = "sha256:9327de6130f8f755211470a4d135186461796c3c316488199c7485eea9213b69", size = 38358, upload-time = "2026-11-10T07:47:30.206Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/c4/732038d97a0ac02d690f295a9ee28f4d0553894478ca6944411428e544f7/voyageai-0.5.0-py3-none-any.whl", hash = "sha256:5d7e8dc3b74cac4646d4a835a65cf8c9764070c90353e322d84a91a16207e78b", size = 46561, upload-time = "2026-07-10T20:13:13.909Z" },
+    { url = "https://files.pythonhosted.org/packages/44/97/0c47cc38ee936356aef9dc7597577f08abbb6bdc8fee731ef2e0282bf36c/voyageai-0.6.0-py3-none-any.whl", hash = "sha256:54056603896c867d63c78d159415239a4bb767d8973bebb731500584444986ef", size = 48068, upload-time = "2026-11-10T07:47:29.208Z" },
 ]
 
 [[package]]
