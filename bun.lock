@@ -651,7 +651,7 @@
 
     "ejs": ["ejs@3.1.10", "", { "dependencies": { "jake": "^10.8.5" }, "bin": { "ejs": "bin/cli.js" } }, "sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA=="],
 
-    "electron-to-chromium": ["electron-to-chromium@1.5.480", "", {}, "sha512-7WLDoWPKc+YiH37GshK2sLagySSbcQk3K2s6swA3x+BtWUH8BtphwL+YqarJQi09Sbf+LOCIW75RQooN2PqXsA=="],
+    "electron-to-chromium": ["electron-to-chromium@1.5.481", "", {}, "sha512-dNUsbAP6E2S1dHIYEuN3cQ0dViThjMtpVRheGdvv5HgHFtzLi4Cu4Mbzms85YggP3Eh2VVZTl5+XxEN8ofCbmQ=="],
 
     "entities": ["entities@4.5.0", "", {}, "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="],
 
