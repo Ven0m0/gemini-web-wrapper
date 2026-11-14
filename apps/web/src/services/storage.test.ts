@@ -4,7 +4,7 @@ import { ConfigState } from '../store';
 
 describe('storage service', () => {
   const mockConfig: Partial<ConfigState> = {
-    githubToken: 'ghp_secret_token',
+    githubToken: 'fake-github-token',
     openaiKey: 'sk-openai-key',
     owner: 'test-owner',
     repo: 'test-repo',
@@ -46,7 +46,7 @@ describe('storage service', () => {
     // Verify sessionStorage call (full config)
     const sessionCall = vi.mocked(sessionStorage.setItem).mock.calls[0];
     const sessionData = JSON.parse(sessionCall[1]);
-    expect(sessionData.githubToken).toBe('ghp_secret_token');
+    expect(sessionData.githubToken).toBe('fake-github-token');
     expect(sessionData.providers[0].apiKey).toBe('provider-secret-key');
 
     // Verify localStorage call (sanitized config)
@@ -66,13 +66,13 @@ describe('storage service', () => {
     );
     vi.mocked(sessionStorage.getItem).mockReturnValue(
       JSON.stringify({
-        githubToken: 'ghp_session_token',
+        githubToken: 'fake-session-token',
       })
     );
 
     const loaded = loadConfig({} as ConfigState);
     expect(loaded.owner).toBe('test-owner');
-    expect(loaded.githubToken).toBe('ghp_session_token');
+    expect(loaded.githubToken).toBe('fake-session-token');
   });
 
   it('loadConfig handles malicious or unexpected data safely', () => {
