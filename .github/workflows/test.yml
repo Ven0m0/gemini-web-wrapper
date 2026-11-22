@@ -25,7 +25,7 @@ jobs:
           node-version: "26.13.1"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.5"
+          bun-version: "1.4.4"
       - run: bun install
         working-directory: apps/web
       - run: bun run test
